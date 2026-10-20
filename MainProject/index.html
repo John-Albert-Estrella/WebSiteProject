@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classroom Progress Monitor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="navbar">
+    <h2>Classroom Progress Board — Grade 10 Math</h2>
+  </header>
+
+  <!-- Board Container -->
+  <main class="board-container">
+    
+    <!-- Column 1: Needs Help -->
+    <div class="list">
+      <h3 class="list-title">Needs Attention <span>(2)</span></h3>
+      <div class="cards-container">
+        <div class="card" draggable="true">
+          <span class="tag tag-urgent">Urgent</span>
+          <h4>Alex Rivera</h4>
+          <p>Missing Module 3 Homework</p>
+        </div>
+        <div class="card" draggable="true">
+          <span class="tag tag-warning">Quiz Retake</span>
+          <h4>Jordan Smith</h4>
+          <p>Algebra Unit 2 Remediation</p>
+        </div>
+      </div>
+      <button class="add-card-btn">+ Add Student Note</button>
+    </div>
+
+    <!-- Column 2: In Progress -->
+    <div class="list">
+      <h3 class="list-title">In Progress <span>(1)</span></h3>
+      <div class="cards-container">
+        <div class="card" draggable="true">
+          <span class="tag tag-normal">Project</span>
+          <h4>Taylor Swift</h4>
+          <p>Midterm Lab Report</p>
+        </div>
+      </div>
+      <button class="add-card-btn">+ Add Student Note</button>
+    </div>
+
+    <!-- Column 3: Submitted / Pending Grade -->
+    <div class="list">
+      <h3 class="list-title">Submitted <span>(1)</span></h3>
+      <div class="cards-container">
+        <div class="card" draggable="true">
+          <span class="tag tag-info">Review</span>
+          <h4>Morgan Lee</h4>
+          <p>Essay Draft 2</p>
+        </div>
+      </div>
+      <button class="add-card-btn">+ Add Student Note</button>
+    </div>
+
+    <!-- Column 4: Completed -->
+    <div class="list">
+      <h3 class="list-title">Passed / Complete <span>(1)</span></h3>
+      <div class="cards-container">
+        <div class="card" draggable="true">
+          <span class="tag tag-success">Passed</span>
+          <h4>Chris Evans</h4>
+          <p>All Q1 Requirements</p>
+        </div>
+      </div>
+      <button class="add-card-btn">+ Add Student Note</button>
+    </div>
+
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
