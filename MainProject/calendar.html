@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EARIST Class Monitor — Events Calendar</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-badge">EARIST</div>
+        <h3 class="brand-title">Class Monitor</h3>
+      </div>
+
+      <nav class="sidebar-menu">
+        <button class="nav-btn" data-page="index.html"><span class="icon">📊</span> Dashboard</button>
+        <button class="nav-btn" data-page="attendance.html"><span class="icon">📋</span> Attendance Roll Call</button>
+        <button class="nav-btn" data-page="groupings.html"><span class="icon">👥</span> Groupings Selection</button>
+        <button class="nav-btn" data-page="roulette.html"><span class="icon">🎰</span> Student Roulette</button>
+        <button class="nav-btn" data-page="polls.html"><span class="icon">🗳️</span> Live Polls</button>
+        <button class="nav-btn" data-page="file-vault.html"><span class="icon">📁</span> File Vault</button>
+        <button class="nav-btn" data-page="calendar.html"><span class="icon">📅</span> Events Calendar</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="code-box">
+          <span class="code-label">CLASS CODE</span>
+          <span class="code-value">---</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-nav">
+        <div>
+          <h1 class="page-title">Events Calendar & Schedule</h1>
+          <p class="sub-title">Manage exams, project deadlines, and consultations</p>
+        </div>
+        <div class="top-nav-controls">
+          <button id="theme-toggle" class="theme-toggle-btn">🌙 Dark Mode</button>
+          <button id="add-event-btn" class="btn btn-maroon">+ Add Event</button>
+        </div>
+      </header>
+
+      <div class="dashboard-grid">
+        <section class="card span-2">
+          <div class="card-header">
+            <h3>Scheduled Academic Deadlines</h3>
+            <span class="pill-tag tag-gold">Schedule</span>
+          </div>
+
+          <div id="events-list-container" class="calendar-events-list">
+            <p class="sub-title" style="text-align: center; padding: 20px;">No events scheduled on the calendar.</p>
+          </div>
+        </section>
+
+        <section class="card card-gold span-1">
+          <div class="card-header">
+            <h3>Calendar Key</h3>
+            <span class="pill-tag tag-dark">Legend</span>
+          </div>
+          <div class="student-status-list">
+            <div class="student-row"><span class="badge badge-absent">Red Tag</span> Major Exam</div>
+            <div class="student-row"><span class="badge badge-late">Yellow Tag</span> Submission Deadline</div>
+            <div class="student-row"><span class="badge badge-present">Green Tag</span> Class Activity / Lab</div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/sidebar.js"></script>
+</body>
+</html>

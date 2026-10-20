@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EARIST Class Monitor — Live Polls</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-badge">EARIST</div>
+        <h3 class="brand-title">Class Monitor</h3>
+      </div>
+
+      <nav class="sidebar-menu">
+        <button class="nav-btn" data-page="index.html"><span class="icon">📊</span> Dashboard</button>
+        <button class="nav-btn" data-page="attendance.html"><span class="icon">📋</span> Attendance Roll Call</button>
+        <button class="nav-btn" data-page="groupings.html"><span class="icon">👥</span> Groupings Selection</button>
+        <button class="nav-btn" data-page="roulette.html"><span class="icon">🎰</span> Student Roulette</button>
+        <button class="nav-btn" data-page="polls.html"><span class="icon">🗳️</span> Live Polls</button>
+        <button class="nav-btn" data-page="file-vault.html"><span class="icon">📁</span> File Vault</button>
+        <button class="nav-btn" data-page="calendar.html"><span class="icon">📅</span> Events Calendar</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="code-box">
+          <span class="code-label">CLASS CODE</span>
+          <span class="code-value">---</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-nav">
+        <div>
+          <h1 class="page-title">Live Class Polls</h1>
+          <p class="sub-title">Conduct live student voting and lecture questions</p>
+        </div>
+        <div class="top-nav-controls">
+          <button id="theme-toggle" class="theme-toggle-btn">🌙 Dark Mode</button>
+          <button id="create-poll-btn" class="btn btn-gold">+ Create New Poll</button>
+        </div>
+      </header>
+
+      <div class="dashboard-grid">
+        <section class="card span-2">
+          <div class="card-header">
+            <h3 id="active-poll-title">No Active Poll</h3>
+            <span id="poll-status-tag" class="pill-tag">Inactive</span>
+          </div>
+          <p id="active-poll-question" class="sub-title">Create a new poll to collect real-time responses from students.</p>
+          
+          <div id="poll-options-container" class="student-status-list" style="margin-top: 12px;">
+            <!-- Options dynamically added here -->
+          </div>
+        </section>
+
+        <section class="card card-gold span-1">
+          <div class="card-header">
+            <h3>Poll Summary</h3>
+            <span class="pill-tag tag-dark">Status</span>
+          </div>
+          <div class="stat-box">
+            <span id="total-poll-votes" class="stat-num">0</span>
+            <span class="stat-label">Total Response Votes</span>
+          </div>
+          <button id="close-poll-btn" class="btn btn-maroon" style="width: 100%;">Clear / Close Poll</button>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/sidebar.js"></script>
+</body>
+</html>

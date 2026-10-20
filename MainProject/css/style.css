@@ -1,0 +1,461 @@
+/* ==========================================================================
+   EARIST Class Monitor — Minimalist Theme (Light & Dark Mode Support)
+   Palette: Institutional Maroon (#800000) & Refined Accent Gold (#D4AF37)
+   ========================================================================== */
+
+/* 1. CSS VARIABLES & COLOR PALETTES */
+:root {
+  /* EARIST Identity Brand Colors */
+  --earist-maroon: #800000;
+  --earist-maroon-hover: #600000;
+  --earist-gold: #D4AF37; /* Refined metallic gold */
+  --earist-gold-subtle: rgba(212, 175, 55, 0.12);
+
+  /* Light Theme Defaults */
+  --bg-main: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-border: #E2E8F0;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
+  --sidebar-bg: #FFFFFF;
+  --sidebar-active-bg: #F1F5F9;
+  --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+
+  /* Status Colors */
+  --status-present-bg: #DCFCE7;
+  --status-present-text: #15803D;
+  --status-late-bg: #FEF3C7;
+  --status-late-text: #B45309;
+  --status-absent-bg: #FEE2E2;
+  --status-absent-text: #B91C1C;
+
+  /* Spacing & Borders */
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --radius-sm: 6px;
+  --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark Mode Overrides */
+[data-theme="dark"] {
+  --bg-main: #0F172A;
+  --surface: #1E293B;
+  --surface-border: #334155;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --sidebar-bg: #1E293B;
+  --sidebar-active-bg: #334155;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+
+  --status-present-bg: rgba(21, 128, 61, 0.2);
+  --status-present-text: #4ADE80;
+  --status-late-bg: rgba(180, 83, 9, 0.2);
+  --status-late-text: #FBBF24;
+  --status-absent-bg: rgba(185, 28, 28, 0.2);
+  --status-absent-text: #F87171;
+}
+
+/* 2. GLOBAL RESET */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom Minimalist Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 3px; }
+
+/* 3. APP LAYOUT */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* 4. SIDEBAR NAVIGATION */
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--surface-border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px;
+  gap: 20px;
+  transition: var(--transition-smooth);
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.brand-badge {
+  background-color: var(--earist-maroon);
+  color: #FFFFFF;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.5px;
+}
+
+.brand-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-grow: 1;
+}
+
+.sidebar-menu .nav-btn {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.sidebar-menu .nav-btn:hover {
+  background-color: var(--sidebar-active-bg);
+  color: var(--text-primary);
+}
+
+.sidebar-menu .nav-btn.active {
+  background-color: var(--sidebar-active-bg);
+  color: var(--earist-maroon);
+  border-color: var(--surface-border);
+  font-weight: 700;
+}
+
+[data-theme="dark"] .sidebar-menu .nav-btn.active {
+  color: var(--earist-gold);
+}
+
+.sidebar-footer .code-box {
+  background-color: var(--sidebar-active-bg);
+  border: 1px solid var(--surface-border);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.code-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.code-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--earist-maroon);
+  letter-spacing: 1.5px;
+  font-family: monospace;
+}
+
+[data-theme="dark"] .code-value {
+  color: var(--earist-gold);
+}
+
+/* 5. MAIN CONTENT AREA */
+.main-content {
+  flex-grow: 1;
+  padding: 24px 32px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.sub-title {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Minimal Header Controls */
+.top-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-toggle-btn {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition-smooth);
+}
+
+.theme-toggle-btn:hover {
+  background: var(--sidebar-active-bg);
+}
+
+/* 6. MINIMALIST CARDS & GRID */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.span-1 { grid-column: span 1; }
+.span-2 { grid-column: span 2; }
+.span-3 { grid-column: span 3; }
+
+.card {
+  background-color: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: var(--transition-smooth);
+}
+
+/* Gold is now used purely as a clean, soft border or indicator */
+.card-gold {
+  border-left: 4px solid var(--earist-gold);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pill-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background-color: var(--sidebar-active-bg);
+  color: var(--text-secondary);
+}
+
+.tag-maroon {
+  background-color: rgba(128, 0, 0, 0.1);
+  color: var(--earist-maroon);
+}
+
+[data-theme="dark"] .tag-maroon {
+  background-color: rgba(212, 175, 55, 0.15);
+  color: var(--earist-gold);
+}
+
+/* STATS DISPLAY */
+.info-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.stat-box {
+  background-color: var(--bg-main);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  text-align: center;
+}
+
+.stat-num {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* 7. BUTTONS & BADGES */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.btn-maroon {
+  background-color: var(--earist-maroon);
+  color: #FFFFFF;
+}
+
+.btn-maroon:hover {
+  background-color: var(--earist-maroon-hover);
+}
+
+.btn-gold {
+  background-color: var(--earist-gold);
+  color: #0F172A;
+}
+
+.student-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bg-main);
+  border: 1px solid var(--surface-border);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-present { background-color: var(--status-present-bg); color: var(--status-present-text); }
+.badge-late    { background-color: var(--status-late-bg); color: var(--status-late-text); }
+.badge-absent  { background-color: var(--status-absent-bg); color: var(--status-absent-text); }
+
+/* ==========================================================================
+   9. Auth & Registration Page Styles
+   ========================================================================== */
+.auth-layout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: var(--bg-main);
+  padding: 20px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.auth-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.g_id_signin {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 8px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.auth-divider span {
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.form-group {
+  width: 100%;
+  text-align: left;
+}
+
+.auth-footer {
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--surface-border);
+}

@@ -3,77 +3,76 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Classroom Progress Monitor</title>
-  <link rel="stylesheet" href="style.css">
+  <title>EARIST Class Monitor — Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- Header -->
-  <header class="navbar">
-    <h2>Classroom Progress Board — Grade 10 Math</h2>
-  </header>
 
-  <!-- Board Container -->
-  <main class="board-container">
-    
-    <!-- Column 1: Needs Help -->
-    <div class="list">
-      <h3 class="list-title">Needs Attention <span>(2)</span></h3>
-      <div class="cards-container">
-        <div class="card" draggable="true">
-          <span class="tag tag-urgent">Urgent</span>
-          <h4>Alex Rivera</h4>
-          <p>Missing Module 3 Homework</p>
-        </div>
-        <div class="card" draggable="true">
-          <span class="tag tag-warning">Quiz Retake</span>
-          <h4>Jordan Smith</h4>
-          <p>Algebra Unit 2 Remediation</p>
+  <div class="app-layout">
+    <!-- SIDEBAR NAV -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-badge">EARIST</div>
+        <h3 class="brand-title">Class Monitor</h3>
+      </div>
+
+      <nav class="sidebar-menu">
+        <button class="nav-btn" data-page="index.html"><span class="icon">📊</span> Dashboard</button>
+        <button class="nav-btn" data-page="attendance.html"><span class="icon">📋</span> Attendance Roll Call</button>
+        <button class="nav-btn" data-page="groupings.html"><span class="icon">👥</span> Groupings Selection</button>
+        <button class="nav-btn" data-page="roulette.html"><span class="icon">🎰</span> Student Roulette</button>
+        <button class="nav-btn" data-page="polls.html"><span class="icon">🗳️</span> Live Polls</button>
+        <button class="nav-btn" data-page="file-vault.html"><span class="icon">📁</span> File Vault</button>
+        <button class="nav-btn" data-page="calendar.html"><span class="icon">📅</span> Events Calendar</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="code-box">
+          <span class="code-label">CLASS CODE</span>
+          <span id="display-class-code" class="code-value">---</span>
         </div>
       </div>
-      <button class="add-card-btn">+ Add Student Note</button>
-    </div>
+    </aside>
 
-    <!-- Column 2: In Progress -->
-    <div class="list">
-      <h3 class="list-title">In Progress <span>(1)</span></h3>
-      <div class="cards-container">
-        <div class="card" draggable="true">
-          <span class="tag tag-normal">Project</span>
-          <h4>Taylor Swift</h4>
-          <p>Midterm Lab Report</p>
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="main-content">
+      <header class="top-nav">
+        <div>
+          <h1 id="display-class-title" class="page-title">Classroom Dashboard</h1>
+          <p id="display-class-subtitle" class="sub-title">Select or join a class to view metrics</p>
         </div>
-      </div>
-      <button class="add-card-btn">+ Add Student Note</button>
-    </div>
-
-    <!-- Column 3: Submitted / Pending Grade -->
-    <div class="list">
-      <h3 class="list-title">Submitted <span>(1)</span></h3>
-      <div class="cards-container">
-        <div class="card" draggable="true">
-          <span class="tag tag-info">Review</span>
-          <h4>Morgan Lee</h4>
-          <p>Essay Draft 2</p>
+        <div class="top-nav-controls">
+          <button id="theme-toggle" class="theme-toggle-btn">🌙 Dark Mode</button>
+          <a href="register.html" id="user-profile-btn" class="btn btn-maroon btn-sm">👤 Register / Login</a>
         </div>
+      </header>
+
+      <div class="dashboard-grid">
+        <section class="card card-gold span-2">
+          <div class="card-header">
+            <h3>Class Overview</h3>
+            <span class="pill-tag tag-dark">Metrics</span>
+          </div>
+          <div class="info-stats-grid">
+            <div class="stat-box"><span id="total-students-count" class="stat-num">0</span><span class="stat-label">Total Enrolled</span></div>
+            <div class="stat-box"><span id="avg-attendance-rate" class="stat-num">0%</span><span class="stat-label">Avg. Attendance</span></div>
+            <div class="stat-box"><span id="active-files-count" class="stat-num">0</span><span class="stat-label">Uploaded Files</span></div>
+          </div>
+        </section>
+
+        <section class="card span-1">
+          <div class="card-header">
+            <h3>Next Scheduled Event</h3>
+            <span class="pill-tag tag-maroon">Calendar</span>
+          </div>
+          <div id="dashboard-next-event" class="calendar-events-list">
+            <p class="sub-title" style="text-align: center; padding: 12px;">No upcoming events scheduled.</p>
+          </div>
+        </section>
       </div>
-      <button class="add-card-btn">+ Add Student Note</button>
-    </div>
+    </main>
+  </div>
 
-    <!-- Column 4: Completed -->
-    <div class="list">
-      <h3 class="list-title">Passed / Complete <span>(1)</span></h3>
-      <div class="cards-container">
-        <div class="card" draggable="true">
-          <span class="tag tag-success">Passed</span>
-          <h4>Chris Evans</h4>
-          <p>All Q1 Requirements</p>
-        </div>
-      </div>
-      <button class="add-card-btn">+ Add Student Note</button>
-    </div>
-
-  </main>
-
-  <script src="script.js"></script>
+  <script src="js/sidebar.js"></script>
 </body>
 </html>

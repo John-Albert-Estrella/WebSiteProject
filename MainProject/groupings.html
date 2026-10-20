@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EARIST Class Monitor — Groupings Selection</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-badge">EARIST</div>
+        <h3 class="brand-title">Class Monitor</h3>
+      </div>
+
+      <nav class="sidebar-menu">
+        <button class="nav-btn" data-page="index.html"><span class="icon">📊</span> Dashboard</button>
+        <button class="nav-btn" data-page="attendance.html"><span class="icon">📋</span> Attendance Roll Call</button>
+        <button class="nav-btn" data-page="groupings.html"><span class="icon">👥</span> Groupings Selection</button>
+        <button class="nav-btn" data-page="roulette.html"><span class="icon">🎰</span> Student Roulette</button>
+        <button class="nav-btn" data-page="polls.html"><span class="icon">🗳️</span> Live Polls</button>
+        <button class="nav-btn" data-page="file-vault.html"><span class="icon">📁</span> File Vault</button>
+        <button class="nav-btn" data-page="calendar.html"><span class="icon">📅</span> Events Calendar</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="code-box">
+          <span class="code-label">CLASS CODE</span>
+          <span class="code-value">---</span>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-nav">
+        <div>
+          <h1 class="page-title">Groupings Selection</h1>
+          <p class="sub-title">Randomly divide active class roster into project teams</p>
+        </div>
+        <div class="top-nav-controls">
+          <button id="theme-toggle" class="theme-toggle-btn">🌙 Dark Mode</button>
+        </div>
+      </header>
+
+      <section class="card card-gold">
+        <div class="card-header">
+          <h3>Group Allocator</h3>
+          <span class="pill-tag tag-dark">Auto Settings</span>
+        </div>
+        <div class="info-stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">Desired Number of Groups</span>
+            <input type="number" id="num-groups-input" value="2" min="2" max="20" class="btn" style="width: 100%; text-align: center; margin-top: 8px;">
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Total Active Roster</span>
+            <span id="group-roster-count" class="stat-num" style="margin-top: 8px;">0</span>
+          </div>
+          <div class="stat-box" style="display: flex; align-items: center; justify-content: center;">
+            <button id="btn-generate-groups" class="btn btn-maroon" style="width: 100%;">🔀 Generate Groups</button>
+          </div>
+        </div>
+      </section>
+
+      <div id="generated-groups-grid" class="file-grid">
+        <p class="sub-title" style="text-align: center; grid-column: span 3; padding: 20px;">Click "Generate Groups" to split enrolled students into teams.</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/sidebar.js"></script>
+</body>
+</html>
