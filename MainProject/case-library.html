@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aimser - Case Library</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-role="faculty">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2>Aimser</h2>
+      <p>Management Simulator</p>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
+      <a href="case-library.html" class="nav-item active"><span>📁</span> HR Case Library</a>
+      <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
+      <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
+      <a href="relations.html" class="nav-item"><span>🤝</span> Employee Relations</a>
+      <a href="analytics.html" class="nav-item"><span>📉</span> HR Analytics</a>
+      <a href="portfolio.html" class="nav-item"><span>💼</span> Portfolio & Assessment</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN APP AREA -->
+  <main class="main-content">
+    
+    <!-- TOP NAVIGATION -->
+    <header class="topbar">
+      <div id="dynamic-greeting" style="font-weight: 600; color: var(--text-secondary);">
+        Welcome, Instructor
+      </div>
+      
+      <div class="role-toggle-container">
+        <span id="label-faculty" class="role-label active-faculty">Faculty</span>
+        <label class="switch">
+          <input type="checkbox" id="role-toggle-checkbox">
+          <span class="slider"></span>
+        </label>
+        <span id="label-student" class="role-label">Student</span>
+      </div>
+    </header>
+
+    <!-- DYNAMIC PAGE CONTENT -->
+    <div class="page-container">
+      <div class="page-header">
+        <h1 class="page-title">HR Case Library</h1>
+        <!-- Dynamic subtitles -->
+        <p class="page-subtitle faculty-view">Upload or create company cases and assign them to your students.</p>
+        <p class="page-subtitle student-view">Open assigned cases and download materials for your coursework.</p>
+      </div>
+
+      <div id="module-content">
+        
+        <!-- FACULTY VIEW: Upload & Manage -->
+        <div class="faculty-view">
+          <div class="card" style="margin-bottom: 24px;">
+            <h3 style="margin-bottom: 8px;">Upload New Case Study</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">Select a PDF or document to add to the library.</p>
+            
+            <div class="upload-dropzone">
+              <span style="font-size: 24px; display: block; margin-bottom: 8px;">📥</span>
+              <p>Drag & drop case files here or <strong>browse computer</strong></p>
+            </div>
+            
+            <button class="btn-primary" style="margin-top: 16px;">+ Assign to Class</button>
+          </div>
+
+          <h3 style="margin-bottom: 16px; color: var(--text-primary);">Active Cases</h3>
+          <div class="case-grid">
+            <div class="case-card">
+              <span style="font-size: 20px;">📄</span>
+              <div class="case-title">TechCorp Turnover Crisis</div>
+              <div class="case-meta">Uploaded: Oct 12 • Assigned to: HR-301</div>
+              <button class="btn-outline">Edit Details</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- STUDENT VIEW: View & Download -->
+        <div class="student-view">
+          <h3 style="margin-bottom: 16px; color: var(--text-primary);">Assigned Case Studies</h3>
+          <div class="case-grid">
+            <div class="case-card">
+              <span style="font-size: 20px;">📄</span>
+              <div class="case-title">TechCorp Turnover Crisis</div>
+              <div class="case-meta">Due: Next Friday • Professor Davis</div>
+              <button class="btn-primary">Download Materials</button>
+            </div>
+            <div class="case-card">
+              <span style="font-size: 20px;">📊</span>
+              <div class="case-title">RetailCo Compensation Data</div>
+              <div class="case-meta">Due: Nov 5 • Professor Davis</div>
+              <button class="btn-primary">Download Materials</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+  
+  <script src="js/app.js"></script>
+  <script src="js/store.js"></script>
+</body>
+</html>
