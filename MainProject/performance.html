@@ -6,9 +6,8 @@
   <title>Aimser - Performance Management</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-role="faculty">
+<body>
 
-  <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <h2>Aimser</h2>
@@ -17,6 +16,8 @@
     
     <nav class="sidebar-nav">
       <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
+      <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
+      <a href="feed.html" class="nav-item"><span>💬</span> HR Feed</a>
       <a href="case-library.html" class="nav-item"><span>📁</span> HR Case Library</a>
       <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
       <a href="performance.html" class="nav-item active"><span>📈</span> Performance Management</a>
@@ -26,128 +27,49 @@
     </nav>
   </aside>
 
-  <!-- MAIN APP AREA -->
   <main class="main-content">
-    
-    <!-- TOP NAVIGATION -->
     <header class="topbar">
-      <div id="dynamic-greeting" style="font-weight: 600; color: var(--text-secondary);">
-        Welcome, Instructor
+      <div>
+        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
+        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
       </div>
-      
-      <div class="role-toggle-container">
-        <span id="label-faculty" class="role-label active-faculty">Faculty</span>
-        <label class="switch">
-          <input type="checkbox" id="role-toggle-checkbox">
-          <span class="slider"></span>
-        </label>
-        <span id="label-student" class="role-label">Student</span>
-      </div>
+      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
     </header>
 
-    <!-- DYNAMIC PAGE CONTENT -->
     <div class="page-container">
       <div class="page-header">
         <h1 class="page-title">Performance Management</h1>
-        <p class="page-subtitle faculty-view">Set KPIs and appraisal periods for the upcoming evaluation cycle.</p>
-        <p class="page-subtitle student-view">Write goals, self-feedback, and individual development plans.</p>
+        <p class="page-subtitle">Configure evaluation cycles, set KPIs, and complete appraisals.</p>
       </div>
 
-      <div id="module-content">
-        
-        <!-- FACULTY VIEW: KPIs & Appraisal Setup -->
-        <div class="faculty-view">
-          <div class="form-section">
-            <div class="card">
-              <h3 style="margin-bottom: 16px;">Appraisal Period Settings</h3>
-              
-              <div class="form-group">
-                <label class="form-label">Review Cycle Name</label>
-                <input type="text" class="form-control" placeholder="e.g., Q4 Annual Review 2026">
-              </div>
-              
-              <div class="form-group">
-                <label class="form-label">Appraisal Period Dates</label>
-                <div style="display: flex; gap: 12px;">
-                  <input type="date" class="form-control">
-                  <span style="align-self: center;">to</span>
-                  <input type="date" class="form-control">
-                </div>
-              </div>
-              
-              <button class="btn-primary">Initialize Appraisal Period</button>
-            </div>
-
-            <div class="card">
-              <h3 style="margin-bottom: 16px;">Set Key Performance Indicators (KPIs)</h3>
-              
-              <div class="kpi-row">
-                <div>
-                  <div style="font-weight: 600;">Productivity & Output</div>
-                  <div style="font-size: 13px; color: var(--text-secondary);">Measures volume and quality of work.</div>
-                </div>
-                <div class="kpi-weight">40%</div>
-              </div>
-
-              <div class="kpi-row">
-                <div>
-                  <div style="font-weight: 600;">Team Collaboration</div>
-                  <div style="font-size: 13px; color: var(--text-secondary);">Communication and peer reviews.</div>
-                </div>
-                <div class="kpi-weight">35%</div>
-              </div>
-              
-              <div class="kpi-row">
-                <div>
-                  <div style="font-weight: 600;">Initiative</div>
-                  <div style="font-size: 13px; color: var(--text-secondary);">Proactive problem solving.</div>
-                </div>
-                <div class="kpi-weight">25%</div>
-              </div>
-
-              <button class="btn-outline" style="width: 100%;">+ Add New KPI Metric</button>
-            </div>
+      <div class="split-layout">
+        <!-- Faculty KPI Setup Panel -->
+        <div class="card" id="kpi-setup-panel" style="display: none;">
+          <h3 style="margin-bottom: 16px;">Set Appraisal Parameters</h3>
+          <div class="form-group">
+            <label class="form-label">Review Cycle Title</label>
+            <input type="text" id="review-title" class="form-control" placeholder="e.g., Annual Performance Cycle">
           </div>
+          <div class="form-group">
+            <label class="form-label">Core KPI Metric</label>
+            <input type="text" id="kpi-metric-name" class="form-control" placeholder="e.g., Deliverable Completion Rate">
+          </div>
+          <button class="btn btn-primary" id="btn-save-kpi">Publish KPI Cycle</button>
         </div>
 
-        <!-- STUDENT VIEW: Goals & Development Plan -->
-        <div class="student-view">
-          <div class="card" style="margin-bottom: 24px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 16px;">
-              <h3>My Goals & Self-Appraisal</h3>
-              <span style="color: var(--student-accent); font-weight: 600; font-size: 14px;">Q4 Annual Review Active</span>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">1. Outline your primary achievements for this cycle:</label>
-              <textarea class="form-control" placeholder="Detail your specific contributions, metrics hit, and project successes..."></textarea>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">2. Areas for Improvement (Self-Feedback):</label>
-              <textarea class="form-control" placeholder="Where did you face challenges? How can you improve?"></textarea>
-            </div>
+        <!-- Student Self-Appraisal Panel -->
+        <div class="card" id="self-appraisal-panel" style="display: none;">
+          <h3 style="margin-bottom: 16px;">Self-Evaluation Submission</h3>
+          <div class="form-group">
+            <label class="form-label">Achievements & Completed Deliverables</label>
+            <textarea id="appraisal-achievements" class="form-control" rows="4" placeholder="Detail your verified project outputs..."></textarea>
           </div>
-
-          <div class="card" style="border-top: 4px solid var(--student-accent);">
-            <h3 style="margin-bottom: 16px;">Employee Development Plan (EDP)</h3>
-            <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">Define actionable steps and resources needed for your career growth.</p>
-            
-            <div class="form-group">
-              <label class="form-label">Short-Term Development Goals (Next 6 Months):</label>
-              <input type="text" class="form-control" style="margin-bottom: 8px;" placeholder="Goal 1: e.g., Complete Advanced Excel Certification">
-              <input type="text" class="form-control" placeholder="Goal 2: e.g., Shadow the Senior Recruiter twice a month">
-            </div>
-
-            <button class="btn-primary">Submit Appraisal & Plan</button>
-          </div>
+          <button class="btn btn-primary" id="btn-submit-appraisal">Submit Self-Appraisal</button>
         </div>
-
       </div>
     </div>
   </main>
 
-  <script src="js/app.js"></script>
-  <script src="js/store.js"></script>
+  <script type="module" src="js/performance.js"></script>
 </body>
 </html>

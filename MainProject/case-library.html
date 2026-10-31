@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aimser - Case Library</title>
+  <title>Aimser - HR Case Library</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-role="faculty">
+<body>
 
-  <!-- SIDEBAR -->
+  <!-- MASTER SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <h2>Aimser</h2>
@@ -17,6 +17,8 @@
     
     <nav class="sidebar-nav">
       <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
+      <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
+      <a href="feed.html" class="nav-item"><span>💬</span> HR Feed</a>
       <a href="case-library.html" class="nav-item active"><span>📁</span> HR Case Library</a>
       <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
       <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
@@ -29,82 +31,49 @@
   <!-- MAIN APP AREA -->
   <main class="main-content">
     
-    <!-- TOP NAVIGATION -->
+    <!-- TOPBAR -->
     <header class="topbar">
-      <div id="dynamic-greeting" style="font-weight: 600; color: var(--text-secondary);">
-        Welcome, Instructor
+      <div>
+        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
+        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
       </div>
-      
-      <div class="role-toggle-container">
-        <span id="label-faculty" class="role-label active-faculty">Faculty</span>
-        <label class="switch">
-          <input type="checkbox" id="role-toggle-checkbox">
-          <span class="slider"></span>
-        </label>
-        <span id="label-student" class="role-label">Student</span>
-      </div>
+      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
     </header>
 
-    <!-- DYNAMIC PAGE CONTENT -->
+    <!-- PAGE CONTAINER -->
     <div class="page-container">
       <div class="page-header">
         <h1 class="page-title">HR Case Library</h1>
-        <!-- Dynamic subtitles -->
-        <p class="page-subtitle faculty-view">Upload or create company cases and assign them to your students.</p>
-        <p class="page-subtitle student-view">Open assigned cases and download materials for your coursework.</p>
+        <p class="page-subtitle">Examine corporate legal, ethical, and organizational challenges.</p>
       </div>
 
-      <div id="module-content">
-        
-        <!-- FACULTY VIEW: Upload & Manage -->
-        <div class="faculty-view">
-          <div class="card" style="margin-bottom: 24px;">
-            <h3 style="margin-bottom: 8px;">Upload New Case Study</h3>
-            <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">Select a PDF or document to add to the library.</p>
-            
-            <div class="upload-dropzone">
-              <span style="font-size: 24px; display: block; margin-bottom: 8px;">📥</span>
-              <p>Drag & drop case files here or <strong>browse computer</strong></p>
-            </div>
-            
-            <button class="btn-primary" style="margin-top: 16px;">+ Assign to Class</button>
-          </div>
-
-          <h3 style="margin-bottom: 16px; color: var(--text-primary);">Active Cases</h3>
-          <div class="case-grid">
-            <div class="case-card">
-              <span style="font-size: 20px;">📄</span>
-              <div class="case-title">TechCorp Turnover Crisis</div>
-              <div class="case-meta">Uploaded: Oct 12 • Assigned to: HR-301</div>
-              <button class="btn-outline">Edit Details</button>
-            </div>
-          </div>
+      <!-- INSTRUCTOR-ONLY CASE PUBLISHER -->
+      <div class="card" id="faculty-upload-card" style="margin-bottom: 24px; display: none;">
+        <h3 style="margin-bottom: 12px;">Publish New Case Study</h3>
+        <div class="form-group">
+          <label class="form-label">Case Title</label>
+          <input type="text" id="case-title-input" class="form-control" placeholder="e.g., TechCorp Turnover Crisis 2026">
         </div>
-
-        <!-- STUDENT VIEW: View & Download -->
-        <div class="student-view">
-          <h3 style="margin-bottom: 16px; color: var(--text-primary);">Assigned Case Studies</h3>
-          <div class="case-grid">
-            <div class="case-card">
-              <span style="font-size: 20px;">📄</span>
-              <div class="case-title">TechCorp Turnover Crisis</div>
-              <div class="case-meta">Due: Next Friday • Professor Davis</div>
-              <button class="btn-primary">Download Materials</button>
-            </div>
-            <div class="case-card">
-              <span style="font-size: 20px;">📊</span>
-              <div class="case-title">RetailCo Compensation Data</div>
-              <div class="case-meta">Due: Nov 5 • Professor Davis</div>
-              <button class="btn-primary">Download Materials</button>
-            </div>
-          </div>
+        <div class="form-group">
+          <label class="form-label">Case Description & Background</label>
+          <textarea id="case-desc-input" class="form-control" rows="3" placeholder="Brief summary of the workplace dilemma..."></textarea>
         </div>
+        <div class="form-group">
+          <label class="form-label">Attach Case PDF or Document</label>
+          <input type="file" id="case-file-input" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx">
+        </div>
+        <button class="btn btn-primary" id="btn-publish-case">Upload & Publish Case</button>
+      </div>
 
+      <!-- PUBLIC CASE GRID -->
+      <h3 style="margin-bottom: 16px; color: var(--text-primary);">Available Case Studies</h3>
+      <div class="case-grid" id="cases-grid-container">
+        <p style="color: var(--text-secondary);">Loading cases...</p>
       </div>
     </div>
   </main>
-  
-  <script src="js/app.js"></script>
-  <script src="js/store.js"></script>
+
+  <!-- CONTROLLER -->
+  <script type="module" src="js/case-library.js"></script>
 </body>
 </html>

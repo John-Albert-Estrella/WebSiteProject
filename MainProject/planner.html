@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aimser - Project Planner</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- MASTER SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2>Aimser</h2>
+      <p>Management Simulator</p>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
+      <a href="planner.html" class="nav-item active"><span>📋</span> Project Planner</a>
+      <a href="feed.html" class="nav-item"><span>💬</span> HR Feed</a>
+      <a href="case-library.html" class="nav-item"><span>📁</span> HR Case Library</a>
+      <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
+      <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
+      <a href="relations.html" class="nav-item"><span>🤝</span> Employee Relations</a>
+      <a href="analytics.html" class="nav-item"><span>📉</span> HR Analytics</a>
+      <a href="portfolio.html" class="nav-item"><span>💼</span> Portfolio & Assessment</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN APP AREA -->
+  <main class="main-content">
+    
+    <!-- TOP NAVIGATION -->
+    <header class="topbar">
+      <div>
+        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
+        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
+      </div>
+      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
+    </header>
+
+    <!-- DYNAMIC PAGE CONTENT -->
+    <div class="page-container">
+      <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <h1 class="page-title">Project Planner</h1>
+          <p class="page-subtitle">Track deliverables in real-time across execution phases.</p>
+        </div>
+        <button class="btn btn-primary" id="btn-open-task-modal">+ Add New Task</button>
+      </div>
+
+      <!-- CREATE TASK MODAL FORM -->
+      <div id="task-modal" class="card" style="display: none; max-width: 500px; margin: 0 auto 24px; border-top: 4px solid var(--brand-ocean);">
+        <h3 style="margin-bottom: 14px;">Create New Task</h3>
+        <div class="form-group">
+          <label class="form-label">Task Title</label>
+          <input type="text" id="modal-task-title" class="form-control" placeholder="e.g., Finalize Onboarding Checklist" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description / Instructions</label>
+          <textarea id="modal-task-desc" class="form-control" rows="3" placeholder="Task specifics, deliverable links..."></textarea>
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Priority</label>
+            <select id="modal-task-priority" class="form-control">
+              <option value="Normal">Normal</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Due Date</label>
+            <input type="date" id="modal-task-due" class="form-control">
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px;">
+          <button class="btn btn-outline" id="btn-modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="btn-modal-save">Create Task</button>
+        </div>
+      </div>
+
+      <!-- KANBAN BOARD -->
+      <div class="kanban-board">
+        <!-- To Do Column -->
+        <div class="kanban-column" id="col-todo" data-status="To Do">
+          <div class="kanban-column-header">
+            <span>To Do</span>
+            <span class="task-count" id="count-todo">0</span>
+          </div>
+          <div class="kanban-task-container" id="container-todo"></div>
+        </div>
+
+        <!-- In Progress Column -->
+        <div class="kanban-column" id="col-inprogress" data-status="In Progress">
+          <div class="kanban-column-header">
+            <span>In Progress</span>
+            <span class="task-count" id="count-inprogress">0</span>
+          </div>
+          <div class="kanban-task-container" id="container-inprogress"></div>
+        </div>
+
+        <!-- Done Column -->
+        <div class="kanban-column" id="col-done" data-status="Done">
+          <div class="kanban-column-header">
+            <span>Done</span>
+            <span class="task-count" id="count-done">0</span>
+          </div>
+          <div class="kanban-task-container" id="container-done"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- FIREBASE PLANNER CONTROLLER LOGIC -->
+  <script type="module" src="js/planner.js"></script>
+</body>
+</html>

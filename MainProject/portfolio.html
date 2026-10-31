@@ -6,9 +6,9 @@
   <title>Aimser - Portfolio & Assessment</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-role="faculty">
+<body>
 
-  <!-- SIDEBAR -->
+  <!-- MASTER SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <h2>Aimser</h2>
@@ -17,6 +17,8 @@
     
     <nav class="sidebar-nav">
       <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
+      <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
+      <a href="feed.html" class="nav-item"><span>💬</span> HR Feed</a>
       <a href="case-library.html" class="nav-item"><span>📁</span> HR Case Library</a>
       <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
       <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
@@ -29,55 +31,54 @@
   <!-- MAIN APP AREA -->
   <main class="main-content">
     
-    <!-- TOP NAVIGATION -->
+    <!-- TOPBAR -->
     <header class="topbar">
-      <div id="dynamic-greeting" style="font-weight: 600; color: var(--text-secondary);">
-        Welcome, Instructor
+      <div>
+        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
+        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
       </div>
-      
-      <div class="role-toggle-container">
-        <span id="label-faculty" class="role-label active-faculty">Faculty</span>
-        <label class="switch">
-          <input type="checkbox" id="role-toggle-checkbox">
-          <span class="slider"></span>
-        </label>
-        <span id="label-student" class="role-label">Student</span>
-      </div>
+      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
     </header>
 
-    <!-- DYNAMIC PAGE CONTENT -->
+    <!-- PAGE CONTAINER -->
     <div class="page-container">
-      <div class="page-header">
-        <h1 class="page-title">Portfolio & Assessment</h1>
-        <p class="page-subtitle faculty-view">Grade student outputs and provide direct feedback.</p>
-        <p class="page-subtitle student-view">Store, manage, and review your digital HR portfolio outputs.</p>
+      <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <h1 class="page-title">Portfolio & Assessment</h1>
+          <p class="page-subtitle">Verified assignment outputs, grading rubrics, and instructor appraisals.</p>
+        </div>
+        <button class="btn btn-primary" id="btn-upload-work" style="display: none;">+ Upload Deliverable</button>
       </div>
 
-     <div id="module-content">
-        
-        <!-- FACULTY VIEW: Grading Queue -->
-        <div class="faculty-view">
-          <h3 style="margin-bottom: 16px; color: var(--text-primary);">Needs Grading (<span id="queue-count">0</span>)</h3>
-          <!-- JS will inject the Faculty grading cards here -->
-          <div class="portfolio-grid" id="faculty-grading-queue"></div>
+      <!-- DELIVERABLE UPLOAD MODAL (STUDENTS) -->
+      <div id="portfolio-modal" class="card" style="display: none; max-width: 500px; margin: 0 auto 24px; border-top: 4px solid var(--brand-ocean);">
+        <h3 style="margin-bottom: 12px;">Submit Assignment Deliverable</h3>
+        <div class="form-group">
+          <label class="form-label">Assignment Title</label>
+          <input type="text" id="portfolio-title-input" class="form-control" placeholder="e.g., FMLA Policy Document">
         </div>
-
-        <!-- STUDENT VIEW: Digital Portfolio -->
-        <div class="student-view">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 16px; align-items: center;">
-            <h3 style="color: var(--text-primary);">My Digital HR Vault</h3>
-            <button class="btn-primary">+ Upload New Output</button>
-          </div>
-          <!-- JS will inject the Student portfolio cards here -->
-          <div class="portfolio-grid" id="student-portfolio-vault"></div>
+        <div class="form-group">
+          <label class="form-label">Deliverable Summary / Submission Notes</label>
+          <textarea id="portfolio-notes-input" class="form-control" rows="3" placeholder="Explain your methodology, compliance findings, etc..."></textarea>
         </div>
+        <div class="form-group">
+          <label class="form-label">Upload Deliverable File</label>
+          <input type="file" id="portfolio-file-input" class="form-control" accept=".pdf,.doc,.docx,.xlsx,.zip">
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button class="btn btn-outline" id="btn-cancel-portfolio">Cancel</button>
+          <button class="btn btn-primary" id="btn-save-portfolio">Submit for Grading</button>
+        </div>
+      </div>
 
+      <!-- PORTFOLIO GRID -->
+      <div id="portfolio-container" class="portfolio-grid">
+        <p style="color: var(--text-secondary);">Loading portfolio records...</p>
       </div>
     </div>
   </main>
 
-  <script src="js/store.js"></script>
-  <script src="js/portfolio.js"></script> <!-- Link the new logic file -->
-  <script src="js/app.js"></script>
+  <!-- CONTROLLER -->
+  <script type="module" src="js/portfolio.js"></script>
 </body>
 </html>

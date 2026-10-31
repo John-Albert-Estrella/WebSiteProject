@@ -6,9 +6,8 @@
   <title>Aimser - Employee Relations</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-role="faculty">
+<body>
 
-  <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <h2>Aimser</h2>
@@ -17,6 +16,8 @@
     
     <nav class="sidebar-nav">
       <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
+      <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
+      <a href="feed.html" class="nav-item"><span>💬</span> HR Feed</a>
       <a href="case-library.html" class="nav-item"><span>📁</span> HR Case Library</a>
       <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
       <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
@@ -26,135 +27,52 @@
     </nav>
   </aside>
 
-  <!-- MAIN APP AREA -->
   <main class="main-content">
-    
-    <!-- TOP NAVIGATION -->
     <header class="topbar">
-      <div id="dynamic-greeting" style="font-weight: 600; color: var(--text-secondary);">
-        Welcome, Instructor
+      <div>
+        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
+        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
       </div>
-      
-      <div class="role-toggle-container">
-        <span id="label-faculty" class="role-label active-faculty">Faculty</span>
-        <label class="switch">
-          <input type="checkbox" id="role-toggle-checkbox">
-          <span class="slider"></span>
-        </label>
-        <span id="label-student" class="role-label">Student</span>
-      </div>
+      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
     </header>
 
-    <!-- DYNAMIC PAGE CONTENT -->
     <div class="page-container">
       <div class="page-header">
         <h1 class="page-title">Employee Relations</h1>
-        <p class="page-subtitle faculty-view">Upload and assign workplace conflict scenarios to your class.</p>
-        <p class="page-subtitle student-view">Document concerns, plan investigations, and recommend resolutions for active cases.</p>
+        <p class="page-subtitle">Document grievances, conduct workplace investigations, and resolve policy conflicts.</p>
       </div>
 
-      <div id="module-content">
-        
-        <!-- FACULTY VIEW: Upload Scenarios -->
-        <div class="faculty-view">
-          <div class="form-section">
-            <div class="card">
-              <h3 style="margin-bottom: 16px;">Post New Conflict Scenario</h3>
-              
-              <div class="form-group">
-                <label class="form-label">Scenario Title</label>
-                <input type="text" class="form-control" placeholder="e.g., Harassment Allegation in Sales Dept">
-              </div>
-              
-              <div class="form-group">
-                <label class="form-label">Parties Involved</label>
-                <input type="text" class="form-control" placeholder="e.g., John Doe (Manager) & Jane Smith (Rep)">
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Incident Description / Background</label>
-                <textarea class="form-control" placeholder="Describe the conflict, timeline, and any preliminary evidence..."></textarea>
-              </div>
-              
-              <div class="form-group">
-                <label class="form-label">Attach Evidence (Emails, Chat Logs)</label>
-                <div class="upload-dropzone" style="padding: 20px;">
-                  <span style="font-size: 18px; margin-bottom: 4px; display: block;">📎</span>
-                  <p style="font-size: 13px;">Drop mock evidence files here</p>
-                </div>
-              </div>
-
-              <button class="btn-primary">Publish Scenario to Class</button>
-            </div>
-
-            <div class="card">
-              <h3 style="margin-bottom: 16px;">Active Scenarios</h3>
-              <div class="incident-card" style="padding: 16px; margin-bottom: 0;">
-                <h4 style="margin-bottom: 4px;">Insubordination in Engineering</h4>
-                <p style="font-size: 13px; color: var(--text-secondary);">Assigned to: HR-301 • 15 Student Submissions Pending</p>
-                <button class="btn-outline" style="margin-top: 12px; font-size: 12px; padding: 6px 12px;">Review Student Investigations</button>
-              </div>
-            </div>
-          </div>
+      <!-- Grievance Submission Form (Students) -->
+      <div class="card" id="student-grievance-card" style="margin-bottom: 24px; display: none;">
+        <h3 style="margin-bottom: 16px;">File a Grievance Report</h3>
+        <div class="form-group">
+          <label class="form-label">Incident Category</label>
+          <select id="grievance-category" class="form-control">
+            <option value="Policy Violation">Policy Violation</option>
+            <option value="Workplace Conduct">Workplace Conduct</option>
+            <option value="Compensation Dispute">Compensation Dispute</option>
+            <option value="Safety Concern">Safety Concern</option>
+          </select>
         </div>
-
-        <!-- STUDENT VIEW: Investigation & Resolution -->
-        <div class="student-view">
-          
-          <!-- The Assigned Scenario -->
-          <div class="incident-card">
-            <h2 style="font-size: 20px; margin-bottom: 8px;">Active Case: Insubordination in Engineering</h2>
-            <div class="incident-meta-tags">
-              <span class="meta-tag">👤 Parties: Marcus (Lead) & David (Dev)</span>
-              <span class="meta-tag">📅 Reported: Oct 20</span>
-              <span class="meta-tag">⚠️ High Priority</span>
-            </div>
-            <p style="color: var(--text-secondary); line-height: 1.6; font-size: 14px;">
-              <strong>Background:</strong> David continually refuses to follow project guidelines set by Marcus. During yesterday's standup meeting, David yelled at Marcus and left the room. Marcus has filed a formal complaint requesting disciplinary action.
-            </p>
-            <button class="btn-outline" style="margin-top: 16px; font-size: 13px;">📎 View Attached Emails (1)</button>
-          </div>
-
-          <!-- HR Action Plan -->
-          <div class="card">
-            <h3 style="margin-bottom: 24px;">HR Action & Investigation Plan</h3>
-            
-            <div class="investigation-step">
-              <div class="step-number">1</div>
-              <div class="step-content">
-                <label class="form-label">Document Initial Concerns</label>
-                <textarea class="form-control" placeholder="What are the potential policy violations or legal risks here?"></textarea>
-              </div>
-            </div>
-
-            <div class="investigation-step">
-              <div class="step-number">2</div>
-              <div class="step-content">
-                <label class="form-label">Plan Investigation</label>
-                <textarea class="form-control" placeholder="Who will you interview? What questions will you ask? What evidence needs to be collected?"></textarea>
-              </div>
-            </div>
-
-            <div class="investigation-step">
-              <div class="step-number">3</div>
-              <div class="step-content">
-                <label class="form-label">Recommend Final Resolution</label>
-                <textarea class="form-control" placeholder="Provide your formal HR recommendation (e.g., Mediation, Written Warning, Termination) and justify your choice..."></textarea>
-              </div>
-            </div>
-
-            <div style="text-align: right;">
-              <button class="btn-primary">Submit Investigation Report</button>
-            </div>
-          </div>
-
+        <div class="form-group">
+          <label class="form-label">Incident Title</label>
+          <input type="text" id="grievance-title" class="form-control" placeholder="Brief summary of the issue">
         </div>
+        <div class="form-group">
+          <label class="form-label">Factual Description</label>
+          <textarea id="grievance-desc" class="form-control" rows="4" placeholder="Detail dates, parties involved, and the specific dispute..."></textarea>
+        </div>
+        <button class="btn btn-primary" id="btn-submit-grievance">Submit Formal Report</button>
+      </div>
 
+      <!-- Active Grievance Queue -->
+      <h3 style="margin-bottom: 16px; color: var(--text-primary);">Grievance Queue</h3>
+      <div id="grievance-queue-container">
+        <p style="color: var(--text-secondary);">Loading reports...</p>
       </div>
     </div>
   </main>
 
-  <script src="js/app.js"></script>
-  <script src="js/store.js"></script>
+  <script type="module" src="js/relations.js"></script>
 </body>
 </html>

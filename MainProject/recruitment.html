@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aimser — Recruitment Simulator</title>
+  <title>Aimser - Recruitment Simulator</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-role="faculty">
+<body>
 
-  <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <h2>Aimser</h2>
@@ -17,8 +16,10 @@
     
     <nav class="sidebar-nav">
       <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
+      <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
+      <a href="feed.html" class="nav-item"><span>💬</span> HR Feed</a>
       <a href="case-library.html" class="nav-item"><span>📁</span> HR Case Library</a>
-      <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
+      <a href="recruitment.html" class="nav-item active"><span>🎯</span> Recruitment Simulator</a>
       <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
       <a href="relations.html" class="nav-item"><span>🤝</span> Employee Relations</a>
       <a href="analytics.html" class="nav-item"><span>📉</span> HR Analytics</a>
@@ -26,171 +27,41 @@
     </nav>
   </aside>
 
-  <!-- MAIN APP AREA -->
   <main class="main-content">
-    
-    <!-- TOP NAVIGATION -->
     <header class="topbar">
-      <div id="dynamic-greeting" style="font-weight: 600; color: var(--text-secondary);">
-        Welcome, Instructor
+      <div>
+        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
+        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
       </div>
-      
-      <!-- FACULTY / STUDENT TOGGLE -->
-      <div class="role-toggle-container">
-        <span id="label-faculty" class="role-label active-faculty">Faculty</span>
-        <label class="switch">
-          <input type="checkbox" id="role-toggle-checkbox">
-          <span class="slider"></span>
-        </label>
-        <span id="label-student" class="role-label">Student</span>
-      </div>
+      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
     </header>
 
-    <!-- DYNAMIC PAGE CONTENT -->
     <div class="page-container">
       <div class="page-header">
-        <h1 class="page-title" id="module-title">Recruitment Simulator</h1>
-        <p class="page-subtitle" id="module-subtitle">Create job orders, screen applicants, and manage the hiring pipeline.</p>
+        <h1 class="page-title">Recruitment Simulator</h1>
+        <p class="page-subtitle">Define job profiles, review incoming candidates, and manage pipeline decisions.</p>
       </div>
 
-      <div id="module-content">
-        
-        <!-- ========================================== -->
-        <!-- FACULTY VIEW: Create Job Orders & Rubrics  -->
-        <!-- ========================================== -->
-        <div class="faculty-view">
-          <div class="split-layout">
-            
-            <!-- Left Side: Editor -->
-            <div class="card">
-              <h3 style="margin-bottom: 20px;">Job Description Editor</h3>
-              
-              <div class="form-group">
-                <label>Job Title</label>
-                <input type="text" class="form-control" placeholder="e.g., Senior Marketing Manager">
-              </div>
-              
-              <div class="form-group">
-                <label>Department</label>
-                <select class="form-control">
-                  <option>Marketing</option>
-                  <option>Sales</option>
-                  <option>Human Resources</option>
-                  <option>IT & Engineering</option>
-                </select>
-              </div>
-              
-              <div class="form-group">
-                <label>Job Description</label>
-                <textarea class="form-control" rows="5" placeholder="Define the role, responsibilities, and qualifications..."></textarea>
-              </div>
-
-              <div class="form-group">
-                <label>Evaluation Rubric (Key Competencies)</label>
-                <input type="text" class="form-control" placeholder="e.g., Leadership, SEO, Communication">
-              </div>
-
-              <button class="btn btn-primary" style="background: var(--faculty-accent); width: 100%;">
-                Publish Job Order to Students
-              </button>
-            </div>
-
-            <!-- Right Side: Active Jobs Overview -->
-            <div class="card">
-              <h3 style="margin-bottom: 20px;">Active Job Orders</h3>
-              
-              <div class="applicant-card" style="border-left-color: var(--faculty-accent);">
-                <div class="applicant-header">
-                  <span class="applicant-name">Data Analyst</span>
-                  <span class="applicant-role">IT & Engineering</span>
-                </div>
-                <p style="font-size: 13px; color: var(--text-secondary);">Assigned to: Class Section 3A</p>
-                <div style="margin-top: 12px; font-size: 13px; font-weight: 600;">
-                  📊 24 Students Drafted Descriptions
-                </div>
-              </div>
-
-            </div>
+      <div class="split-layout">
+        <!-- Requisition Panel -->
+        <div class="card">
+          <h3 style="margin-bottom: 16px;">Active Job Orders</h3>
+          <div id="job-orders-container">
+            <p style="color: var(--text-secondary);">Loading requisition orders...</p>
           </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- STUDENT VIEW: Draft JDs & Screen Applicants-->
-        <!-- ========================================== -->
-        <div class="student-view">
-          <div class="split-layout">
-            
-            <!-- Left Side: Student Drafting -->
-            <div class="card">
-              <h3 style="margin-bottom: 20px;">Draft Job Description</h3>
-              
-              <div class="form-group">
-                <label>Target Role (Assigned by Faculty)</label>
-                <input type="text" class="form-control" value="Data Analyst" readonly style="background: #f1f5f9; color: var(--text-secondary);">
-              </div>
-              
-              <div class="form-group">
-                <label>Your Job Description Draft</label>
-                <textarea class="form-control" rows="8" placeholder="Write an attractive and accurate job description based on the faculty's rubric..."></textarea>
-              </div>
-
-              <button class="btn btn-primary" style="background: var(--student-accent); width: 100%;">
-                Submit Draft to Portfolio
-              </button>
-            </div>
-
-            <!-- Right Side: Applicant Screening -->
-            <div class="card">
-              <h3 style="margin-bottom: 20px;">Applicant Screening</h3>
-              
-              <!-- Applicant 1 -->
-              <div class="applicant-card">
-                <div class="applicant-header">
-                  <span class="applicant-name">Michael Chang</span>
-                  <span class="applicant-role">Data Analyst Candidate</span>
-                </div>
-                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
-                  <strong>Profile:</strong> BSc Computer Science • 3 Yrs Exp • SQL, Python, PowerBI
-                </p>
-                
-                <input type="text" class="form-control" placeholder="Justify your selection here..." style="font-size: 12px; padding: 6px 10px;">
-                
-                <div class="applicant-actions">
-                  <button class="btn btn-approve">Approve</button>
-                  <button class="btn btn-interview">Interview</button>
-                  <button class="btn btn-reject">Reject</button>
-                </div>
-              </div>
-
-              <!-- Applicant 2 -->
-              <div class="applicant-card">
-                <div class="applicant-header">
-                  <span class="applicant-name">Jessica Alba</span>
-                  <span class="applicant-role">Data Analyst Candidate</span>
-                </div>
-                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
-                  <strong>Profile:</strong> BA Business Admin • 1 Yr Exp • Excel, Basic SQL, Tableau
-                </p>
-                
-                <input type="text" class="form-control" placeholder="Justify your selection here..." style="font-size: 12px; padding: 6px 10px;">
-                
-                <div class="applicant-actions">
-                  <button class="btn btn-approve">Approve</button>
-                  <button class="btn btn-interview">Interview</button>
-                  <button class="btn btn-reject">Reject</button>
-                </div>
-              </div>
-
-            </div>
+        <!-- Candidate Evaluation Panel -->
+        <div class="card">
+          <h3 style="margin-bottom: 16px;">Candidate Evaluation Queue</h3>
+          <div id="candidates-container">
+            <p style="color: var(--text-secondary);">No candidate applications pending review.</p>
           </div>
         </div>
-
       </div>
     </div>
-
   </main>
 
-  <script src="js/app.js"></script>
-  <script src="js/store.js"></script>
+  <script type="module" src="js/recruitment.js"></script>
 </body>
 </html>

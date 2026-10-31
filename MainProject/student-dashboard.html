@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aimser - Student Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- MASTER STUDENT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2>Aimser</h2>
+      <p>Student Portal</p>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a href="student-dashboard.html" class="nav-item active"><span>📊</span> Dashboard</a>
+      <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
+      <a href="feed.html" class="nav-item"><span>💬</span> HR Feed</a>
+      <a href="case-library.html" class="nav-item"><span>📁</span> HR Case Library</a>
+      <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
+      <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
+      <a href="relations.html" class="nav-item"><span>🤝</span> Employee Relations</a>
+      <a href="analytics.html" class="nav-item"><span>📉</span> HR Analytics</a>
+      <a href="portfolio.html" class="nav-item"><span>💼</span> Portfolio & Assessment</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN APP AREA -->
+  <main class="main-content">
+    
+    <header class="topbar">
+      <div>
+        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
+        <span class="status-badge status-graded" style="margin-left: 8px;">Student</span>
+      </div>
+      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
+    </header>
+
+    <div class="page-container">
+      <div class="page-header">
+        <h1 class="page-title">Student Dashboard</h1>
+        <p class="page-subtitle">Enroll in a class using your instructor's code and review your team tasks.</p>
+      </div>
+
+      <div id="module-content">
+        <!-- Join Form Section -->
+        <div class="room-code-card" id="join-room-card" style="border-color: var(--student-accent);">
+          <h3 style="color: var(--text-secondary); text-transform: uppercase; font-size: 14px;">Class Enrollment</h3>
+          <p style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">Enter the 7-character room code provided by your faculty instructor.</p>
+          
+          <div class="join-input-group">
+            <input type="text" id="input-room-code" class="form-control" placeholder="XXX-XXXX" maxlength="8">
+            <button class="btn btn-primary" id="btn-join-room" style="background: var(--student-accent);">Join Class</button>
+          </div>
+        </div>
+
+        <!-- Active Enrollment Status -->
+        <div class="card" id="enrollment-status-card" style="border-top: 4px solid var(--student-accent); display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+            <div>
+              <h3 style="margin-bottom: 4px;" id="enrolled-class-title">Enrolled in Class</h3>
+              <p style="font-size: 13px; color: var(--text-secondary);" id="enrolled-faculty-name">Instructor: --</p>
+            </div>
+            <span class="status-badge status-graded">Active Member</span>
+          </div>
+
+          <div style="background: var(--bg-main); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--surface-border);">
+            <h4 style="font-size: 14px; margin-bottom: 12px;">Active Room Code</h4>
+            <p style="font-weight: 700; font-size: 18px; color: var(--text-primary);" id="enrolled-code-display">---</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="js/student-dashboard.js"></script>
+</body>
+</html>

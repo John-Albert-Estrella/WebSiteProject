@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aimser - Create Account</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="login-body">
+
+  <div class="login-container" style="max-width: 450px;">
+    <div class="login-brand">
+      <h2>Aimser</h2>
+      <p>Create your verified account</p>
+    </div>
+
+    <!-- Registration Role Selector -->
+    <div class="login-role-toggle">
+      <button type="button" class="login-role-btn active" id="btn-reg-faculty">Faculty</button>
+      <button type="button" class="login-role-btn" id="btn-reg-student">Student</button>
+    </div>
+
+    <form class="auth-form" id="registerForm">
+      <div style="display: flex; gap: 12px;">
+        <div class="form-group" style="flex: 1;">
+          <label class="form-label">First Name</label>
+          <input type="text" class="form-control" id="firstName" placeholder="Jane" required>
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label class="form-label">Last Name</label>
+          <input type="text" class="form-control" id="lastName" placeholder="Doe" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">University Email</label>
+        <input type="email" class="form-control" id="email" placeholder="name@university.edu" required autocomplete="email">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" placeholder="Minimum 6 characters" required minlength="6" autocomplete="new-password">
+      </div>
+
+      <div class="form-group" id="student-code-group" style="display: none;">
+        <label class="form-label">Class Room Code (Optional)</label>
+        <input type="text" class="form-control" id="roomCode" placeholder="XXX-XXXX" maxlength="8">
+        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">You can also join your class later from the dashboard.</p>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Create Account</button>
+    </form>
+
+    <div class="login-footer">
+      <p>Already have an account? <a href="login.html">Sign In here</a></p>
+    </div>
+  </div>
+
+  <script type="module" src="js/register.js"></script>
+</body>
+</html>

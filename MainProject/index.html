@@ -3,131 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HRM Simulator Portal</title>
+  <title>Aimser - Routing...</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body data-role="faculty">
+<body style="display: flex; align-items: center; justify-content: center; height: 100vh;">
+  <div style="text-align: center;">
+    <h2 style="color: var(--brand-ocean); font-weight: 800;">Aimser Management Simulator</h2>
+    <p style="color: var(--text-secondary); margin-top: 8px;">Authenticating session...</p>
+  </div>
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <h2>Aimser</h2>
-      <p>Management Simulator</p>
-    </div>
-    
-    <nav class="sidebar-nav">
-      <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
-      <a href="case-library.html" class="nav-item"><span>📁</span> HR Case Library</a>
-      <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
-      <a href="relations.html" class="nav-item"><span>🤝</span> Employee Relations</a>
-      <a href="analytics.html" class="nav-item"><span>📉</span> HR Analytics</a>
-      <a href="portfolio.html" class="nav-item"><span>💼</span> Portfolio & Assessment</a>
-    </nav>
-  </aside>
-
-  <!-- MAIN APP AREA -->
-  <main class="main-content">
-    
-    <!-- TOP NAVIGATION -->
-    <header class="topbar">
-      <div id="dynamic-greeting" style="font-weight: 600; color: var(--text-secondary);">
-        Welcome, Instructor
-      </div>
-      
-      <!-- FACULTY / STUDENT TOGGLE -->
-      <div class="role-toggle-container">
-        <span id="label-faculty" class="role-label active-faculty">Faculty</span>
-        <label class="switch">
-          <input type="checkbox" id="role-toggle-checkbox">
-          <span class="slider"></span>
-        </label>
-        <span id="label-student" class="role-label">Student</span>
-      </div>
-    </header>
-
-    <!-- DYNAMIC PAGE CONTENT -->
-    <div class="page-container">
-      <div class="page-header">
-        <h1 class="page-title" id="module-title">Dashboard Overview</h1>
-        <p class="page-subtitle" id="module-subtitle">View classes, submissions, grades, and activity reports.</p>
-      </div>
-
-      <!-- DASHBOARD CONTENT -->
-      <div id="module-content">
-        
-        <!-- FACULTY VIEW (Classes, Submissions, Grades, Activity) -->
-        <div class="faculty-view">
-          <div class="dashboard-grid">
-            <div class="stat-card">
-              <h3>Active Classes</h3>
-              <div class="stat-num">4</div>
-            </div>
-            <div class="stat-card">
-              <h3>Pending Submissions</h3>
-              <div class="stat-num">28</div>
-            </div>
-            <div class="stat-card">
-              <h3>To Grade</h3>
-              <div class="stat-num">12</div>
-            </div>
-          </div>
-          
-          <div class="card">
-            <h3 style="margin-bottom: 8px;">Recent Activity Reports</h3>
-            <p style="color: var(--text-secondary); font-size: 14px;">Latest actions from your HR students.</p>
-            <div class="activity-list">
-              <div class="activity-item">
-                <span><strong>Sarah J.</strong> submitted "Recruitment Rubric"</span>
-                <span style="color: var(--text-secondary);">10 mins ago</span>
-              </div>
-              <div class="activity-item">
-                <span><strong>Mark T.</strong> resolved "Conflict Scenario A"</span>
-                <span style="color: var(--text-secondary);">1 hour ago</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STUDENT VIEW (Assignments, Deadlines, Scores, Feedback) -->
-        <div class="student-view">
-          <div class="dashboard-grid">
-            <div class="stat-card">
-              <h3>Pending Assignments</h3>
-              <div class="stat-num">3</div>
-            </div>
-            <div class="stat-card">
-              <h3>Upcoming Deadlines</h3>
-              <div class="stat-num">2</div>
-            </div>
-            <div class="stat-card">
-              <h3>Average Score</h3>
-              <div class="stat-num">92%</div>
-            </div>
-          </div>
-
-          <div class="card">
-            <h3 style="margin-bottom: 8px;">Recent Feedback & Scores</h3>
-            <p style="color: var(--text-secondary); font-size: 14px;">Updates from your instructors.</p>
-            <div class="activity-list">
-              <div class="activity-item">
-                <span><strong>Prof. Davis</strong> graded "Job Description Draft" (Score: 95/100)</span>
-                <span style="color: var(--student-accent); font-weight: 600;">View Feedback</span>
-              </div>
-              <div class="activity-item">
-                <span><strong>New Deadline:</strong> Employee Relations Case Study</span>
-                <span style="color: var(--text-secondary);">Due Tomorrow</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-  </main>
-
-  <script src="js/app.js"></script>
-  <script src="js/store.js"></script>
+  <script type="module">
+    import { enforceAuth } from "./js/auth-guard.js";
+    // Passing no arguments triggers immediate role evaluation & redirect
+    enforceAuth([]);
+  </script>
 </body>
 </html>

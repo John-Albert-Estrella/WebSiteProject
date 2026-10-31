@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aimser - HR Feed & Discussions</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- MASTER SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <h2>Aimser</h2>
+      <p>Management Simulator</p>
+    </div>
+    
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
+      <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
+      <a href="feed.html" class="nav-item active"><span>💬</span> HR Feed</a>
+      <a href="case-library.html" class="nav-item"><span>📁</span> HR Case Library</a>
+      <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
+      <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
+      <a href="relations.html" class="nav-item"><span>🤝</span> Employee Relations</a>
+      <a href="analytics.html" class="nav-item"><span>📉</span> HR Analytics</a>
+      <a href="portfolio.html" class="nav-item"><span>💼</span> Portfolio & Assessment</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN APP AREA -->
+  <main class="main-content">
+    
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div>
+        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
+        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
+      </div>
+      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
+    </header>
+
+    <!-- PAGE CONTAINER -->
+    <div class="page-container feed-container">
+      <div class="page-header" style="text-align: center; margin-bottom: 24px;">
+        <h1 class="page-title">HR Discussion Forum</h1>
+        <p class="page-subtitle">Debate real-world workplace scenarios, labor policies, and team cases.</p>
+      </div>
+
+      <!-- CREATE POST BOX -->
+      <div class="create-post-card">
+        <input type="text" id="post-input-text" placeholder="Share a scenario, ask an HR question, or post an update...">
+        <button class="btn btn-primary" id="btn-submit-post">Post</button>
+      </div>
+
+      <!-- LIVE FEED DISCUSSIONS STREAM -->
+      <div id="live-feed-stream">
+        <p style="text-align: center; color: var(--text-secondary); padding: 20px;">Loading discussions...</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- FIREBASE CONTROLLER -->
+  <script type="module" src="js/feed.js"></script>
+</body>
+</html>
