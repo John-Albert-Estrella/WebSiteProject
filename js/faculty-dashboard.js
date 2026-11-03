@@ -1,5 +1,5 @@
-import { auth, db } from "./firebase-init.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { db } from "./firebase-init.js";
+import { initAuthGuard } from "./auth-guard.js";
 import { 
   doc, 
   setDoc, 
@@ -25,14 +25,11 @@ const badgeStatus = document.getElementById("class-status-badge");
 const btnGenerate = document.getElementById("btn-generate-code");
 const btnCopy = document.getElementById("btn-copy-code");
 const btnExpire = document.getElementById("btn-expire-code");
-const facultyNameDisplay = document.getElementById("faculty-display-name");
 const enrolledCountEl = document.getElementById("enrolled-count");
 const rosterTbody = document.getElementById("roster-tbody");
-const btnLogout = document.getElementById("btn-logout");
 
-// Generate clean 8-character code: e.g., "AIM-7X9B"
 function generateRandomCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Omit confusing 0, O, 1, I
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let part = "";
   for (let i = 0; i < 4; i++) {
     part += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -40,7 +37,6 @@ function generateRandomCode() {
   return `AIM-${part}`;
 }
 
-// 60-Minute Countdown Clock
 function runCountdown(expiryDate) {
   if (timerInterval) clearInterval(timerInterval);
 
@@ -66,7 +62,6 @@ function runCountdown(expiryDate) {
   timerInterval = setInterval(tick, 1000);
 }
 
-// Set Active Session State
 function setActiveState(code, expiryDate) {
   currentActiveCode = code;
   if (displayCode) displayCode.textContent = code;
@@ -81,7 +76,6 @@ function setActiveState(code, expiryDate) {
   listenToClassRoster(code);
 }
 
-// Set Expired/Inactive State
 function setExpiredState() {
   if (timerInterval) clearInterval(timerInterval);
   currentActiveCode = null;
@@ -109,7 +103,6 @@ function setExpiredState() {
   }
 }
 
-// Real-Time Student Roster Listener
 function listenToClassRoster(classCode) {
   if (rosterUnsubscribe) rosterUnsubscribe();
 
@@ -142,10 +135,10 @@ function listenToClassRoster(classCode) {
 
       rowsHtml += `
         <tr>
-          <td style="font-weight: 500;">${escapeHtml(studentName)}</td>
-          <td style="color: #94a3b8;">${escapeHtml(studentEmail)}</td>
-          <td style="color: #94a3b8;">${joinedDate}</td>
-          <td><span class="status-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;">Student</span></td>
+          <td style="font-weight: 600;">${escapeHtml(studentName)}</td>
+          <td style="color: var(--text-secondary);">${escapeHtml(studentEmail)}</td>
+          <td style="color: var(--text-tertiary);">${joinedDate}</td>
+          <td><span class="status-badge" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8;">Student</span></td>
         </tr>
       `;
     });
@@ -166,7 +159,6 @@ function escapeHtml(string) {
   }[s]));
 }
 
-// Fetch Existing Session on Page Load
 async function checkExistingClassCode(uid) {
   try {
     const classDocRef = doc(db, "classrooms", uid);
@@ -189,7 +181,6 @@ async function checkExistingClassCode(uid) {
   }
 }
 
-// Generate/Regenerate Code Click
 btnGenerate?.addEventListener("click", async () => {
   if (!currentFacultyUid) return;
 
@@ -197,7 +188,7 @@ btnGenerate?.addEventListener("click", async () => {
   btnGenerate.textContent = "Generating...";
 
   const newCode = generateRandomCode();
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 60 minutes from now
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
   try {
     await setDoc(doc(db, "classrooms", currentFacultyUid), {
@@ -211,13 +202,12 @@ btnGenerate?.addEventListener("click", async () => {
     setActiveState(newCode, expiresAt);
   } catch (error) {
     console.error("Failed to generate code:", error);
-    alert("Could not activate class code. Please check your internet connection.");
+    alert("Could not activate class code.");
   } finally {
     btnGenerate.disabled = false;
   }
 });
 
-// Deactivate Code Click
 btnExpire?.addEventListener("click", async () => {
   if (!currentFacultyUid) return;
 
@@ -234,7 +224,6 @@ btnExpire?.addEventListener("click", async () => {
   }
 });
 
-// Copy Code Button
 btnCopy?.addEventListener("click", async () => {
   const code = displayCode ? displayCode.textContent : "";
   if (!code || code === "------") return;
@@ -248,42 +237,11 @@ btnCopy?.addEventListener("click", async () => {
   }
 });
 
-// Logout Handler
-btnLogout?.addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-    window.location.replace("login.html");
-  } catch (err) {
-    console.error("Logout failed:", err);
+// Guard: Strictly Requires Faculty
+initAuthGuard({
+  requiredRole: "faculty",
+  onReady: ({ user }) => {
+    currentFacultyUid = user.uid;
+    checkExistingClassCode(user.uid);
   }
-});
-
-// Auth Guard & Bootstrapping
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.replace("login.html");
-    return;
-  }
-
-  currentFacultyUid = user.uid;
-
-  // Verify faculty role
-  try {
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      if (userData.role !== "faculty") {
-        alert("Access restricted: Student accounts cannot access the Faculty Portal.");
-        window.location.replace("student-dashboard.html");
-        return;
-      }
-      if (facultyNameDisplay) {
-        facultyNameDisplay.textContent = `Prof. ${userData.lastName || userData.firstName || "Instructor"}`;
-      }
-    }
-  } catch (e) {
-    console.error("Error verifying faculty role:", e);
-  }
-
-  checkExistingClassCode(user.uid);
 });
