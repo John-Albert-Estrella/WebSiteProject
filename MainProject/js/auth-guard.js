@@ -10,7 +10,7 @@ export function enforceAuth(allowedRoles = []) {
   onAuthStateChanged(auth, async (user) => {
     // 1. Not signed in -> send to login
     if (!user) {
-      window.location.replace("login.html");
+      safeRedirect("login.html");
       return;
     }
 
@@ -21,31 +21,31 @@ export function enforceAuth(allowedRoles = []) {
       // 2. Auth exists but no Firestore profile -> reset to login
       if (!userSnap.exists()) {
         await signOut(auth);
-        window.location.replace("login.html");
+        safeRedirect("login.html");
         return;
       }
 
       const userData = userSnap.data();
 
-      // 3. IF called from index.html (allowedRoles is empty), ALWAYS redirect to their portal
+      // 3. Root index check (allowedRoles empty) -> redirect based on role
       if (allowedRoles.length === 0) {
         redirectBasedOnRole(userData.role);
         return;
       }
 
-      // 4. Role Guard: If user visits an unauthorized page (e.g. student visits faculty-dashboard.html)
+      // 4. Role Guard: prevent cross-portal unauthorized visits
       if (!allowedRoles.includes(userData.role)) {
         redirectBasedOnRole(userData.role);
         return;
       }
 
-      // 5. Update UI header and dynamically fix the sidebar Dashboard link
+      // 5. Populate layout topbar & fix dynamic navigation links
       populateUserHeader(userData);
       updateSidebarDashboardLink(userData.role);
 
     } catch (error) {
       console.error("Auth Guard Error:", error);
-      window.location.replace("login.html");
+      safeRedirect("login.html");
     }
   });
 }
@@ -53,24 +53,32 @@ export function enforceAuth(allowedRoles = []) {
 export function redirectBasedOnRole(role) {
   switch (role) {
     case "admin":
-      window.location.replace("admin.html");
+      safeRedirect("admin.html");
       break;
     case "faculty":
-      window.location.replace("faculty-dashboard.html");
+      safeRedirect("faculty-dashboard.html");
       break;
     case "student":
-      window.location.replace("student-dashboard.html");
+      safeRedirect("student-dashboard.html");
       break;
     default:
-      window.location.replace("login.html");
+      safeRedirect("login.html");
   }
 }
 
 /**
- * Automatically changes the sidebar's Dashboard link to the user's specific dashboard
+ * Ensures safe relative redirects that work in local dev and GitHub Pages subfolders
  */
+function safeRedirect(targetPage) {
+  const currentPath = window.location.pathname;
+  // If already on the target page, do nothing to avoid infinite redirect loops
+  if (currentPath.endsWith(targetPage)) return;
+
+  const basePath = currentPath.substring(0, currentPath.lastIndexOf("/") + 1);
+  window.location.replace(basePath + targetPage);
+}
+
 function updateSidebarDashboardLink(role) {
-  // Find all sidebar navigation links that point to a dashboard or index.html
   const dashboardLink = document.querySelector('.sidebar-nav a[href="index.html"], .sidebar-nav a[href$="-dashboard.html"]');
   if (dashboardLink) {
     if (role === "faculty" || role === "admin") {
@@ -92,7 +100,7 @@ function populateUserHeader(userData) {
   if (logoutBtn) {
     logoutBtn.addEventListener("click", async () => {
       await signOut(auth);
-      window.location.replace("login.html");
+      safeRedirect("login.html");
     });
   }
 }
