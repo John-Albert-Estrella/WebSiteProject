@@ -14,6 +14,19 @@
       <p>Management Simulator</p>
     </div>
     
+    <!-- BENTO WELCOME & THEME TOGGLE CARD -->
+    <div class="sidebar-user-card">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="welcome-tag">WORKSPACE</span>
+        <!-- Theme Pills -->
+        <div class="theme-switch-pills">
+          <button class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
+          <button class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
+        </div>
+      </div>
+      <h3 id="sidebar-greeting-name">Welcome back!</h3>
+    </div>
+
     <nav class="sidebar-nav">
       <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
       <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
@@ -75,5 +88,6 @@
 
   <script type="module" src="js/relations.js"></script>
   <script type="module" src="js/auth-guard.js"></script>
+  <script type="module" src="js/theme.js"></script>
 </body>
 </html>
