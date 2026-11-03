@@ -13,7 +13,7 @@
       
       <!-- Brand & Header -->
       <div class="auth-header">
-        <div class="auth-brand-badge">Aimser</div>
+        <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-badge">
         <h1 class="auth-title">Create Account</h1>
         <p class="auth-subtitle">Select your simulator role and enter your details.</p>
       </div>
@@ -31,7 +31,6 @@
             <span class="role-text">Faculty</span>
           </button>
         </div>
-        <!-- Hidden input for tracking selected role -->
         <input type="hidden" id="register-role" value="student">
       </div>
 
@@ -64,7 +63,7 @@
           </div>
         </div>
 
-        <!-- Faculty Passcode Input (Revealed only when Faculty is chosen) -->
+        <!-- Faculty Passcode Input -->
         <div class="form-group" id="group-faculty-secret" style="display: none;">
           <label class="form-label" for="reg-faculty-code">
             Faculty Authorization Code <span style="color: #ef4444;">*</span>
@@ -76,17 +75,17 @@
             placeholder="Enter instructor verification key"
             autocomplete="off"
           >
-          <small style="font-size: 11px; color: var(--text-tertiary, #94a3b8); display: block; margin-top: 4px;">
+          <small style="font-size: 11px; color: var(--text-tertiary); display: block; margin-top: 4px;">
             Requires authorization key issued by the department coordinator.
           </small>
         </div>
 
-        <!-- Student Classroom Code Input (Hidden when Faculty is selected) -->
+        <!-- Student Classroom Code Input -->
         <div class="form-group" id="group-classroom-code">
           <label class="form-label" for="reg-classcode">
             Classroom Code <span class="label-hint">(Optional during registration)</span>
           </label>
-          <input type="text" id="reg-classcode" class="form-control" placeholder="e.g. E5P-8AQ7">
+          <input type="text" id="reg-classcode" class="form-control" placeholder="e.g. AIM-7X9B">
         </div>
 
         <button type="submit" id="btn-register" class="btn btn-primary auth-submit-btn">
@@ -102,7 +101,6 @@
     </div>
   </div>
 
-  <!-- Role Toggle Script -->
   <script type="module">
     const roleBtns = document.querySelectorAll('.role-btn');
     const roleInput = document.getElementById('register-role');
@@ -127,7 +125,6 @@
     });
   </script>
 
-  <!-- Core Logic Scripts -->
   <script type="module" src="js/register.js"></script>
   <script type="module" src="js/theme.js"></script>
 </body>

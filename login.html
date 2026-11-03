@@ -13,44 +13,29 @@
       
       <!-- Brand & Header -->
       <div class="auth-header">
-        <div class="auth-brand-badge">Aimser</div>
+        <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-badge">
         <h1 class="auth-title">Welcome Back</h1>
-        <p class="auth-subtitle">Sign in to your HR Management Simulator workspace.</p>
+        <p class="auth-subtitle">Sign into your HR Management Simulator workspace.</p>
       </div>
 
       <!-- Login Form -->
-      <form id="form-login" class="auth-form" autocomplete="on">
+      <form id="form-login" class="auth-form" autocomplete="off">
         <div class="form-group">
           <label class="form-label" for="login-email">Email Address</label>
-          <input 
-            type="email" 
-            id="login-email" 
-            class="form-control" 
-            placeholder="name@university.edu" 
-            required 
-            autofocus
-          >
+          <input type="email" id="login-email" class="form-control" placeholder="name@domain.edu.ph" required>
         </div>
 
         <div class="form-group">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <label class="form-label" for="login-password" style="margin-bottom: 0;">Password</label>
-          </div>
-          <input 
-            type="password" 
-            id="login-password" 
-            class="form-control" 
-            placeholder="••••••••" 
-            required
-          >
+          <label class="form-label" for="login-password">Password</label>
+          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
         </div>
 
         <button type="submit" id="btn-login" class="btn btn-primary auth-submit-btn">
-          Sign In
+          Sign In to Simulator
         </button>
       </form>
 
-      <!-- Footer Navigation -->
+      <!-- Footer navigation -->
       <div class="auth-footer">
         <p>Need an account? <a href="register.html" class="auth-link">Register here</a></p>
       </div>
@@ -58,9 +43,7 @@
     </div>
   </div>
 
-  <!-- Scripts -->
   <script type="module" src="js/login.js"></script>
   <script type="module" src="js/theme.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
 </body>
 </html>
