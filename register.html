@@ -1,62 +1,115 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Aimser - Create Account</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="login-body">
+<body class="auth-body">
 
-  <div class="login-container" style="max-width: 450px;">
-    <div class="login-brand">
-      <h2>Aimser</h2>
-      <p>Create your verified account</p>
-    </div>
-
-    <!-- Registration Role Selector -->
-    <div class="login-role-toggle">
-      <button type="button" class="login-role-btn active" id="btn-reg-faculty">Faculty</button>
-      <button type="button" class="login-role-btn" id="btn-reg-student">Student</button>
-    </div>
-
-    <form class="auth-form" id="registerForm">
-      <div style="display: flex; gap: 12px;">
-        <div class="form-group" style="flex: 1;">
-          <label class="form-label">First Name</label>
-          <input type="text" class="form-control" id="firstName" placeholder="Jane" required>
-        </div>
-        <div class="form-group" style="flex: 1;">
-          <label class="form-label">Last Name</label>
-          <input type="text" class="form-control" id="lastName" placeholder="Doe" required>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">University Email</label>
-        <input type="email" class="form-control" id="email" placeholder="name@university.edu" required autocomplete="email">
-      </div>
+  <div class="auth-wrapper">
+    <div class="card auth-card">
       
+      <!-- Brand & Header -->
+      <div class="auth-header">
+        <div class="auth-brand-badge">Aimser</div>
+        <h1 class="auth-title">Create Account</h1>
+        <p class="auth-subtitle">Select your simulator role and enter your details.</p>
+      </div>
+
+      <!-- Segmented Role Selector -->
       <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" placeholder="Minimum 6 characters" required minlength="6" autocomplete="new-password">
+        <label class="form-label">Register As</label>
+        <div class="role-selector-group" id="role-selector">
+          <button type="button" class="role-btn active" data-role="student">
+            <span class="role-icon">🎓</span>
+            <span class="role-text">Student</span>
+          </button>
+          <button type="button" class="role-btn" data-role="faculty">
+            <span class="role-icon">💼</span>
+            <span class="role-text">Faculty</span>
+          </button>
+        </div>
+        <!-- Hidden input for form submission -->
+        <input type="hidden" id="register-role" value="student">
       </div>
 
-      <div class="form-group" id="student-code-group" style="display: none;">
-        <label class="form-label">Class Room Code (Optional)</label>
-        <input type="text" class="form-control" id="roomCode" placeholder="XXX-XXXX" maxlength="8">
-        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">You can also join your class later from the dashboard.</p>
+      <!-- Registration Form -->
+      <form id="form-register" class="auth-form" autocomplete="off">
+        <div class="form-row-duo">
+          <div class="form-group">
+            <label class="form-label" for="reg-firstname">First Name</label>
+            <input type="text" id="reg-firstname" class="form-control" placeholder="e.g. John" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="reg-lastname">Last Name</label>
+            <input type="text" id="reg-lastname" class="form-control" placeholder="e.g. Estrella" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reg-email">Institutional Email</label>
+          <input type="email" id="reg-email" class="form-control" placeholder="name@domain.edu.ph" required>
+        </div>
+
+        <div class="form-row-duo">
+          <div class="form-group">
+            <label class="form-label" for="reg-password">Password</label>
+            <input type="password" id="reg-password" class="form-control" placeholder="••••••••" minlength="6" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="reg-confirm-password">Confirm Password</label>
+            <input type="password" id="reg-confirm-password" class="form-control" placeholder="••••••••" minlength="6" required>
+          </div>
+        </div>
+
+        <!-- Student Classroom Code Input (Hidden when Faculty is selected) -->
+        <div class="form-group" id="group-classroom-code">
+          <label class="form-label" for="reg-classcode">
+            Classroom Code <span class="label-hint">(Optional during registration)</span>
+          </label>
+          <input type="text" id="reg-classcode" class="form-control" placeholder="e.g. E5P-8AQ7" uppercase>
+        </div>
+
+        <button type="submit" id="btn-register" class="btn btn-primary auth-submit-btn">
+          Create Simulator Account
+        </button>
+      </form>
+
+      <!-- Footer navigation -->
+      <div class="auth-footer">
+        <p>Already have an account? <a href="login.html" class="auth-link">Sign in here</a></p>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Create Account</button>
-    </form>
-
-    <div class="login-footer">
-      <p>Already have an account? <a href="login.html">Sign In here</a></p>
     </div>
   </div>
 
+  <!-- Role toggle script + Auth Controller -->
+  <script type="module">
+    // Segmented role button click toggle
+    const roleBtns = document.querySelectorAll('.role-btn');
+    const roleInput = document.getElementById('register-role');
+    const classCodeGroup = document.getElementById('group-classroom-code');
+
+    roleBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        roleBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const role = btn.dataset.role;
+        roleInput.value = role;
+
+        // Auto hide classroom code requirement for faculty
+        if (role === 'faculty') {
+          classCodeGroup.style.display = 'none';
+        } else {
+          classCodeGroup.style.display = 'flex';
+        }
+      });
+    });
+  </script>
   <script type="module" src="js/register.js"></script>
+  <script type="module" src="js/theme.js"></script>
   <script type="module" src="js/auth-guard.js"></script>
 </body>
 </html>

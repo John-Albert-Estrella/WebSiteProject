@@ -1,39 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aimser - Secure Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aimser - Sign In</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="login-body">
+<body class="auth-body">
 
-  <div class="login-container">
-    <div class="login-brand">
-      <h2>Aimser</h2>
-      <p>HR Management Simulator</p>
-    </div>
-
-    <form class="auth-form" id="loginForm">
-      <div class="form-group">
-        <label class="form-label">Email Address</label>
-        <input type="email" class="form-control" id="email" placeholder="name@university.edu" required autocomplete="email">
-      </div>
+  <div class="auth-wrapper">
+    <div class="card auth-card">
       
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" placeholder="••••••••" required autocomplete="current-password">
+      <!-- Brand & Header -->
+      <div class="auth-header">
+        <div class="auth-brand-badge">Aimser</div>
+        <h1 class="auth-title">Welcome Back</h1>
+        <p class="auth-subtitle">Sign in to your HR Management Simulator workspace.</p>
       </div>
 
-      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Sign In</button>
-    </form>
+      <!-- Login Form -->
+      <form id="form-login" class="auth-form" autocomplete="on">
+        <div class="form-group">
+          <label class="form-label" for="login-email">Email Address</label>
+          <input 
+            type="email" 
+            id="login-email" 
+            class="form-control" 
+            placeholder="name@university.edu" 
+            required 
+            autofocus
+          >
+        </div>
 
-    <div class="login-footer">
-      <p>Need an account? <a href="register.html">Register here</a></p>
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label class="form-label" for="login-password" style="margin-bottom: 0;">Password</label>
+          </div>
+          <input 
+            type="password" 
+            id="login-password" 
+            class="form-control" 
+            placeholder="••••••••" 
+            required
+          >
+        </div>
+
+        <button type="submit" id="btn-login" class="btn btn-primary auth-submit-btn">
+          Sign In
+        </button>
+      </form>
+
+      <!-- Footer Navigation -->
+      <div class="auth-footer">
+        <p>Need an account? <a href="register.html" class="auth-link">Register here</a></p>
+      </div>
+
     </div>
   </div>
 
+  <!-- Scripts -->
   <script type="module" src="js/login.js"></script>
+  <script type="module" src="js/theme.js"></script>
   <script type="module" src="js/auth-guard.js"></script>
 </body>
 </html>

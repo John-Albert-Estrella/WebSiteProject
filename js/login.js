@@ -1,38 +1,89 @@
 import { auth, db } from "./firebase-init.js";
 import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { redirectBasedOnRole } from "./auth-guard.js";
 
-const loginForm = document.getElementById('loginForm');
+function setupLogin() {
+  const loginForm = document.getElementById("form-login") || document.querySelector("form");
+  const btnLogin = document.getElementById("btn-login") || document.querySelector("button[type='submit']");
 
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  const submitBtn = loginForm.querySelector('button[type="submit"]');
+  if (!loginForm) {
+    console.warn("Login form not found in DOM.");
+    return;
+  }
 
-  submitBtn.innerText = "Verifying...";
-  submitBtn.disabled = true;
+  loginForm.onsubmit = async (e) => {
+    e.preventDefault();
 
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+    // 1. Resolve inputs defensively
+    const emailInput = document.getElementById("login-email") || document.getElementById("email") || document.querySelector("input[type='email']");
+    const passwordInput = document.getElementById("login-password") || document.getElementById("password") || document.querySelector("input[type='password']");
 
-    // Fetch account role from Firestore
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    
-    if (!userDoc.exists()) {
-      throw new Error("User record not found in database.");
+    const email = emailInput?.value.trim() || "";
+    const password = passwordInput?.value || "";
+
+    if (!email || !password) {
+      alert("Please enter both your email address and password.");
+      return;
     }
 
-    const userData = userDoc.data();
-    redirectBasedOnRole(userData.role);
+    // 2. Button state
+    if (btnLogin) {
+      btnLogin.disabled = true;
+      btnLogin.textContent = "Authenticating...";
+    }
 
-  } catch (error) {
-    console.error("Login Error:", error);
-    alert(error.message || "Invalid credentials.");
-    submitBtn.innerText = "Sign In";
-    submitBtn.disabled = false;
-  }
-});
+    try {
+      // 3. Authenticate with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // 4. Fetch User Profile Document to check Role
+      const userDocRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userDocRef);
+
+      const currentPath = window.location.pathname;
+      const basePath = currentPath.substring(0, currentPath.lastIndexOf("/") + 1);
+
+      if (!userSnap.exists()) {
+        console.warn("User has an auth record but no Firestore document. Defaulting to student.");
+        window.location.replace(basePath + "student-dashboard.html");
+        return;
+      }
+
+      const userData = userSnap.data();
+      const role = userData.role || "student";
+
+      // 5. Role-based redirect
+      if (role === "faculty" || role === "admin") {
+        window.location.replace(basePath + "faculty-dashboard.html");
+      } else {
+        window.location.replace(basePath + "student-dashboard.html");
+      }
+
+    } catch (error) {
+      console.error("Login Error:", error);
+
+      let message = "Invalid email or password.";
+      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        message = "Incorrect email address or password. Please verify and try again.";
+      } else if (error.code === "auth/invalid-email") {
+        message = "The email address format is invalid.";
+      } else if (error.code === "auth/too-many-requests") {
+        message = "Too many failed attempts. Please wait a few minutes before trying again.";
+      }
+
+      alert("Sign In Failed: " + message);
+    } finally {
+      if (btnLogin) {
+        btnLogin.disabled = false;
+        btnLogin.textContent = "Sign In";
+      }
+    }
+  };
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", setupLogin);
+} else {
+  setupLogin();
+}
