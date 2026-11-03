@@ -1,66 +1,56 @@
 import { db } from "./firebase-init.js";
-import { enforceAuth } from "./auth-guard.js";
+import { initAuthGuard } from "./auth-guard.js";
 import { 
   collection, 
-  getDocs, 
   query, 
-  where 
+  where, 
+  getDocs 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-enforceAuth(["faculty", "student", "admin"]);
-
 const metricStudents = document.getElementById("metric-students");
-const metricDeliverables = document.getElementById("metric-deliverables");
 const metricSubmissions = document.getElementById("metric-submissions");
-const metricPending = document.getElementById("metric-pending");
-const logBody = document.getElementById("analytics-log-body");
+const metricTasks = document.getElementById("metric-tasks");
+const metricGrievances = document.getElementById("metric-grievances");
 
-async function populateAnalytics() {
+async function calculateMetrics(classCode) {
   try {
-    // 1. Total Enrolled Students
-    const studentQuery = query(collection(db, "users"), where("role", "==", "student"));
-    const studentSnap = await getDocs(studentQuery);
+    // 1. Enrolled Students
+    const studentQ = classCode 
+      ? query(collection(db, "users"), where("classroomCode", "==", classCode), where("role", "==", "student"))
+      : query(collection(db, "users"), where("role", "==", "student"));
+    const studentSnap = await getDocs(studentQ);
     if (metricStudents) metricStudents.textContent = studentSnap.size;
 
-    // 2. Deliverables / Case studies
-    const casesSnap = await getDocs(collection(db, "cases"));
-    if (metricDeliverables) metricDeliverables.textContent = casesSnap.size;
+    // 2. Submissions
+    const subQ = classCode 
+      ? query(collection(db, "submissions"), where("classroomCode", "==", classCode))
+      : query(collection(db, "submissions"));
+    const subSnap = await getDocs(subQ);
+    if (metricSubmissions) metricSubmissions.textContent = subSnap.size;
 
-    // 3. Portfolios & Pending review
-    const portSnap = await getDocs(collection(db, "portfolio"));
-    if (metricSubmissions) metricSubmissions.textContent = portSnap.size;
+    // 3. Tasks
+    const taskQ = classCode 
+      ? query(collection(db, "tasks"), where("classroomCode", "==", classCode))
+      : query(collection(db, "tasks"));
+    const taskSnap = await getDocs(taskQ);
+    if (metricTasks) metricTasks.textContent = taskSnap.size;
 
-    let pending = 0;
-    portSnap.forEach((docSnap) => {
-      if (docSnap.data().status === "pending") pending++;
-    });
-    if (metricPending) metricPending.textContent = pending;
+    // 4. Grievances
+    const grQ = classCode 
+      ? query(collection(db, "grievances"), where("classroomCode", "==", classCode))
+      : query(collection(db, "grievances"));
+    const grSnap = await getDocs(grQ);
+    if (metricGrievances) metricGrievances.textContent = grSnap.size;
 
-    // 4. Activity Log
-    if (logBody) {
-      logBody.innerHTML = "";
-      let count = 0;
-
-      casesSnap.forEach((d) => {
-        if (count >= 5) return;
-        const c = d.data();
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${c.createdAt ? new Date(c.createdAt.toDate()).toLocaleDateString() : "Recent"}</td>
-          <td><span class="status-badge status-graded">Case Study</span></td>
-          <td>Published: "${c.title}" by ${c.author || "Instructor"}</td>
-        `;
-        logBody.appendChild(tr);
-        count++;
-      });
-
-      if (count === 0) {
-        logBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-secondary);">No simulation activities logged yet.</td></tr>`;
-      }
-    }
-  } catch (error) {
-    console.error("Analytics load error:", error);
+  } catch (err) {
+    console.error("Error calculating analytics metrics:", err);
   }
 }
 
-document.addEventListener("DOMContentLoaded", populateAnalytics);
+// Unified Auth Guard
+initAuthGuard({
+  onReady: ({ userData }) => {
+    const classCode = userData.classroomCode || "";
+    calculateMetrics(classCode);
+  }
+});

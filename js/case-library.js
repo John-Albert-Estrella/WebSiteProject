@@ -1,9 +1,7 @@
-import { auth, db } from "./firebase-init.js";
+import { db } from "./firebase-init.js";
 import { uploadToCloudinary } from "./cloudinary-config.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { initAuthGuard } from "./auth-guard.js";
 import { 
-  doc, 
-  getDoc, 
   collection, 
   addDoc, 
   query, 
@@ -12,8 +10,6 @@ import {
   serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-const studentSidebarName = document.getElementById("student-sidebar-name");
-const topbarStudentName = document.getElementById("topbar-student-name");
 const uploadPanel = document.getElementById("upload-panel");
 const uploadPanelTitle = document.getElementById("upload-panel-title");
 const uploadCaseId = document.getElementById("upload-case-id");
@@ -23,19 +19,10 @@ const formUpload = document.getElementById("form-upload-deliverable");
 const btnSubmitFile = document.getElementById("btn-submit-file");
 const btnCloseUpload = document.getElementById("btn-close-upload");
 const submissionsTbody = document.getElementById("submissions-tbody");
-const btnLogout = document.getElementById("btn-logout");
 
-let currentStudent = null;
-
-// Logout
-btnLogout?.addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-    window.location.replace("login.html");
-  } catch (err) {
-    console.error("Logout error:", err);
-  }
-});
+let currentUser = null;
+let currentRole = "student";
+let userClassCode = "";
 
 // Setup Upload Buttons on Cards
 document.querySelectorAll(".btn-open-upload").forEach(btn => {
@@ -52,18 +39,25 @@ document.querySelectorAll(".btn-open-upload").forEach(btn => {
   });
 });
 
-// Cancel Upload
 btnCloseUpload?.addEventListener("click", () => {
   if (uploadPanel) uploadPanel.style.display = "none";
   if (formUpload) formUpload.reset();
 });
 
 // Load Submissions History
-async function loadSubmissions(uid) {
+async function loadSubmissions() {
   if (!submissionsTbody) return;
 
   try {
-    const q = query(collection(db, "submissions"), where("studentUid", "==", uid));
+    let q;
+    if (currentRole === "faculty") {
+      q = userClassCode 
+        ? query(collection(db, "submissions"), where("classroomCode", "==", userClassCode))
+        : query(collection(db, "submissions"));
+    } else {
+      q = query(collection(db, "submissions"), where("studentUid", "==", currentUser.uid));
+    }
+
     const snap = await getDocs(q);
 
     if (snap.empty) {
@@ -118,29 +112,28 @@ formUpload?.addEventListener("submit", async (e) => {
   }
 
   try {
-    // 1. Upload directly to Cloudinary (using unsigned preset)
     const fileUrl = await uploadToCloudinary(file);
 
     if (btnSubmitFile) btnSubmitFile.textContent = "Saving submission...";
 
-    // 2. Save submission record in Firestore
     await addDoc(collection(db, "submissions"), {
-      studentUid: currentStudent.uid,
-      studentName: currentStudent.name,
-      studentEmail: currentStudent.email,
-      classroomCode: currentStudent.classroomCode || "",
+      studentUid: currentUser.uid,
+      studentName: currentUser.displayName || currentUser.email,
+      studentEmail: currentUser.email,
+      classroomCode: userClassCode || "GLOBAL",
       caseId: caseId,
       caseTitle: uploadPanelTitle?.textContent.replace("Submit Deliverable: ", "") || caseId,
       fileName: file.name,
       fileUrl: fileUrl,
       notes: notes,
+      status: "Pending Review",
       createdAt: serverTimestamp()
     });
 
     alert("Deliverable uploaded and submitted successfully!");
     if (formUpload) formUpload.reset();
     if (uploadPanel) uploadPanel.style.display = "none";
-    loadSubmissions(currentStudent.uid);
+    loadSubmissions();
 
   } catch (err) {
     console.error("Submission failed:", err);
@@ -163,34 +156,12 @@ function escapeHtml(str) {
   }[s]));
 }
 
-// Auth Guard
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.replace("login.html");
-    return;
-  }
-
-  try {
-    const userDocRef = doc(db, "users", user.uid);
-    const snap = await getDoc(userDocRef);
-
-    if (snap.exists()) {
-      const data = snap.data();
-      const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Student";
-      
-      currentStudent = {
-        uid: user.uid,
-        name: fullName,
-        email: data.email || user.email,
-        classroomCode: data.classroomCode || ""
-      };
-
-      if (studentSidebarName) studentSidebarName.textContent = fullName;
-      if (topbarStudentName) topbarStudentName.textContent = fullName;
-
-      loadSubmissions(user.uid);
-    }
-  } catch (e) {
-    console.error("Profile load error:", e);
+// Unified Auth Guard
+initAuthGuard({
+  onReady: ({ user, userData, role }) => {
+    currentUser = user;
+    currentRole = role;
+    userClassCode = userData.classroomCode || "";
+    loadSubmissions();
   }
 });

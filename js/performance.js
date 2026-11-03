@@ -1,149 +1,115 @@
-import { auth, db } from "./firebase-init.js";
-import { enforceAuth } from "./auth-guard.js";
+import { db } from "./firebase-init.js";
+import { initAuthGuard } from "./auth-guard.js";
 import { 
   collection, 
-  addDoc, 
-  getDoc, 
-  doc, 
+  query, 
+  where, 
   onSnapshot, 
+  addDoc, 
   serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-enforceAuth(["faculty", "student", "admin"]);
+const kpiCreatePanel = document.getElementById("kpi-create-panel");
+const formCreateKpi = document.getElementById("form-create-kpi");
+const kpiCyclesContainer = document.getElementById("kpi-cycles-container");
 
-const kpiPanel = document.getElementById("kpi-setup-panel");
-const appraisalPanel = document.getElementById("self-appraisal-panel");
+let activeRole = "student";
+let activeClassCode = "";
+let currentUser = null;
 
-const reviewTitle = document.getElementById("review-title");
-const kpiMetricName = document.getElementById("kpi-metric-name");
-const btnSaveKpi = document.getElementById("btn-save-kpi");
+// Handle KPI Creation
+formCreateKpi?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const title = document.getElementById("kpi-title-input")?.value.trim();
+  const metric = document.getElementById("kpi-metric-input")?.value.trim();
 
-const appraisalText = document.getElementById("appraisal-achievements");
-const btnSubmitAppraisal = document.getElementById("btn-submit-appraisal");
+  if (!title || !metric) return;
 
-document.addEventListener("DOMContentLoaded", () => {
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) return;
+  const btn = document.getElementById("btn-publish-kpi");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Publishing...";
+  }
 
-    try {
-      const userSnap = await getDoc(doc(db, "users", user.uid));
-      if (!userSnap.exists()) return;
+  try {
+    await addDoc(collection(db, "kpi_cycles"), {
+      title,
+      metric,
+      classroomCode: activeClassCode || "GLOBAL",
+      authorEmail: currentUser.email,
+      status: "Active",
+      createdAt: serverTimestamp()
+    });
 
-      const userData = userSnap.data();
-      const isFaculty = userData.role === "faculty" || userData.role === "admin";
-
-      // 1. Role-based panel display
-      if (isFaculty && kpiPanel) {
-        kpiPanel.style.display = "block";
-      } else if (!isFaculty && appraisalPanel) {
-        appraisalPanel.style.display = "block";
-      }
-
-      // 2. Faculty: Save New Appraisal Cycle & Key KPI
-      if (btnSaveKpi) {
-        btnSaveKpi.addEventListener("click", async () => {
-          const title = reviewTitle.value.trim();
-          const metric = kpiMetricName.value.trim();
-
-          if (!title || !metric) {
-            alert("Please fill in both the cycle title and metric name.");
-            return;
-          }
-
-          btnSaveKpi.disabled = true;
-          try {
-            await addDoc(collection(db, "performance_cycles"), {
-              title,
-              metric,
-              facultyUid: user.uid,
-              facultyName: `${userData.firstName} ${userData.lastName}`,
-              createdAt: serverTimestamp()
-            });
-
-            alert("Appraisal cycle published to students!");
-            reviewTitle.value = "";
-            kpiMetricName.value = "";
-          } catch (err) {
-            console.error("Error creating performance cycle:", err);
-            alert("Error: " + err.message);
-          } finally {
-            btnSaveKpi.disabled = false;
-          }
-        });
-      }
-
-      // 3. Student: Submit Self-Appraisal
-      if (btnSubmitAppraisal) {
-        btnSubmitAppraisal.addEventListener("click", async () => {
-          const content = appraisalText.value.trim();
-          if (!content) {
-            alert("Please detail your achievements before submitting.");
-            return;
-          }
-
-          btnSubmitAppraisal.disabled = true;
-          try {
-            await addDoc(collection(db, "appraisals"), {
-              studentUid: user.uid,
-              studentName: `${userData.firstName} ${userData.lastName}`,
-              achievements: content,
-              submittedAt: serverTimestamp()
-            });
-
-            alert("Self-appraisal submitted for faculty review!");
-            appraisalText.value = "";
-          } catch (err) {
-            console.error("Error submitting appraisal:", err);
-            alert("Error: " + err.message);
-          } finally {
-            btnSubmitAppraisal.disabled = false;
-          }
-        });
-      }
-
-      // 4. Live Display of Active Performance Cycles
-      renderPerformanceStream(isFaculty);
-
-    } catch (err) {
-      console.error("Performance engine error:", err);
+    if (formCreateKpi) formCreateKpi.reset();
+  } catch (err) {
+    console.error("Failed to publish KPI cycle:", err);
+    alert("Could not publish cycle: " + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Publish KPI Cycle";
     }
-  });
+  }
 });
 
-function renderPerformanceStream(isFaculty) {
-  const container = document.querySelector(".page-container");
-  const streamCard = document.createElement("div");
-  streamCard.className = "card";
-  streamCard.style.marginTop = "24px";
-  streamCard.innerHTML = `<h3 style="margin-bottom: 16px;">Active Appraisal Benchmarks & Submissions</h3><div id="perf-list">Loading...</div>`;
-  container.appendChild(streamCard);
+// Real-Time KPI Cycle Listener
+function listenToKpiCycles() {
+  const q = activeClassCode 
+    ? query(collection(db, "kpi_cycles"), where("classroomCode", "==", activeClassCode))
+    : query(collection(db, "kpi_cycles"));
 
-  const perfList = streamCard.querySelector("#perf-list");
-
-  onSnapshot(collection(db, "performance_cycles"), (snapshot) => {
-    perfList.innerHTML = "";
-
+  onSnapshot(q, (snapshot) => {
+    if (!kpiCyclesContainer) return;
     if (snapshot.empty) {
-      perfList.innerHTML = `<p style="color: var(--text-secondary); font-size: 13px;">No appraisal cycles currently initiated.</p>`;
+      kpiCyclesContainer.innerHTML = `<div class="empty-state"><p>No appraisal cycles currently initiated.</p></div>`;
       return;
     }
 
-    snapshot.forEach((docSnap) => {
-      const cycle = docSnap.data();
-      const item = document.createElement("div");
-      item.style.padding = "14px";
-      item.style.borderBottom = "1px solid var(--surface-border)";
-      item.style.display = "flex";
-      item.style.justifyContent = "space-between";
-      item.style.alignItems = "center";
-      item.innerHTML = `
-        <div>
-          <h4 style="margin: 0;">${cycle.title}</h4>
-          <p style="font-size: 12.5px; color: var(--text-secondary); margin-top: 4px;">Metric: <strong>${cycle.metric}</strong> • By: ${cycle.facultyName}</p>
+    kpiCyclesContainer.innerHTML = snapshot.docs.map(d => {
+      const data = d.data();
+      const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : "Active";
+
+      return `
+        <div class="card" style="padding: 18px; gap: 10px; background: var(--bg-surface);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary);">${escapeHtml(data.title)}</h3>
+            <span class="status-badge active">${escapeHtml(data.status || "Active")}</span>
+          </div>
+          <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.45;">
+            <strong>Benchmark KPI:</strong> ${escapeHtml(data.metric)}
+          </p>
+          <span style="font-size: 11px; color: var(--text-tertiary);">Initiated on ${dateStr} by ${escapeHtml(data.authorEmail || "Instructor")}</span>
         </div>
-        <span class="status-badge status-graded">Cycle Active</span>
       `;
-      perfList.appendChild(item);
-    });
+    }).join("");
+  }, (err) => {
+    console.error("Error reading KPI cycles:", err);
   });
 }
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[s]));
+}
+
+// Unified Auth Guard
+initAuthGuard({
+  onReady: ({ user, userData, role }) => {
+    currentUser = user;
+    activeRole = role;
+    activeClassCode = userData.classroomCode || "";
+
+    // Show KPI Creation form to Faculty only
+    if (activeRole === "faculty" && kpiCreatePanel) {
+      kpiCreatePanel.style.display = "block";
+    }
+
+    listenToKpiCycles();
+  }
+});
