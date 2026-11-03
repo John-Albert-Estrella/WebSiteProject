@@ -1,83 +1,172 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Aimser - Recruitment Simulator</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<!-- Floating Bento Rail Sidebar -->
-<aside class="sidebar">
-  <div class="sidebar-brand">
-    <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
-    <p>Management Simulator</p>
-  </div>
-
-  <div class="sidebar-user-card">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span class="welcome-tag">WORKSPACE</span>
-      <!-- Working Theme Pills -->
-      <div class="theme-switch-pills">
-        <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-        <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-      </div>
+  <!-- Sidebar Rail -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
+      <p>Management Simulator</p>
     </div>
-    <h3 id="sidebar-greeting-name">Welcome back!</h3>
-  </div>
 
-  <!-- Standardized 9-Item Nav Rail -->
-  <nav class="sidebar-nav">
-    <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
-    <a href="planner.html" class="nav-item">📋 Project Planner</a>
-    <a href="feed.html" class="nav-item">💬 HR Feed</a>
-    <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-    <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
-    <a href="performance.html" class="nav-item">📈 Performance Management</a>
-    <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
-    <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-    <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
-  </nav>
-</aside>
-
-  <main class="main-content">
-    <header class="topbar">
-      <div>
-        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
-        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
+    <div class="sidebar-user-card">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="welcome-tag">WORKSPACE</span>
+        <div class="theme-switch-pills">
+          <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
+          <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
+        </div>
       </div>
-      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
+      <h3 id="sidebar-greeting-name">Welcome back!</h3>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
+      <a href="planner.html" class="nav-item">📋 Project Planner</a>
+      <a href="feed.html" class="nav-item">💬 HR Feed</a>
+      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
+      <a href="recruitment.html" class="nav-item active">🎯 Recruitment Simulator</a>
+      <a href="performance.html" class="nav-item">📈 Performance Management</a>
+      <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
+      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
+      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+    </nav>
+  </aside>
+
+  <!-- Main Content Space -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="brand-group">
+        <span class="faculty-name-display" id="topbar-user-name">Prof. Instructor</span>
+        <span class="role-tag" id="topbar-role-badge">FACULTY</span>
+      </div>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+      </div>
     </header>
 
-    <div class="page-container">
+    <main class="page-container">
       <div class="page-header">
-        <h1 class="page-title">Recruitment Simulator</h1>
-        <p class="page-subtitle">Define job profiles, review incoming candidates, and manage pipeline decisions.</p>
-      </div>
-
-      <div class="split-layout">
-        <!-- Requisition Panel -->
-        <div class="card">
-          <h3 style="margin-bottom: 16px;">Active Job Orders</h3>
-          <div id="job-orders-container">
-            <p style="color: var(--text-secondary);">Loading requisition orders...</p>
-          </div>
+        <div>
+          <h1 class="page-title">Recruitment Simulator</h1>
+          <p class="page-subtitle">Define job profiles, review incoming simulation candidates, and manage hiring pipeline decisions.</p>
         </div>
-
-        <!-- Candidate Evaluation Panel -->
-        <div class="card">
-          <h3 style="margin-bottom: 16px;">Candidate Evaluation Queue</h3>
-          <div id="candidates-container">
-            <p style="color: var(--text-secondary);">No candidate applications pending review.</p>
-          </div>
+        <div class="card-actions" id="faculty-actions" style="display: none;">
+          <button type="button" class="btn btn-primary" id="btn-open-job-modal">+ Post Job Requisition</button>
+          <button type="button" class="btn btn-secondary" id="btn-open-candidate-modal">+ Inject Simulation Candidate</button>
         </div>
       </div>
-    </div>
-  </main>
+
+      <!-- Create Job Order Modal -->
+      <section class="card" id="job-modal" style="display: none; border-color: rgba(56, 189, 248, 0.4);">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Post New Job Requisition</h2>
+            <p class="card-subtitle">Establish hiring criteria and key competencies.</p>
+          </div>
+          <button type="button" class="btn btn-secondary" id="btn-close-job-modal">Cancel</button>
+        </div>
+        <form id="form-create-job" style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-row-duo">
+            <div class="form-group">
+              <label class="form-label" for="job-title-input">Job Title</label>
+              <input type="text" id="job-title-input" class="form-control" placeholder="e.g. HR Generalist" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="job-dept-input">Department</label>
+              <input type="text" id="job-dept-input" class="form-control" placeholder="e.g. People Operations" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="job-reqs-input">Key Requirements & Experience</label>
+            <textarea id="job-reqs-input" class="form-control" placeholder="Minimum qualifications, technical skills, labor law proficiency..."></textarea>
+          </div>
+          <div class="card-actions">
+            <button type="submit" class="btn btn-primary">Publish Requisition</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Inject Candidate Modal (Faculty Only) -->
+      <section class="card" id="candidate-modal" style="display: none; border-color: rgba(251, 191, 36, 0.4);">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Inject Simulation Candidate</h2>
+            <p class="card-subtitle">Simulate applicant profiles for students to screen and interview.</p>
+          </div>
+          <button type="button" class="btn btn-secondary" id="btn-close-candidate-modal">Cancel</button>
+        </div>
+        <form id="form-inject-candidate" style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-row-duo">
+            <div class="form-group">
+              <label class="form-label" for="cand-name-input">Candidate Full Name</label>
+              <input type="text" id="cand-name-input" class="form-control" placeholder="e.g. Alex Morgan" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cand-exp-input">Years of Experience</label>
+              <input type="number" id="cand-exp-input" class="form-control" placeholder="e.g. 4" min="0" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="cand-resume-input">Resume Summary & Qualifications</label>
+            <textarea id="cand-resume-input" class="form-control" placeholder="Profile overview, education, past roles, strengths or red flags..."></textarea>
+          </div>
+          <div class="card-actions">
+            <button type="submit" class="btn btn-primary">Inject Applicant</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Active Job Orders Section -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Active Job Orders</h2>
+            <p class="card-subtitle">Open requisitions available for this cohort.</p>
+          </div>
+        </div>
+        <div id="job-orders-container" class="dashboard-grid" style="gap: 16px;">
+          <div class="empty-state"><p>No active job orders published yet.</p></div>
+        </div>
+      </section>
+
+      <!-- Candidate Evaluation Queue -->
+      <section class="card roster-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Candidate Evaluation Queue</h2>
+            <p class="card-subtitle">Screen applicants and log hiring recommendations.</p>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Applicant Name</th>
+                <th>Experience</th>
+                <th>Resume Profile</th>
+                <th>Status</th>
+                <th>Hiring Decision Actions</th>
+              </tr>
+            </thead>
+            <tbody id="candidates-tbody">
+              <tr>
+                <td colspan="5" class="empty-state">No applicants in the evaluation queue.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <script type="module" src="js/recruitment.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
   <script type="module" src="js/theme.js"></script>
 </body>
 </html>

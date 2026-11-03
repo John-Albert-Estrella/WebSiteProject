@@ -4,10 +4,7 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 /**
- * Initializes authentication, role checks, and sidebar links across all pages.
- * @param {Object} options
- * @param {string} [options.requiredRole] - "faculty" or "student" (optional)
- * @param {Function} [options.onReady] - callback returning { user, userData }
+ * Robust Auth Guard: Resolves user profile, updates topbar/sidebar, and prevents null errors.
  */
 export function initAuthGuard(options = {}) {
   const btnLogout = document.getElementById("btn-logout");
@@ -30,16 +27,14 @@ export function initAuthGuard(options = {}) {
       const userRef = doc(db, "users", user.uid);
       const snap = await getDoc(userRef);
 
-      if (!snap.exists()) {
-        console.warn("User profile record not found in Firestore.");
-        return;
-      }
-
-      const userData = snap.data();
+      const userData = snap.exists() ? snap.data() : {};
       const role = userData.role || "student";
-      const fullName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || user.email;
+      const isFaculty = role === "faculty";
+      
+      const rawName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || user.displayName || user.email.split("@")[0];
+      const displayName = isFaculty ? `Prof. ${userData.lastName || rawName}` : rawName;
 
-      // 1. Enforce page role requirement if specified
+      // 1. Role verification check
       if (options.requiredRole && role !== options.requiredRole) {
         if (options.requiredRole === "faculty") {
           alert("Access restricted: This area requires a Faculty account.");
@@ -48,40 +43,40 @@ export function initAuthGuard(options = {}) {
         }
       }
 
-      // 2. Fix the Sidebar Dashboard Link dynamically
-      const dashboardLink = document.querySelector('.sidebar-nav a[href*="dashboard"]');
-      if (dashboardLink) {
-        dashboardLink.href = role === "faculty" ? "faculty-dashboard.html" : "student-dashboard.html";
-      }
+      // 2. Fix Dashboard link dynamically in Sidebar
+      const dashboardLinks = document.querySelectorAll('.sidebar-nav a[href*="dashboard"]');
+      dashboardLinks.forEach(link => {
+        link.href = isFaculty ? "faculty-dashboard.html" : "student-dashboard.html";
+      });
 
-      // 3. Update Sidebar Greeting & Topbar Info
-      const sidebarGreeting = document.getElementById("sidebar-greeting-name");
-      const facultyDisplay = document.getElementById("faculty-display-name");
-      const topbarName = document.getElementById("topbar-student-name") || document.getElementById("topbar-user-name");
-      const roleBadge = document.querySelector(".role-tag") || document.querySelector(".badge-role");
+      // 3. Update User Name across all variations of topbar & sidebar elements
+      const nameElements = [
+        document.getElementById("topbar-user-name"),
+        document.getElementById("topbar-student-name"),
+        document.getElementById("faculty-display-name"),
+        document.getElementById("sidebar-greeting-name"),
+        document.getElementById("student-sidebar-name")
+      ];
 
-      if (sidebarGreeting) {
-        sidebarGreeting.textContent = role === "faculty" ? `Prof. ${userData.lastName || fullName}` : fullName;
-      }
+      nameElements.forEach(el => {
+        if (el) el.textContent = displayName;
+      });
 
-      if (facultyDisplay) {
-        facultyDisplay.textContent = `Prof. ${userData.lastName || fullName}`;
-      }
+      // 4. Update Role Badge across all variations
+      const badgeElements = [
+        document.getElementById("topbar-role-badge"),
+        document.querySelector(".role-tag"),
+        document.querySelector(".badge-role")
+      ];
 
-      if (topbarName) {
-        topbarName.textContent = role === "faculty" ? `Prof. ${userData.lastName || fullName}` : fullName;
-      }
-
-      if (roleBadge) {
-        roleBadge.textContent = role.toUpperCase();
-        if (role === "faculty") {
-          roleBadge.className = "role-tag faculty";
-        } else {
-          roleBadge.className = "role-tag";
+      badgeElements.forEach(badge => {
+        if (badge) {
+          badge.textContent = role.toUpperCase();
+          badge.className = isFaculty ? "role-tag faculty" : "role-tag";
         }
-      }
+      });
 
-      // 4. Trigger caller logic
+      // 5. Trigger page callback
       if (typeof options.onReady === "function") {
         options.onReady({ user, userData, role });
       }
