@@ -1,225 +1,183 @@
-import { auth, db } from "./firebase-init.js";
-import { enforceAuth } from "./auth-guard.js";
+import { db } from "./firebase-init.js";
+import { initAuthGuard } from "./auth-guard.js";
 import { 
   collection, 
+  query, 
+  where, 
+  onSnapshot, 
   addDoc, 
   updateDoc, 
-  deleteDoc,
+  deleteDoc, 
   doc, 
-  getDoc, 
-  onSnapshot, 
   serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-enforceAuth(["student", "faculty", "admin"]);
-
-const containerTodo = document.getElementById("container-todo");
-const containerInProgress = document.getElementById("container-inprogress");
-const containerDone = document.getElementById("container-done");
+const todoContainer = document.getElementById("todo-tasks");
+const inProgressContainer = document.getElementById("inprogress-tasks");
+const doneContainer = document.getElementById("done-tasks");
 
 const countTodo = document.getElementById("count-todo");
 const countInProgress = document.getElementById("count-inprogress");
 const countDone = document.getElementById("count-done");
 
-const btnAddTask = document.getElementById("btn-open-task-modal");
+const btnAddTask = document.getElementById("btn-add-task");
 const taskModal = document.getElementById("task-modal");
-const btnModalCancel = document.getElementById("btn-modal-cancel");
-const btnModalSave = document.getElementById("btn-modal-save");
+const formTask = document.getElementById("form-create-task");
+const btnCancelTask = document.getElementById("btn-cancel-task");
 
-const modalTitle = document.getElementById("modal-task-title");
-const modalDesc = document.getElementById("modal-task-desc");
-const modalPriority = document.getElementById("modal-task-priority");
-const modalDue = document.getElementById("modal-task-due");
+let currentUser = null;
+let currentRole = "student";
+let userClassCode = "";
+let tasksUnsubscribe = null;
 
-let activeClassRoom = null;
-let currentUserProfile = null;
-
-document.addEventListener("DOMContentLoaded", () => {
-  // Modal toggle listeners
-  if (btnAddTask) {
-    btnAddTask.addEventListener("click", () => {
-      if (!activeClassRoom) {
-        alert("You must first create or join a class room from the Dashboard before adding tasks!");
-        return;
-      }
-      taskModal.style.display = "block";
-      modalTitle.value = "";
-      modalDesc.value = "";
-      modalTitle.focus();
-    });
-  }
-
-  if (btnModalCancel) {
-    btnModalCancel.addEventListener("click", () => {
-      taskModal.style.display = "none";
-    });
-  }
-
-  if (btnModalSave) {
-    btnModalSave.addEventListener("click", async () => {
-      const title = modalTitle.value.trim();
-      const desc = modalDesc.value.trim();
-      const priority = modalPriority.value;
-      const due = modalDue.value;
-
-      if (!title) {
-        alert("Please enter a task title.");
-        return;
-      }
-
-      btnModalSave.disabled = true;
-      btnModalSave.textContent = "Saving...";
-
-      try {
-        await addDoc(collection(db, "rooms", activeClassRoom, "tasks"), {
-          title: title,
-          description: desc,
-          priority: priority,
-          dueDate: due || null,
-          status: "To Do",
-          createdByUid: auth.currentUser.uid,
-          createdByName: `${currentUserProfile.firstName} ${currentUserProfile.lastName}`,
-          createdAt: serverTimestamp()
-        });
-
-        taskModal.style.display = "none";
-      } catch (err) {
-        console.error("Task creation failed:", err);
-        alert("Could not create task: " + err.message);
-      } finally {
-        btnModalSave.disabled = false;
-        btnModalSave.textContent = "Create Task";
-      }
-    });
-  }
-
-  // Setup column drag-and-drop dropzones
-  setupColumnDropZones();
-
-  // Watch auth state
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) return;
-
-    try {
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) return;
-
-      currentUserProfile = userDoc.data();
-      activeClassRoom = currentUserProfile.activeRoomCode || currentUserProfile.roomCode;
-
-      if (!activeClassRoom) {
-        containerTodo.innerHTML = `
-          <div style="background: #fff; border: 1px dashed var(--surface-border); padding: 20px; border-radius: var(--radius-md); text-align: center;">
-            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 8px;">No active class linked.</p>
-            <a href="index.html" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px;">Go to Dashboard</a>
-          </div>`;
-        return;
-      }
-
-      // Live listen to tasks in this room
-      listenToKanbanBoard(activeClassRoom);
-
-    } catch (err) {
-      console.error("Planner init error:", err);
-    }
-  });
+// Modal Controls
+btnAddTask?.addEventListener("click", () => {
+  if (taskModal) taskModal.style.display = "block";
 });
 
-function setupColumnDropZones() {
-  [containerTodo, containerInProgress, containerDone].forEach((container) => {
-    container.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      container.classList.add("drag-over");
+btnCancelTask?.addEventListener("click", () => {
+  if (taskModal) taskModal.style.display = "none";
+  if (formTask) formTask.reset();
+});
+
+// Create New Kanban Task
+formTask?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const title = document.getElementById("task-title-input")?.value.trim();
+  const desc = document.getElementById("task-desc-input")?.value.trim();
+  const phase = document.getElementById("task-phase-input")?.value || "todo";
+
+  if (!title) return;
+
+  try {
+    await addDoc(collection(db, "tasks"), {
+      title,
+      description: desc,
+      status: phase,
+      classroomCode: userClassCode || "GLOBAL",
+      creatorUid: currentUser.uid,
+      creatorName: currentUser.displayName || currentUser.email,
+      createdAt: serverTimestamp()
     });
 
-    container.addEventListener("dragleave", () => {
-      container.classList.remove("drag-over");
+    if (taskModal) taskModal.style.display = "none";
+    if (formTask) formTask.reset();
+  } catch (err) {
+    console.error("Failed to add task:", err);
+    alert("Could not create task: " + err.message);
+  }
+});
+
+// Real-Time Scoped Listener
+function listenToClassroomTasks() {
+  if (tasksUnsubscribe) tasksUnsubscribe();
+
+  let q;
+  if (userClassCode) {
+    // Scoped strictly to the active section
+    q = query(collection(db, "tasks"), where("classroomCode", "==", userClassCode));
+  } else {
+    // Fallback for unlinked workspaces
+    q = query(collection(db, "tasks"), where("creatorUid", "==", currentUser.uid));
+  }
+
+  tasksUnsubscribe = onSnapshot(q, (snapshot) => {
+    let todos = [];
+    let inProgress = [];
+    let done = [];
+
+    snapshot.forEach((docSnap) => {
+      const task = { id: docSnap.id, ...docSnap.data() };
+      if (task.status === "inprogress") {
+        inProgress.push(task);
+      } else if (task.status === "done") {
+        done.push(task);
+      } else {
+        todos.push(task);
+      }
     });
 
-    container.addEventListener("drop", async (e) => {
-      e.preventDefault();
-      container.classList.remove("drag-over");
-      const taskId = e.dataTransfer.getData("text/plain");
-      const targetStatus = container.parentElement.getAttribute("data-status");
+    renderColumn(todoContainer, todos, "todo");
+    renderColumn(inProgressContainer, inProgress, "inprogress");
+    renderColumn(doneContainer, done, "done");
 
-      if (taskId && targetStatus && activeClassRoom) {
+    if (countTodo) countTodo.textContent = todos.length;
+    if (countInProgress) countInProgress.textContent = inProgress.length;
+    if (countDone) countDone.textContent = done.length;
+  });
+}
+
+function renderColumn(container, tasks, columnType) {
+  if (!container) return;
+  if (tasks.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding: 24px 12px; font-size: 13px;">No tasks in this stage.</div>`;
+    return;
+  }
+
+  container.innerHTML = tasks.map(task => `
+    <div class="kanban-task" data-id="${task.id}">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+        <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary);">${escapeHtml(task.title)}</h4>
+        <button type="button" class="btn-delete-task" data-id="${task.id}" style="background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 12px;" title="Delete Task">✕</button>
+      </div>
+      ${task.description ? `<p style="font-size: 13px; color: var(--text-secondary); line-height: 1.4;">${escapeHtml(task.description)}</p>` : ""}
+      
+      <!-- Quick Stage Switcher Controls -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--surface-border);">
+        <span style="font-size: 11px; color: var(--text-tertiary);">${escapeHtml(task.creatorName || "Peer")}</span>
+        <select class="select-task-status" data-id="${task.id}" style="padding: 3px 6px; font-size: 11px; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--surface-border); border-radius: 4px;">
+          <option value="todo" ${task.status === "todo" ? "selected" : ""}>To Do</option>
+          <option value="inprogress" ${task.status === "inprogress" ? "selected" : ""}>In Progress</option>
+          <option value="done" ${task.status === "done" ? "selected" : ""}>Done</option>
+        </select>
+      </div>
+    </div>
+  `).join("");
+
+  // Attach Stage Change Event
+  container.querySelectorAll(".select-task-status").forEach(select => {
+    select.addEventListener("change", async (e) => {
+      const taskId = e.target.dataset.id;
+      const newStatus = e.target.value;
+      try {
+        await updateDoc(doc(db, "tasks", taskId), { status: newStatus });
+      } catch (err) {
+        console.error("Status update failed:", err);
+      }
+    });
+  });
+
+  // Attach Delete Event
+  container.querySelectorAll(".btn-delete-task").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      const taskId = e.target.dataset.id;
+      if (confirm("Delete this task deliverable?")) {
         try {
-          await updateDoc(doc(db, "rooms", activeClassRoom, "tasks", taskId), {
-            status: targetStatus,
-            updatedAt: serverTimestamp()
-          });
+          await deleteDoc(doc(db, "tasks", taskId));
         } catch (err) {
-          console.error("Error shifting task column:", err);
+          console.error("Delete failed:", err);
         }
       }
     });
   });
 }
 
-function listenToKanbanBoard(roomCode) {
-  const tasksRef = collection(db, "rooms", roomCode, "tasks");
-
-  onSnapshot(tasksRef, (snapshot) => {
-    containerTodo.innerHTML = "";
-    containerInProgress.innerHTML = "";
-    containerDone.innerHTML = "";
-
-    let numTodo = 0;
-    let numInProg = 0;
-    let numDone = 0;
-
-    snapshot.forEach((taskDoc) => {
-      const task = taskDoc.data();
-      const taskId = taskDoc.id;
-
-      const card = document.createElement("div");
-      card.className = "kanban-card";
-      card.draggable = true;
-
-      let priorityColor = "var(--brand-ocean)";
-      if (task.priority === "High") priorityColor = "#ef4444";
-      if (task.priority === "Medium") priorityColor = "#f59e0b";
-
-      card.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-          <div class="task-title" style="margin: 0;">${task.title}</div>
-          <span style="font-size: 10px; font-weight: 700; color: ${priorityColor}; text-transform: uppercase;">${task.priority || "Normal"}</span>
-        </div>
-        ${task.description ? `<p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;">${task.description}</p>` : ''}
-        <div class="task-meta">
-          <span style="font-size: 11px;">📅 ${task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "No deadline"}</span>
-          <div class="assignee-avatar" title="Added by: ${task.createdByName}">${(task.createdByName || "U").slice(0, 2).toUpperCase()}</div>
-        </div>
-      `;
-
-      card.addEventListener("dragstart", (e) => {
-        e.dataTransfer.setData("text/plain", taskId);
-      });
-
-      // Quick delete on double click
-      card.addEventListener("dblclick", async () => {
-        if (confirm(`Delete task "${task.title}"?`)) {
-          await deleteDoc(doc(db, "rooms", roomCode, "tasks", taskId));
-        }
-      });
-
-      if (task.status === "To Do") {
-        numTodo++;
-        containerTodo.appendChild(card);
-      } else if (task.status === "In Progress") {
-        numInProg++;
-        card.style.borderLeftColor = "#f59e0b";
-        containerInProgress.appendChild(card);
-      } else if (task.status === "Done") {
-        numDone++;
-        card.style.borderLeftColor = "#10b981";
-        card.style.opacity = "0.75";
-        containerDone.appendChild(card);
-      }
-    });
-
-    countTodo.textContent = numTodo;
-    countInProgress.textContent = numInProg;
-    countDone.textContent = numDone;
-  });
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[s]));
 }
+
+// Bootstrapping
+initAuthGuard({
+  onReady: ({ user, userData, role }) => {
+    currentUser = user;
+    currentRole = role;
+    userClassCode = userData.classroomCode || "";
+    listenToClassroomTasks();
+  }
+});

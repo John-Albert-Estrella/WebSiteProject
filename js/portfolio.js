@@ -1,176 +1,182 @@
-import { auth, db } from "./firebase-init.js";
-import { enforceAuth } from "./auth-guard.js";
-import { uploadToCloudinary } from "./cloudinary-config.js";
+import { db } from "./firebase-init.js";
+import { initAuthGuard } from "./auth-guard.js";
 import { 
   collection, 
-  addDoc, 
-  updateDoc, 
+  query, 
+  where, 
+  getDocs, 
   doc, 
-  getDoc, 
-  onSnapshot, 
+  updateDoc, 
   serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-enforceAuth(["student", "faculty", "admin"]);
+const portfolioTbody = document.getElementById("portfolio-tbody");
+const tableCardHeading = document.getElementById("table-card-heading");
+const tableCardSubheading = document.getElementById("table-card-subheading");
+const gradePanel = document.getElementById("grade-panel");
+const gradePanelTitle = document.getElementById("grade-panel-title");
+const gradeSubmissionId = document.getElementById("grade-submission-id");
+const gradeScore = document.getElementById("grade-score");
+const gradeStatus = document.getElementById("grade-status");
+const gradeFeedback = document.getElementById("grade-feedback");
+const formGrade = document.getElementById("form-grade-submission");
+const btnCancelGrade = document.getElementById("btn-cancel-grade");
 
-const container = document.getElementById("portfolio-container");
-const btnOpenUpload = document.getElementById("btn-upload-work");
-const uploadModal = document.getElementById("portfolio-modal");
-const btnCancel = document.getElementById("btn-cancel-portfolio");
-const btnSave = document.getElementById("btn-save-portfolio");
+let activeRole = "student";
+let activeUser = null;
 
-const titleInput = document.getElementById("portfolio-title-input");
-const notesInput = document.getElementById("portfolio-notes-input");
-const fileInput = document.getElementById("portfolio-file-input");
+btnCancelGrade?.addEventListener("click", () => {
+  if (gradePanel) gradePanel.style.display = "none";
+  if (formGrade) formGrade.reset();
+});
 
-document.addEventListener("DOMContentLoaded", () => {
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) return;
+formGrade?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const subId = gradeSubmissionId.value;
+  if (!subId) return;
 
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    if (!userSnap.exists()) return;
+  const btn = document.getElementById("btn-save-grade");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+  }
 
-    const userData = userSnap.data();
-    const isFaculty = userData.role === "faculty" || userData.role === "admin";
+  try {
+    await updateDoc(doc(db, "submissions", subId), {
+      grade: Number(gradeScore.value),
+      status: gradeStatus.value,
+      feedback: gradeFeedback.value.trim(),
+      gradedAt: serverTimestamp(),
+      gradedBy: activeUser.email
+    });
 
-    // Setup student modal controls
-    if (!isFaculty && btnOpenUpload) {
-      btnOpenUpload.style.display = "inline-flex";
+    alert("Evaluation submitted successfully!");
+    if (gradePanel) gradePanel.style.display = "none";
+    if (formGrade) formGrade.reset();
+    loadSubmissions();
+  } catch (err) {
+    console.error("Grading failed:", err);
+    alert("Could not save grade: " + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Submit Grade & Feedback";
+    }
+  }
+});
 
-      btnOpenUpload.addEventListener("click", () => {
-        uploadModal.style.display = "block";
-      });
+async function loadSubmissions() {
+  if (!portfolioTbody) return;
 
-      if (btnCancel) {
-        btnCancel.addEventListener("click", () => {
-          uploadModal.style.display = "none";
-        });
-      }
-
-      if (btnSave) {
-        btnSave.addEventListener("click", async () => {
-          const title = titleInput.value.trim();
-          const notes = notesInput.value.trim();
-          const file = fileInput.files[0];
-
-          if (!title) {
-            alert("Please provide an assignment title.");
-            return;
-          }
-
-          btnSave.disabled = true;
-          btnSave.textContent = "Uploading to Cloudinary...";
-
-          try {
-            let fileUrl = null;
-            let fileName = null;
-
-            if (file) {
-              fileName = file.name;
-              fileUrl = await uploadToCloudinary(file);
-            }
-
-            await addDoc(collection(db, "portfolio"), {
-              studentUid: user.uid,
-              studentName: `${userData.firstName} ${userData.lastName}`,
-              title: title,
-              notes: notes,
-              fileUrl: fileUrl,
-              fileName: fileName,
-              status: "pending",
-              score: null,
-              feedback: "",
-              createdAt: serverTimestamp()
-            });
-
-            uploadModal.style.display = "none";
-            titleInput.value = "";
-            notesInput.value = "";
-            fileInput.value = "";
-            alert("Deliverable uploaded successfully!");
-          } catch (err) {
-            console.error("Deliverable upload error:", err);
-            alert("Upload failed: " + err.message);
-          } finally {
-            btnSave.disabled = false;
-            btnSave.textContent = "Submit for Grading";
-          }
-        });
-      }
+  try {
+    let q;
+    if (activeRole === "faculty") {
+      tableCardHeading.textContent = "Cohort Submissions (Faculty Review)";
+      tableCardSubheading.textContent = "Review all case outputs and assign student appraisal grades.";
+      q = query(collection(db, "submissions"));
+    } else {
+      tableCardHeading.textContent = "My Verified Deliverables";
+      tableCardSubheading.textContent = "Track grading progress and instructor feedback.";
+      q = query(collection(db, "submissions"), where("studentUid", "==", activeUser.uid));
     }
 
-    // Real-time synchronization for Portfolio Deliverables
-    onSnapshot(collection(db, "portfolio"), (snapshot) => {
-      if (!container) return;
-      container.innerHTML = "";
+    const snap = await getDocs(q);
 
-      if (snapshot.empty) {
-        container.innerHTML = `<p style="color: var(--text-secondary);">No portfolio deliverables found.</p>`;
-        return;
+    if (snap.empty) {
+      portfolioTbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="empty-state">No deliverable outputs recorded in database.</td>
+        </tr>
+      `;
+      return;
+    }
+
+    let rowsHtml = "";
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      const id = docSnap.id;
+      const caseTitle = escapeHtml(data.caseTitle || data.caseId || "HR Case");
+      const studentName = escapeHtml(data.studentName || data.studentEmail || "Student");
+      const fileName = escapeHtml(data.fileName || "Download");
+      const submittedDate = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : "Recent";
+      
+      let statusBadge = `<span class="status-badge">Pending Review</span>`;
+      if (data.status === "Approved") {
+        statusBadge = `<span class="status-badge" style="background: var(--success-bg); color: var(--success);">Grade: ${data.grade}/100</span>`;
+      } else if (data.status) {
+        statusBadge = `<span class="status-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">${escapeHtml(data.status)}</span>`;
       }
 
-      snapshot.forEach((itemSnap) => {
-        const item = itemSnap.data();
-        const id = itemSnap.id;
+      let actionCell = "";
+      if (activeRole === "faculty") {
+        actionCell = `
+          <button type="button" class="btn btn-primary btn-grade" 
+            data-id="${id}" 
+            data-title="${caseTitle}" 
+            data-student="${studentName}"
+            data-grade="${data.grade || ""}"
+            data-status="${data.status || "Approved"}"
+            data-feedback="${escapeHtml(data.feedback || "")}"
+            style="padding: 4px 12px; font-size: 12px;">
+            Grade Output
+          </button>
+        `;
+      } else {
+        actionCell = data.feedback ? `<span style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(data.feedback)}</span>` : `<span style="font-size: 12px; color: var(--text-tertiary);">Awaiting review</span>`;
+      }
 
-        // Filter: Students view their own work; Faculty view all submissions
-        if (!isFaculty && item.studentUid !== user.uid) return;
+      rowsHtml += `
+        <tr>
+          <td style="font-weight: 600;">${caseTitle}</td>
+          <td>${studentName}</td>
+          <td>
+            <a href="${data.fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;">
+              📄 ${fileName} ↗
+            </a>
+          </td>
+          <td style="color: var(--text-tertiary);">${submittedDate}</td>
+          <td>${statusBadge}</td>
+          <td>${actionCell}</td>
+        </tr>
+      `;
+    });
 
-        const card = document.createElement("div");
-        card.className = "portfolio-card";
+    portfolioTbody.innerHTML = rowsHtml;
 
-        if (isFaculty && item.status === "pending") {
-          card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h4 style="margin: 0;">${item.title}</h4>
-              <span class="status-badge status-pending">Needs Grading</span>
-            </div>
-            <p style="font-size: 12.5px; color: var(--text-secondary);">Submitted by: <strong>${item.studentName}</strong></p>
-            <div style="background: var(--bg-app); padding: 12px; border-radius: 6px; font-size: 13px;">${item.notes || "No notes provided."}</div>
-            
-            ${item.fileUrl ? `<a href="${item.fileUrl}" target="_blank" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px; margin-top: 8px; width: fit-content;">📄 View Submitted File (${item.fileName || "Download"})</a>` : ''}
-
-            <div class="grade-input-group" style="margin-top: 10px;">
-              <input type="number" id="grade-val-${id}" class="form-control" placeholder="0" min="0" max="100">
-              <span style="font-weight: 700;">/ 100</span>
-            </div>
-            <textarea id="grade-feedback-${id}" class="form-control" placeholder="Enter constructive rubric feedback..."></textarea>
-            <button class="btn btn-primary" id="btn-submit-grade-${id}">Submit Grade & Rubric Feedback</button>
-          `;
-
-          card.querySelector(`#btn-submit-grade-${id}`).addEventListener("click", async () => {
-            const score = document.getElementById(`grade-val-${id}`).value;
-            const feedback = document.getElementById(`grade-feedback-${id}`).value.trim();
-
-            if (!score) return alert("Please enter a numeric score.");
-
-            await updateDoc(doc(db, "portfolio", id), {
-              status: "graded",
-              score: parseInt(score, 10),
-              feedback: feedback || "Completed satisfactorily.",
-              gradedAt: serverTimestamp()
-            });
-            alert("Appraisal recorded!");
-          });
-        } else {
-          card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h4 style="margin: 0;">${item.title}</h4>
-              <span class="status-badge ${item.status === 'graded' ? 'status-graded' : 'status-pending'}">
-                ${item.status === 'graded' ? `Score: ${item.score}/100` : 'Pending Review'}
-              </span>
-            </div>
-            <p style="font-size: 12.5px; color: var(--text-secondary);">Student: ${item.studentName}</p>
-            <div style="background: var(--bg-app); padding: 12px; border-radius: 6px; font-size: 13px;">${item.notes || "No notes provided."}</div>
-            
-            ${item.fileUrl ? `<a href="${item.fileUrl}" target="_blank" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px; margin-top: 6px; width: fit-content;">Download Submitted Work</a>` : ''}
-            
-            ${item.status === 'graded' ? `<div class="feedback-box" style="margin-top: 10px;"><strong>Feedback:</strong> "${item.feedback}"</div>` : ''}
-          `;
+    // Attach listeners to Grade buttons
+    document.querySelectorAll(".btn-grade").forEach(btn => {
+      btn.addEventListener("click", () => {
+        gradeSubmissionId.value = btn.dataset.id;
+        gradePanelTitle.textContent = `Grade: ${btn.dataset.title} (${btn.dataset.student})`;
+        gradeScore.value = btn.dataset.grade || "";
+        gradeStatus.value = btn.dataset.status || "Approved";
+        gradeFeedback.value = btn.dataset.feedback || "";
+        if (gradePanel) {
+          gradePanel.style.display = "block";
+          gradePanel.scrollIntoView({ behavior: "smooth" });
         }
-
-        container.appendChild(card);
       });
     });
-  });
+
+  } catch (err) {
+    console.error("Error loading deliverables:", err);
+  }
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[s]));
+}
+
+initAuthGuard({
+  onReady: ({ user, userData, role }) => {
+    activeRole = role;
+    activeUser = user;
+    loadSubmissions();
+  }
 });

@@ -1,17 +1,15 @@
 import { auth, db } from "./firebase-init.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { initAuthGuard } from "./auth-guard.js";
 import { 
   doc, 
-  getDoc, 
   updateDoc, 
   collection, 
   query, 
   where, 
-  getDocs 
+  getDocs,
+  onSnapshot 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-const studentSidebarName = document.getElementById("student-sidebar-name");
-const topbarStudentName = document.getElementById("topbar-student-name");
 const joinCard = document.getElementById("join-classroom-card");
 const formJoinClass = document.getElementById("form-join-class");
 const inputClassCode = document.getElementById("input-class-code");
@@ -20,19 +18,9 @@ const displayEnrolledCode = document.getElementById("display-enrolled-code");
 const displayClassDesc = document.getElementById("display-class-desc");
 const badgeClassStatus = document.getElementById("badge-class-status");
 const statCompletedCount = document.getElementById("stat-completed-count");
-const btnLogout = document.getElementById("btn-logout");
 
 let currentStudentUid = null;
-
-// Logout Handler
-btnLogout?.addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-    window.location.replace("login.html");
-  } catch (err) {
-    console.error("Sign-out error:", err);
-  }
-});
+let classroomUnsubscribe = null;
 
 // Join Classroom Form Submission
 formJoinClass?.addEventListener("submit", async (e) => {
@@ -50,7 +38,6 @@ formJoinClass?.addEventListener("submit", async (e) => {
   }
 
   try {
-    // 1. Verify code exists and is active in classrooms collection
     const q = query(
       collection(db, "classrooms"),
       where("code", "==", enteredCode),
@@ -59,17 +46,17 @@ formJoinClass?.addEventListener("submit", async (e) => {
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      alert("Invalid or expired classroom code. Please check with your instructor.");
+      alert("Invalid or inactive classroom code. Please check with your instructor.");
       return;
     }
 
     const classroomDoc = snap.docs[0].data();
     if (classroomDoc.expiresAt && classroomDoc.expiresAt.toDate() <= new Date()) {
-      alert("This classroom code has expired. Ask your instructor to regenerate a code.");
+      alert("This classroom code has expired. Ask your instructor to regenerate a new code.");
       return;
     }
 
-    // 2. Link student to this code in Firestore
+    // Link student to this code in Firestore
     await updateDoc(doc(db, "users", currentStudentUid), {
       classroomCode: enteredCode
     });
@@ -88,7 +75,48 @@ formJoinClass?.addEventListener("submit", async (e) => {
   }
 });
 
-// Count completed submissions
+// Real-Time Classroom Watcher (Handles deactivation & expiration)
+function listenToClassroomSession(classCode) {
+  if (classroomUnsubscribe) classroomUnsubscribe();
+
+  const q = query(collection(db, "classrooms"), where("code", "==", classCode));
+  classroomUnsubscribe = onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) {
+      handleSessionExpired("Session no longer exists in database.");
+      return;
+    }
+
+    const classData = snapshot.docs[0].data();
+    const isStillActive = classData.active === true;
+    const isNotExpired = classData.expiresAt ? classData.expiresAt.toDate() > new Date() : true;
+
+    if (!isStillActive || !isNotExpired) {
+      handleSessionExpired("Instructor has closed or completed this session.");
+    } else {
+      if (joinCard) joinCard.style.display = "none";
+      if (displayEnrolledCode) displayEnrolledCode.textContent = classCode;
+      if (displayClassDesc) displayClassDesc.textContent = "Connected to active instructor simulation session.";
+      if (badgeClassStatus) {
+        badgeClassStatus.textContent = "Session Active";
+        badgeClassStatus.className = "status-badge active";
+      }
+    }
+  }, (err) => {
+    console.error("Error monitoring classroom session:", err);
+  });
+}
+
+function handleSessionExpired(reasonText) {
+  if (joinCard) joinCard.style.display = "block";
+  if (displayEnrolledCode) displayEnrolledCode.textContent = "EXPIRED";
+  if (displayClassDesc) displayClassDesc.textContent = reasonText + " Enter a new code above to re-link.";
+  if (badgeClassStatus) {
+    badgeClassStatus.textContent = "Inactive";
+    badgeClassStatus.className = "status-badge";
+  }
+}
+
+// Load completed deliverables count
 async function loadSubmissionCount(uid) {
   try {
     const q = query(collection(db, "submissions"), where("studentUid", "==", uid));
@@ -99,52 +127,17 @@ async function loadSubmissionCount(uid) {
   }
 }
 
-// Auth State Guard
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.replace("login.html");
-    return;
-  }
+// Auth Guard Initializer
+initAuthGuard({
+  onReady: ({ user, userData }) => {
+    currentStudentUid = user.uid;
 
-  currentStudentUid = user.uid;
-
-  try {
-    const userDocRef = doc(db, "users", user.uid);
-    const snap = await getDoc(userDocRef);
-
-    if (!snap.exists()) {
-      window.location.replace("login.html");
-      return;
-    }
-
-    const data = snap.data();
-    const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Student";
-
-    if (studentSidebarName) studentSidebarName.textContent = fullName;
-    if (topbarStudentName) topbarStudentName.textContent = fullName;
-
-    // Check classroom status
-    if (data.classroomCode) {
-      if (joinCard) joinCard.style.display = "none";
-      if (displayEnrolledCode) displayEnrolledCode.textContent = data.classroomCode;
-      if (displayClassDesc) displayClassDesc.textContent = "Enrolled and linked to instructor session.";
-      if (badgeClassStatus) {
-        badgeClassStatus.textContent = "Enrolled";
-        badgeClassStatus.className = "status-badge active";
-      }
+    if (userData.classroomCode) {
+      listenToClassroomSession(userData.classroomCode);
     } else {
-      if (joinCard) joinCard.style.display = "block";
-      if (displayEnrolledCode) displayEnrolledCode.textContent = "UNLINKED";
-      if (displayClassDesc) displayClassDesc.textContent = "No classroom linked. Enter your instructor's code above.";
-      if (badgeClassStatus) {
-        badgeClassStatus.textContent = "Unlinked";
-        badgeClassStatus.className = "status-badge";
-      }
+      handleSessionExpired("No classroom session linked.");
     }
 
     loadSubmissionCount(user.uid);
-
-  } catch (err) {
-    console.error("Error loading student profile:", err);
   }
 });
