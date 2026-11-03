@@ -27,7 +27,7 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
+      <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
       <a href="planner.html" class="nav-item active">📋 Project Planner</a>
       <a href="feed.html" class="nav-item">💬 HR Feed</a>
       <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
@@ -43,8 +43,8 @@
   <div class="main-content">
     <header class="topbar">
       <div class="brand-group">
-        <span class="faculty-name-display" id="topbar-user-name">User</span>
-        <span class="role-tag" id="topbar-role-badge">WORKSPACE</span>
+        <span class="faculty-name-display" id="topbar-user-name">Loading...</span>
+        <span class="role-tag" id="topbar-role-badge">--</span>
       </div>
       <div class="nav-actions">
         <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
@@ -60,7 +60,7 @@
         <button type="button" class="btn btn-primary" id="btn-add-task">+ Add New Task</button>
       </div>
 
-      <!-- Create Task Modal / Slide-down -->
+      <!-- Create Task Modal -->
       <section class="card" id="task-modal" style="display: none; border-color: rgba(56, 189, 248, 0.4);">
         <div class="card-header">
           <div>
@@ -99,7 +99,6 @@
 
       <!-- Scoped Kanban Board -->
       <div class="kanban-board">
-        
         <!-- Column 1: To Do -->
         <div class="kanban-column">
           <div class="kanban-column-header">
@@ -132,7 +131,6 @@
             <div class="empty-state" style="padding: 24px 12px; font-size: 13px;">No tasks.</div>
           </div>
         </div>
-
       </div>
     </main>
   </div>

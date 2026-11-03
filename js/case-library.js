@@ -1,6 +1,7 @@
 import { db } from "./firebase-init.js";
 import { uploadToCloudinary } from "./cloudinary-config.js";
 import { initAuthGuard } from "./auth-guard.js";
+import { logActivity } from "./audit-logger.js";
 import { 
   collection, 
   addDoc, 
@@ -24,7 +25,6 @@ let currentUser = null;
 let currentRole = "student";
 let userClassCode = "";
 
-// Setup Upload Buttons on Cards
 document.querySelectorAll(".btn-open-upload").forEach(btn => {
   btn.addEventListener("click", () => {
     const caseId = btn.dataset.caseId;
@@ -44,7 +44,6 @@ btnCloseUpload?.addEventListener("click", () => {
   if (formUpload) formUpload.reset();
 });
 
-// Load Submissions History
 async function loadSubmissions() {
   if (!submissionsTbody) return;
 
@@ -72,7 +71,7 @@ async function loadSubmissions() {
     let rowsHtml = "";
     snap.forEach(docSnap => {
       const data = docSnap.data();
-      const submittedAt = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : "Recent";
+      const submittedAt = data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : "Recent";
       rowsHtml += `
         <tr>
           <td style="font-weight: 600;">${escapeHtml(data.caseTitle || data.caseId)}</td>
@@ -93,7 +92,6 @@ async function loadSubmissions() {
   }
 }
 
-// Upload & Submit Handler
 formUpload?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -104,6 +102,7 @@ formUpload?.addEventListener("submit", async (e) => {
   }
 
   const caseId = uploadCaseId?.value || "UNKNOWN";
+  const caseTitle = uploadPanelTitle?.textContent.replace("Submit Deliverable: ", "") || caseId;
   const notes = notesInput?.value.trim() || "";
 
   if (btnSubmitFile) {
@@ -122,12 +121,19 @@ formUpload?.addEventListener("submit", async (e) => {
       studentEmail: currentUser.email,
       classroomCode: userClassCode || "GLOBAL",
       caseId: caseId,
-      caseTitle: uploadPanelTitle?.textContent.replace("Submit Deliverable: ", "") || caseId,
+      caseTitle: caseTitle,
       fileName: file.name,
       fileUrl: fileUrl,
       notes: notes,
       status: "Pending Review",
       createdAt: serverTimestamp()
+    });
+
+    await logActivity({
+      category: "Deliverable",
+      details: `${currentUser.email} submitted ${file.name} for ${caseTitle}`,
+      classroomCode: userClassCode || "GLOBAL",
+      userEmail: currentUser.email
     });
 
     alert("Deliverable uploaded and submitted successfully!");
@@ -156,7 +162,6 @@ function escapeHtml(str) {
   }[s]));
 }
 
-// Unified Auth Guard
 initAuthGuard({
   onReady: ({ user, userData, role }) => {
     currentUser = user;

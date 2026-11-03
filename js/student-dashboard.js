@@ -1,5 +1,6 @@
 import { auth, db } from "./firebase-init.js";
 import { initAuthGuard } from "./auth-guard.js";
+import { logActivity } from "./audit-logger.js";
 import { 
   doc, 
   updateDoc, 
@@ -20,6 +21,7 @@ const badgeClassStatus = document.getElementById("badge-class-status");
 const statCompletedCount = document.getElementById("stat-completed-count");
 
 let currentStudentUid = null;
+let currentStudentEmail = "";
 let classroomUnsubscribe = null;
 
 // Join Classroom Form Submission
@@ -56,9 +58,15 @@ formJoinClass?.addEventListener("submit", async (e) => {
       return;
     }
 
-    // Link student to this code in Firestore
     await updateDoc(doc(db, "users", currentStudentUid), {
       classroomCode: enteredCode
+    });
+
+    await logActivity({
+      category: "Enrolment",
+      details: `${currentStudentEmail} enrolled into session ${enteredCode}`,
+      classroomCode: enteredCode,
+      userEmail: currentStudentEmail
     });
 
     alert(`Successfully enrolled in classroom session: ${enteredCode}`);
@@ -75,7 +83,6 @@ formJoinClass?.addEventListener("submit", async (e) => {
   }
 });
 
-// Real-Time Classroom Watcher (Handles deactivation & expiration)
 function listenToClassroomSession(classCode) {
   if (classroomUnsubscribe) classroomUnsubscribe();
 
@@ -116,7 +123,6 @@ function handleSessionExpired(reasonText) {
   }
 }
 
-// Load completed deliverables count
 async function loadSubmissionCount(uid) {
   try {
     const q = query(collection(db, "submissions"), where("studentUid", "==", uid));
@@ -127,10 +133,10 @@ async function loadSubmissionCount(uid) {
   }
 }
 
-// Auth Guard Initializer
 initAuthGuard({
   onReady: ({ user, userData }) => {
     currentStudentUid = user.uid;
+    currentStudentEmail = user.email || "";
 
     if (userData.classroomCode) {
       listenToClassroomSession(userData.classroomCode);

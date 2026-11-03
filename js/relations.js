@@ -24,7 +24,6 @@ let activeClassCode = "";
 btnOpenGrievance?.addEventListener("click", () => { if (grievanceModal) grievanceModal.style.display = "block"; });
 btnCloseGrievance?.addEventListener("click", () => { if (grievanceModal) grievanceModal.style.display = "none"; });
 
-// File Grievance Incident
 formFileGrievance?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const title = document.getElementById("gr-title-input")?.value.trim();
@@ -54,7 +53,6 @@ formFileGrievance?.addEventListener("submit", async (e) => {
   }
 });
 
-// Real-Time Grievance Queue Listener
 function listenToGrievances() {
   const q = activeClassCode 
     ? query(collection(db, "grievances"), where("classroomCode", "==", activeClassCode))
@@ -106,7 +104,6 @@ function listenToGrievances() {
       `;
     }).join("");
 
-    // Attach Resolve Form Handlers
     document.querySelectorAll(".form-resolve-grievance").forEach(form => {
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -147,4 +144,4 @@ initAuthGuard({
     activeClassCode = userData.classroomCode || "";
     listenToGrievances();
   }
-}); 
+});

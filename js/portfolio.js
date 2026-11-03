@@ -1,5 +1,6 @@
 import { db } from "./firebase-init.js";
 import { initAuthGuard } from "./auth-guard.js";
+import { logActivity } from "./audit-logger.js";
 import { 
   collection, 
   query, 
@@ -24,6 +25,7 @@ const btnCancelGrade = document.getElementById("btn-cancel-grade");
 
 let activeRole = "student";
 let activeUser = null;
+let activeClassCode = "";
 
 btnCancelGrade?.addEventListener("click", () => {
   if (gradePanel) gradePanel.style.display = "none";
@@ -50,6 +52,13 @@ formGrade?.addEventListener("submit", async (e) => {
       gradedBy: activeUser.email
     });
 
+    await logActivity({
+      category: "Appraisal",
+      details: `${activeUser.email} graded submission [${gradeScore.value}/100] (${gradeStatus.value})`,
+      classroomCode: activeClassCode || "GLOBAL",
+      userEmail: activeUser.email
+    });
+
     alert("Evaluation submitted successfully!");
     if (gradePanel) gradePanel.style.display = "none";
     if (formGrade) formGrade.reset();
@@ -73,7 +82,9 @@ async function loadSubmissions() {
     if (activeRole === "faculty") {
       tableCardHeading.textContent = "Cohort Submissions (Faculty Review)";
       tableCardSubheading.textContent = "Review all case outputs and assign student appraisal grades.";
-      q = query(collection(db, "submissions"));
+      q = activeClassCode 
+        ? query(collection(db, "submissions"), where("classroomCode", "==", activeClassCode))
+        : query(collection(db, "submissions"));
     } else {
       tableCardHeading.textContent = "My Verified Deliverables";
       tableCardSubheading.textContent = "Track grading progress and instructor feedback.";
@@ -98,7 +109,7 @@ async function loadSubmissions() {
       const caseTitle = escapeHtml(data.caseTitle || data.caseId || "HR Case");
       const studentName = escapeHtml(data.studentName || data.studentEmail || "Student");
       const fileName = escapeHtml(data.fileName || "Download");
-      const submittedDate = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : "Recent";
+      const submittedDate = data.createdAt?.toDate ? data.createdAt.toDate().toLocaleDateString() : "Recent";
       
       let statusBadge = `<span class="status-badge">Pending Review</span>`;
       if (data.status === "Approved") {
@@ -122,7 +133,9 @@ async function loadSubmissions() {
           </button>
         `;
       } else {
-        actionCell = data.feedback ? `<span style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(data.feedback)}</span>` : `<span style="font-size: 12px; color: var(--text-tertiary);">Awaiting review</span>`;
+        actionCell = data.feedback 
+          ? `<span style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(data.feedback)}</span>` 
+          : `<span style="font-size: 12px; color: var(--text-tertiary);">Awaiting review</span>`;
       }
 
       rowsHtml += `
@@ -143,7 +156,6 @@ async function loadSubmissions() {
 
     portfolioTbody.innerHTML = rowsHtml;
 
-    // Attach listeners to Grade buttons
     document.querySelectorAll(".btn-grade").forEach(btn => {
       btn.addEventListener("click", () => {
         gradeSubmissionId.value = btn.dataset.id;
@@ -177,6 +189,7 @@ initAuthGuard({
   onReady: ({ user, userData, role }) => {
     activeRole = role;
     activeUser = user;
+    activeClassCode = userData.classroomCode || "";
     loadSubmissions();
   }
 });
