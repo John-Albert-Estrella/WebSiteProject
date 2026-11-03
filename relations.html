@@ -1,94 +1,117 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Aimser - Employee Relations</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<!-- Floating Bento Rail Sidebar -->
-<aside class="sidebar">
-  <div class="sidebar-brand">
-    <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
-    <p>Management Simulator</p>
-  </div>
-
-  <div class="sidebar-user-card">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span class="welcome-tag">WORKSPACE</span>
-      <!-- Working Theme Pills -->
-      <div class="theme-switch-pills">
-        <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-        <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-      </div>
+  <!-- Sidebar Rail -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
+      <p>Management Simulator</p>
     </div>
-    <h3 id="sidebar-greeting-name">Welcome back!</h3>
-  </div>
 
-  <!-- Standardized 9-Item Nav Rail -->
-  <nav class="sidebar-nav">
-    <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
-    <a href="planner.html" class="nav-item">📋 Project Planner</a>
-    <a href="feed.html" class="nav-item">💬 HR Feed</a>
-    <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-    <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
-    <a href="performance.html" class="nav-item">📈 Performance Management</a>
-    <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
-    <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-    <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
-  </nav>
-</aside>
-
-  <main class="main-content">
-    <header class="topbar">
-      <div>
-        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
-        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
+    <div class="sidebar-user-card">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="welcome-tag">WORKSPACE</span>
+        <div class="theme-switch-pills">
+          <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
+          <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
+        </div>
       </div>
-      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
+      <h3 id="sidebar-greeting-name">Welcome back!</h3>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
+      <a href="planner.html" class="nav-item">📋 Project Planner</a>
+      <a href="feed.html" class="nav-item">💬 HR Feed</a>
+      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
+      <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
+      <a href="performance.html" class="nav-item">📈 Performance Management</a>
+      <a href="relations.html" class="nav-item active">🤝 Employee Relations</a>
+      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
+      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+    </nav>
+  </aside>
+
+  <!-- Main Content Space -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="brand-group">
+        <span class="faculty-name-display" id="topbar-user-name">User</span>
+        <span class="role-tag" id="topbar-role-badge">WORKSPACE</span>
+      </div>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+      </div>
     </header>
 
-    <div class="page-container">
+    <main class="page-container">
       <div class="page-header">
-        <h1 class="page-title">Employee Relations</h1>
-        <p class="page-subtitle">Document grievances, conduct workplace investigations, and resolve policy conflicts.</p>
+        <div>
+          <h1 class="page-title">Employee Relations</h1>
+          <p class="page-subtitle">Document grievances, conduct workplace investigations, and resolve policy conflicts.</p>
+        </div>
+        <button type="button" class="btn btn-primary" id="btn-open-grievance-modal">+ File Workplace Grievance</button>
       </div>
 
-      <!-- Grievance Submission Form (Students) -->
-      <div class="card" id="student-grievance-card" style="margin-bottom: 24px; display: none;">
-        <h3 style="margin-bottom: 16px;">File a Grievance Report</h3>
-        <div class="form-group">
-          <label class="form-label">Incident Category</label>
-          <select id="grievance-category" class="form-control">
-            <option value="Policy Violation">Policy Violation</option>
-            <option value="Workplace Conduct">Workplace Conduct</option>
-            <option value="Compensation Dispute">Compensation Dispute</option>
-            <option value="Safety Concern">Safety Concern</option>
-          </select>
+      <!-- File Grievance Modal -->
+      <section class="card" id="grievance-modal" style="display: none; border-color: rgba(56, 189, 248, 0.4);">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">File Workplace Incident / Grievance</h2>
+            <p class="card-subtitle">Confidential workplace incident log for labor compliance review.</p>
+          </div>
+          <button type="button" class="btn btn-secondary" id="btn-close-grievance-modal">Cancel</button>
         </div>
-        <div class="form-group">
-          <label class="form-label">Incident Title</label>
-          <input type="text" id="grievance-title" class="form-control" placeholder="Brief summary of the issue">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Factual Description</label>
-          <textarea id="grievance-desc" class="form-control" rows="4" placeholder="Detail dates, parties involved, and the specific dispute..."></textarea>
-        </div>
-        <button class="btn btn-primary" id="btn-submit-grievance">Submit Formal Report</button>
-      </div>
+        <form id="form-file-grievance" style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-row-duo">
+            <div class="form-group">
+              <label class="form-label" for="gr-title-input">Incident Summary</label>
+              <input type="text" id="gr-title-input" class="form-control" placeholder="e.g. Hostile Performance Review" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="gr-category-input">Violation Category</label>
+              <select id="gr-category-input" class="form-control">
+                <option value="Policy Violation">Policy Violation</option>
+                <option value="Harassment / Ethics">Harassment / Ethics</option>
+                <option value="Compensation Dispute">Compensation Dispute</option>
+                <option value="Unfair Labor Practice">Unfair Labor Practice</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="gr-details-input">Detailed Incident Report & Evidence</label>
+            <textarea id="gr-details-input" class="form-control" placeholder="Describe the parties involved, dates, and observed violations..." required></textarea>
+          </div>
+          <div class="card-actions">
+            <button type="submit" class="btn btn-primary">File Confidential Report</button>
+          </div>
+        </form>
+      </section>
 
-      <!-- Active Grievance Queue -->
-      <h3 style="margin-bottom: 16px; color: var(--text-primary);">Grievance Queue</h3>
-      <div id="grievance-queue-container">
-        <p style="color: var(--text-secondary);">Loading reports...</p>
-      </div>
-    </div>
-  </main>
+      <!-- Grievance Queue Stream -->
+      <section class="card roster-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Grievance Investigation Queue</h2>
+            <p class="card-subtitle">Active labor disputes under committee investigation.</p>
+          </div>
+        </div>
+        <div id="grievance-stream" style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="empty-state"><p>Loading investigation records...</p></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
 
   <script type="module" src="js/relations.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
   <script type="module" src="js/theme.js"></script>
 </body>
 </html>

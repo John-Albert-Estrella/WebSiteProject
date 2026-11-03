@@ -1,119 +1,150 @@
-import { auth, db } from "./firebase-init.js";
-import { enforceAuth } from "./auth-guard.js";
+import { db } from "./firebase-init.js";
+import { initAuthGuard } from "./auth-guard.js";
 import { 
   collection, 
-  addDoc, 
-  getDoc, 
-  doc, 
-  updateDoc, 
+  query, 
+  where, 
   onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  doc, 
   serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-enforceAuth(["faculty", "student", "admin"]);
+const btnOpenGrievance = document.getElementById("btn-open-grievance-modal");
+const btnCloseGrievance = document.getElementById("btn-close-grievance-modal");
+const grievanceModal = document.getElementById("grievance-modal");
+const formFileGrievance = document.getElementById("form-file-grievance");
+const grievanceStream = document.getElementById("grievance-stream");
 
-const studentCard = document.getElementById("student-grievance-card");
-const queueContainer = document.getElementById("grievance-queue-container");
-const btnSubmit = document.getElementById("btn-submit-grievance");
+let activeUser = null;
+let activeRole = "student";
+let activeClassCode = "";
 
-document.addEventListener("DOMContentLoaded", () => {
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) return;
+btnOpenGrievance?.addEventListener("click", () => { if (grievanceModal) grievanceModal.style.display = "block"; });
+btnCloseGrievance?.addEventListener("click", () => { if (grievanceModal) grievanceModal.style.display = "none"; });
 
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    if (!userSnap.exists()) return;
+// File Grievance Incident
+formFileGrievance?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const title = document.getElementById("gr-title-input")?.value.trim();
+  const category = document.getElementById("gr-category-input")?.value;
+  const details = document.getElementById("gr-details-input")?.value.trim();
 
-    const userData = userSnap.data();
-    const isFaculty = userData.role === "faculty" || userData.role === "admin";
+  if (!title || !details) return;
 
-    // Show submission form only for students
-    if (!isFaculty && studentCard) {
-      studentCard.style.display = "block";
-      btnSubmit.addEventListener("click", async () => {
-        const cat = document.getElementById("grievance-category").value;
-        const title = document.getElementById("grievance-title").value.trim();
-        const desc = document.getElementById("grievance-desc").value.trim();
+  try {
+    await addDoc(collection(db, "grievances"), {
+      title,
+      category,
+      details,
+      status: "PENDING INVESTIGATION",
+      filedBy: activeUser.displayName || activeUser.email,
+      filedByUid: activeUser.uid,
+      classroomCode: activeClassCode || "GLOBAL",
+      resolutionNotes: "",
+      createdAt: serverTimestamp()
+    });
 
-        if (!title || !desc) {
-          alert("Please fill in both the title and details.");
-          return;
-        }
+    if (grievanceModal) grievanceModal.style.display = "none";
+    if (formFileGrievance) formFileGrievance.reset();
+  } catch (err) {
+    console.error("Grievance submission error:", err);
+    alert("Could not submit report: " + err.message);
+  }
+});
 
-        btnSubmit.disabled = true;
-        try {
-          await addDoc(collection(db, "relations"), {
-            studentUid: user.uid,
-            studentName: `${userData.firstName} ${userData.lastName}`,
-            category: cat,
-            title: title,
-            description: desc,
-            status: "Pending Investigation",
-            resolutionNotes: "",
-            createdAt: serverTimestamp()
-          });
+// Real-Time Grievance Queue Listener
+function listenToGrievances() {
+  const q = activeClassCode 
+    ? query(collection(db, "grievances"), where("classroomCode", "==", activeClassCode))
+    : query(collection(db, "grievances"));
 
-          document.getElementById("grievance-title").value = "";
-          document.getElementById("grievance-desc").value = "";
-          alert("Grievance report submitted.");
-        } catch (err) {
-          console.error("Grievance submission error:", err);
-          alert("Error: " + err.message);
-        } finally {
-          btnSubmit.disabled = false;
-        }
-      });
+  onSnapshot(q, (snapshot) => {
+    if (!grievanceStream) return;
+    if (snapshot.empty) {
+      grievanceStream.innerHTML = `<div class="empty-state"><p>No active grievances in the investigation queue.</p></div>`;
+      return;
     }
 
-    // Real-time synchronization for Grievances
-    onSnapshot(collection(db, "relations"), (snapshot) => {
-      if (!queueContainer) return;
-      queueContainer.innerHTML = "";
+    grievanceStream.innerHTML = snapshot.docs.map(d => {
+      const g = d.data();
+      const id = d.id;
+      const isResolved = g.status === "RESOLVED";
 
-      if (snapshot.empty) {
-        queueContainer.innerHTML = `<p style="color: var(--text-secondary);">No grievance cases filed.</p>`;
-        return;
-      }
-
-      snapshot.forEach((docSnap) => {
-        const g = docSnap.data();
-        const gid = docSnap.id;
-
-        // Students only see their own tickets; instructors see all
-        if (!isFaculty && g.studentUid !== user.uid) return;
-
-        const card = document.createElement("div");
-        card.className = "card";
-        card.style.marginBottom = "14px";
-        card.innerHTML = `
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h4 style="margin: 0;">${g.title}</h4>
-            <span class="status-badge ${g.status === 'Resolved' ? 'status-graded' : 'status-pending'}">${g.status}</span>
-          </div>
-          <p style="font-size: 12px; color: var(--text-secondary); margin: 6px 0;">Category: ${g.category} • Filed by: ${g.studentName}</p>
-          <p style="font-size: 13.5px; line-height: 1.5;">${g.description}</p>
-          ${g.resolutionNotes ? `<div class="feedback-box" style="margin-top: 10px;"><strong>Resolution:</strong> ${g.resolutionNotes}</div>` : ''}
-          ${isFaculty && g.status !== 'Resolved' ? `
-            <div style="margin-top: 12px; display: flex; gap: 8px;">
-              <input type="text" id="res-note-${gid}" class="form-control" placeholder="Resolution determination notes...">
-              <button class="btn btn-primary" id="btn-resolve-${gid}" style="white-space: nowrap;">Resolve</button>
+      return `
+        <div class="card" style="padding: 20px; gap: 12px; border-color: ${isResolved ? 'var(--surface-border)' : 'rgba(245, 158, 11, 0.3)'};">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h3 style="font-size: 16px; font-weight: 700; color: var(--text-primary);">${escapeHtml(g.title)}</h3>
+              <span style="font-size: 12px; color: var(--text-tertiary);">
+                Category: ${escapeHtml(g.category)} • Filed by: ${escapeHtml(g.filedBy || "Anonymous")}
+              </span>
             </div>
-          ` : ''}
-        `;
+            <span class="status-badge" style="${isResolved ? 'background: var(--success-bg); color: var(--success);' : 'background: rgba(245, 158, 11, 0.15); color: #f59e0b;'}">
+              ${escapeHtml(g.status || "PENDING INVESTIGATION")}
+            </span>
+          </div>
 
-        if (isFaculty && g.status !== "Resolved") {
-          card.querySelector(`#btn-resolve-${gid}`).addEventListener("click", async () => {
-            const notes = document.getElementById(`res-note-${gid}`).value.trim();
-            if (!notes) return alert("Please enter resolution notes.");
+          <p style="font-size: 14px; color: var(--text-secondary); line-height: 1.5; background: var(--bg-surface); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--surface-border);">
+            ${escapeHtml(g.details)}
+          </p>
 
-            await updateDoc(doc(db, "relations", gid), {
-              status: "Resolved",
-              resolutionNotes: notes
-            });
+          ${g.resolutionNotes ? `
+            <div style="font-size: 13px; color: var(--text-primary); background: rgba(56, 189, 248, 0.08); padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid rgba(56, 189, 248, 0.2);">
+              <strong>Determination:</strong> ${escapeHtml(g.resolutionNotes)}
+            </div>
+          ` : ""}
+
+          ${!isResolved ? `
+            <form class="form-resolve-grievance" data-id="${id}" style="display: flex; gap: 8px; margin-top: 4px;">
+              <input type="text" class="form-control input-resolution" placeholder="Resolution determination notes..." required style="padding: 8px 12px; font-size: 13px;">
+              <button type="submit" class="btn btn-primary" style="padding: 8px 18px; font-size: 13px;">Resolve</button>
+            </form>
+          ` : ""}
+        </div>
+      `;
+    }).join("");
+
+    // Attach Resolve Form Handlers
+    document.querySelectorAll(".form-resolve-grievance").forEach(form => {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const grievanceId = form.dataset.id;
+        const notes = form.querySelector(".input-resolution")?.value.trim();
+        if (!notes) return;
+
+        try {
+          await updateDoc(doc(db, "grievances", grievanceId), {
+            status: "RESOLVED",
+            resolutionNotes: notes,
+            resolvedAt: serverTimestamp(),
+            resolvedBy: activeUser.email
           });
+        } catch (err) {
+          console.error("Failed to resolve grievance:", err);
+          alert("Resolution failed: " + err.message);
         }
-
-        queueContainer.appendChild(card);
       });
     });
   });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[s]));
+}
+
+initAuthGuard({
+  onReady: ({ user, userData, role }) => {
+    activeUser = user;
+    activeRole = role;
+    activeClassCode = userData.classroomCode || "";
+    listenToGrievances();
+  }
 });

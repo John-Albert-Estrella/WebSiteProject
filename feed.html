@@ -1,81 +1,97 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aimser - HR Feed & Discussions</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aimser - HR Discussion Forum</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<!-- Floating Bento Rail Sidebar -->
-<aside class="sidebar">
-  <div class="sidebar-brand">
-    <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
-    <p>Management Simulator</p>
-  </div>
-
-  <div class="sidebar-user-card">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-      <span class="welcome-tag">WORKSPACE</span>
-      <!-- Working Theme Pills -->
-      <div class="theme-switch-pills">
-        <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-        <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-      </div>
+  <!-- Standard Sidebar Rail -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
+      <p>Management Simulator</p>
     </div>
-    <h3 id="sidebar-greeting-name">Welcome back!</h3>
-  </div>
 
-  <!-- Standardized 9-Item Nav Rail -->
-  <nav class="sidebar-nav">
-    <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
-    <a href="planner.html" class="nav-item">📋 Project Planner</a>
-    <a href="feed.html" class="nav-item">💬 HR Feed</a>
-    <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-    <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
-    <a href="performance.html" class="nav-item">📈 Performance Management</a>
-    <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
-    <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-    <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
-  </nav>
-</aside>
-
-  <!-- MAIN APP AREA -->
-  <main class="main-content">
-    
-    <!-- TOPBAR -->
-    <header class="topbar">
-      <div>
-        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
-        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
+    <div class="sidebar-user-card">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span class="welcome-tag">WORKSPACE</span>
+        <div class="theme-switch-pills">
+          <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
+          <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
+        </div>
       </div>
-      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
+      <h3 id="sidebar-greeting-name">Welcome back!</h3>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
+      <a href="planner.html" class="nav-item">📋 Project Planner</a>
+      <a href="feed.html" class="nav-item active">💬 HR Feed</a>
+      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
+      <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
+      <a href="performance.html" class="nav-item">📈 Performance Management</a>
+      <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
+      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
+      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+    </nav>
+  </aside>
+
+  <!-- Main Content Space -->
+  <div class="main-content">
+    <header class="topbar">
+      <div class="brand-group">
+        <span class="faculty-name-display" id="topbar-user-name">User</span>
+        <span class="role-tag" id="topbar-role-badge">WORKSPACE</span>
+      </div>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+      </div>
     </header>
 
-    <!-- PAGE CONTAINER -->
-    <div class="page-container feed-container">
-      <div class="page-header" style="text-align: center; margin-bottom: 24px;">
-        <h1 class="page-title">HR Discussion Forum</h1>
-        <p class="page-subtitle">Debate real-world workplace scenarios, labor policies, and team cases.</p>
+    <main class="page-container">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">HR Discussion Forum</h1>
+          <p class="page-subtitle">Debate real-world workplace scenarios, labor policies, and ethics cases with your cohort.</p>
+        </div>
+        <p class="page-header-desc">
+          Classroom Discussion Stream
+        </p>
       </div>
 
-      <!-- CREATE POST BOX -->
-      <div class="create-post-card">
-        <input type="text" id="post-input-text" placeholder="Share a scenario, ask an HR question, or post an update...">
-        <button class="btn btn-primary" id="btn-submit-post">Post</button>
-      </div>
+      <!-- Create Post Bento Card -->
+      <section class="card" style="border-color: rgba(56, 189, 248, 0.35);">
+        <form id="form-create-post" style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-group">
+            <textarea 
+              id="post-content-input" 
+              class="form-control" 
+              placeholder="Share an HR scenario, ask a labor policy question, or post an update for your cohort..." 
+              required
+              style="min-height: 80px;"
+            ></textarea>
+          </div>
+          <div style="display: flex; justify-content: flex-end;">
+            <button type="submit" class="btn btn-primary" id="btn-submit-post">
+              Post to Forum
+            </button>
+          </div>
+        </form>
+      </section>
 
-      <!-- LIVE FEED DISCUSSIONS STREAM -->
-      <div id="live-feed-stream">
-        <p style="text-align: center; color: var(--text-secondary); padding: 20px;">Loading discussions...</p>
+      <!-- Live Posts Stream Container -->
+      <div id="posts-stream" style="display: flex; flex-direction: column; gap: 20px;">
+        <div class="empty-state">
+          <p>Loading classroom discussions...</p>
+        </div>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 
-  <!-- FIREBASE CONTROLLER -->
   <script type="module" src="js/feed.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
   <script type="module" src="js/theme.js"></script>
 </body>
 </html>

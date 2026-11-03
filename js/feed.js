@@ -1,220 +1,258 @@
-import { auth, db } from "./firebase-init.js";
-import { enforceAuth } from "./auth-guard.js";
+import { db } from "./firebase-init.js";
+import { initAuthGuard } from "./auth-guard.js";
 import { 
   collection, 
-  addDoc, 
-  getDoc, 
-  doc, 
   query, 
-  orderBy, 
+  where, 
   onSnapshot, 
-  serverTimestamp 
+  addDoc, 
+  orderBy, 
+  serverTimestamp, 
+  doc, 
+  getDocs 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// Ensure authenticated access
-enforceAuth(["student", "faculty", "admin"]);
+const formCreatePost = document.getElementById("form-create-post");
+const postContentInput = document.getElementById("post-content-input");
+const btnSubmitPost = document.getElementById("btn-submit-post");
+const postsStream = document.getElementById("posts-stream");
 
-const postInput = document.getElementById("post-input-text");
-const btnSubmit = document.getElementById("btn-submit-post");
-const feedStream = document.getElementById("live-feed-stream");
+let activeUser = null;
+let activeRole = "student";
+let activeClassCode = "";
+let feedUnsubscribe = null;
 
-let currentUserData = null;
+// Submit New Main Post
+formCreatePost?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const content = postContentInput?.value.trim();
+  if (!content) return;
 
-document.addEventListener("DOMContentLoaded", () => {
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) return;
-
-    try {
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (!userDoc.exists()) return;
-      currentUserData = userDoc.data();
-
-      // Submit discussion prompt
-      if (btnSubmit) {
-        btnSubmit.addEventListener("click", () => handleCreatePost(user.uid));
-      }
-
-      if (postInput) {
-        postInput.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            handleCreatePost(user.uid);
-          }
-        });
-      }
-
-      // Stream feed posts in real time
-      listenToFeedStream();
-
-    } catch (err) {
-      console.error("Feed initialization error:", err);
-    }
-  });
-});
-
-async function handleCreatePost(uid) {
-  const text = postInput.value.trim();
-  if (!text) return;
-
-  btnSubmit.disabled = true;
-  btnSubmit.textContent = "Posting...";
+  if (btnSubmitPost) {
+    btnSubmitPost.disabled = true;
+    btnSubmitPost.textContent = "Posting...";
+  }
 
   try {
-    await addDoc(collection(db, "feed"), {
-      authorUid: uid,
-      authorName: `${currentUserData.firstName} ${currentUserData.lastName}`,
-      authorRole: currentUserData.role,
-      content: text,
+    await addDoc(collection(db, "posts"), {
+      content: content,
+      authorUid: activeUser.uid,
+      authorName: activeUser.displayName || activeUser.email.split("@")[0],
+      authorRole: activeRole,
+      classroomCode: activeClassCode || "GLOBAL",
       createdAt: serverTimestamp()
     });
 
-    postInput.value = "";
-  } catch (error) {
-    console.error("Error creating post:", error);
-    alert("Could not post: " + error.message);
+    if (formCreatePost) formCreatePost.reset();
+  } catch (err) {
+    console.error("Failed to publish post:", err);
+    alert("Could not post: " + err.message);
   } finally {
-    btnSubmit.disabled = false;
-    btnSubmit.textContent = "Post";
+    if (btnSubmitPost) {
+      btnSubmitPost.disabled = false;
+      btnSubmitPost.textContent = "Post to Forum";
+    }
   }
-}
+});
 
-function listenToFeedStream() {
-  const q = query(collection(db, "feed"), orderBy("createdAt", "desc"));
+// Real-Time Classroom Feed Listener
+function listenToFeed() {
+  if (feedUnsubscribe) feedUnsubscribe();
 
-  onSnapshot(q, (snapshot) => {
-    feedStream.innerHTML = "";
+  let q;
+  if (activeClassCode) {
+    q = query(
+      collection(db, "posts"),
+      where("classroomCode", "==", activeClassCode),
+      orderBy("createdAt", "desc")
+    );
+  } else {
+    q = query(
+      collection(db, "posts"),
+      orderBy("createdAt", "desc")
+    );
+  }
 
+  feedUnsubscribe = onSnapshot(q, (snapshot) => {
     if (snapshot.empty) {
-      feedStream.innerHTML = `
-        <div class="card" style="text-align: center; color: var(--text-secondary); padding: 40px 20px;">
-          <span style="font-size: 32px; display: block; margin-bottom: 8px;">💬</span>
-          <strong>No discussions yet.</strong>
-          <p style="font-size: 13px; margin-top: 4px;">Share a workplace scenario or question above!</p>
-        </div>`;
+      if (postsStream) {
+        postsStream.innerHTML = `
+          <div class="empty-state">
+            <p>No discussion posts yet in this section. Start the conversation above!</p>
+          </div>
+        `;
+      }
       return;
     }
 
+    let postsHtml = "";
     snapshot.forEach((docSnap) => {
       const post = docSnap.data();
       const postId = docSnap.id;
-      const isFaculty = post.authorRole === "faculty" || post.authorRole === "admin";
-      const initial = (post.authorName || "U").charAt(0).toUpperCase();
+      const formattedDate = post.createdAt ? post.createdAt.toDate().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : "Just now";
+      const isFacultyPost = post.authorRole === "faculty";
 
-      const timeString = post.createdAt && post.createdAt.toDate 
-        ? post.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })
-        : "Just now";
-
-      const postCard = document.createElement("div");
-      postCard.className = "feed-post";
-      postCard.innerHTML = `
-        <div class="post-header">
-          <div class="post-avatar ${isFaculty ? 'faculty-avatar' : ''}">
-            ${initial}
-          </div>
-          <div class="post-meta">
-            <h4>
-              ${post.authorName} 
-              <span class="status-badge ${isFaculty ? 'status-pending' : 'status-graded'}" style="font-size: 10px; margin-left: 8px;">
-                ${(post.authorRole || "USER").toUpperCase()}
+      postsHtml += `
+        <article class="card" style="gap: 14px;">
+          <!-- Post Header -->
+          <div class="card-header" style="align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-weight: 700; color: var(--text-primary); font-size: 15px;">
+                ${isFacultyPost ? `Prof. ${escapeHtml(post.authorName)}` : escapeHtml(post.authorName)}
               </span>
-            </h4>
-            <span>${timeString}</span>
-          </div>
-        </div>
-
-        <div class="post-content">
-          ${post.content}
-        </div>
-
-        <!-- COMMENT THREAD SECTION -->
-        <div style="margin-top: 16px; border-top: 1px solid var(--surface-border); padding-top: 14px;">
-          <div id="comments-list-${postId}" class="comment-list" style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
-            <p style="font-size: 12px; color: var(--text-secondary);">Loading replies...</p>
+              <span class="role-tag ${isFacultyPost ? 'faculty' : ''}" style="font-size: 10px; padding: 2px 8px;">
+                ${escapeHtml(post.authorRole || 'Student')}
+              </span>
+            </div>
+            <span style="font-size: 12px; color: var(--text-tertiary);">${formattedDate}</span>
           </div>
 
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="input-reply-${postId}" class="form-control" placeholder="Write a response or policy argument..." style="font-size: 13px;">
-            <button class="btn btn-primary" id="btn-reply-${postId}" style="font-size: 12px; padding: 6px 14px; white-space: nowrap;">Reply</button>
+          <!-- Post Content -->
+          <p style="font-size: 14.5px; color: var(--text-secondary); line-height: 1.55; white-space: pre-wrap;">
+            ${escapeHtml(post.content)}
+          </p>
+
+          <!-- Comment Thread Sub-Section -->
+          <div style="border-top: 1px solid var(--surface-border); padding-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+            <div id="comments-container-${postId}" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- Comments dynamically loaded here -->
+            </div>
+
+            <!-- Reply Input Box -->
+            <form class="form-reply" data-post-id="${postId}" style="display: flex; gap: 8px; margin-top: 4px;">
+              <input 
+                type="text" 
+                class="form-control input-reply" 
+                placeholder="Write a response or policy argument..." 
+                required
+                style="padding: 8px 12px; font-size: 13px;"
+              >
+              <button type="submit" class="btn btn-primary" style="padding: 8px 16px; font-size: 13px;">
+                Reply
+              </button>
+            </form>
           </div>
-        </div>
+        </article>
       `;
-
-      const inputReply = postCard.querySelector(`#input-reply-${postId}`);
-      const btnReply = postCard.querySelector(`#btn-reply-${postId}`);
-
-      const submitComment = async () => {
-        const text = inputReply.value.trim();
-        if (!text) return;
-
-        btnReply.disabled = true;
-        btnReply.textContent = "Sending...";
-
-        try {
-          await addDoc(collection(db, "feed", postId, "comments"), {
-            authorName: `${currentUserData.firstName} ${currentUserData.lastName}`,
-            authorRole: currentUserData.role,
-            content: text,
-            createdAt: serverTimestamp()
-          });
-
-          inputReply.value = "";
-        } catch (err) {
-          console.error("Comment submit error:", err);
-          alert("Failed to submit reply: " + err.message);
-        } finally {
-          btnReply.disabled = false;
-          btnReply.textContent = "Reply";
-        }
-      };
-
-      btnReply.addEventListener("click", submitComment);
-      inputReply.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          submitComment();
-        }
-      });
-
-      // Stream comments for this post
-      listenToComments(postId, postCard.querySelector(`#comments-list-${postId}`));
-
-      feedStream.appendChild(postCard);
     });
+
+    if (postsStream) postsStream.innerHTML = postsHtml;
+
+    // Load replies for each post
+    snapshot.forEach((docSnap) => {
+      loadComments(docSnap.id);
+    });
+
+    // Attach Reply Handlers
+    document.querySelectorAll(".form-reply").forEach((form) => {
+      form.addEventListener("submit", handleReplySubmit);
+    });
+
+  }, (err) => {
+    console.error("Feed listener error:", err);
   });
 }
 
-function listenToComments(postId, listContainer) {
-  const commentsQuery = query(collection(db, "feed", postId, "comments"), orderBy("createdAt", "asc"));
+// Load Comments Sub-Collection
+async function loadComments(postId) {
+  const container = document.getElementById(`comments-container-${postId}`);
+  if (!container) return;
 
-  onSnapshot(commentsQuery, (snapshot) => {
-    listContainer.innerHTML = "";
+  try {
+    const q = query(collection(db, `posts/${postId}/comments`), orderBy("createdAt", "asc"));
+    const snap = await getDocs(q);
 
-    if (snapshot.empty) {
-      listContainer.innerHTML = `<p style="font-size: 12px; color: var(--text-secondary); margin: 4px 0;">No responses yet. Be the first to comment!</p>`;
+    if (snap.empty) {
+      container.innerHTML = "";
       return;
     }
 
-    snapshot.forEach((commentDoc) => {
-      const comment = commentDoc.data();
-      const isFaculty = comment.authorRole === "faculty" || comment.authorRole === "admin";
+    let commentsHtml = "";
+    snap.forEach((docSnap) => {
+      const comment = docSnap.data();
+      const timeStr = comment.createdAt ? comment.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
+      const isFacultyReply = comment.authorRole === "faculty";
 
-      const commentEl = document.createElement("div");
-      commentEl.className = "comment-item";
-      commentEl.innerHTML = `
-        <div class="comment-content">
-          <h5>
-            ${comment.authorName}
-            <span style="font-size: 10px; font-weight: 700; color: ${isFaculty ? 'var(--faculty-accent)' : 'var(--student-accent)'}; margin-left: 6px;">
-              [${(comment.authorRole || 'USER').toUpperCase()}]
-            </span>
-          </h5>
-          <p>${comment.content}</p>
+      commentsHtml += `
+        <div style="background: var(--bg-surface); border: 1px solid var(--surface-border); border-radius: var(--radius-sm); padding: 10px 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-weight: 700; font-size: 12.5px; color: var(--text-primary);">
+                ${isFacultyReply ? `Prof. ${escapeHtml(comment.authorName)}` : escapeHtml(comment.authorName)}
+              </span>
+              <span class="role-tag ${isFacultyReply ? 'faculty' : ''}" style="font-size: 9px; padding: 1px 6px;">
+                ${escapeHtml(comment.authorRole || 'Student')}
+              </span>
+            </div>
+            <span style="font-size: 11px; color: var(--text-tertiary);">${timeStr}</span>
+          </div>
+          <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.45; margin: 0;">
+            ${escapeHtml(comment.text)}
+          </p>
         </div>
       `;
-      listContainer.appendChild(commentEl);
     });
-  }, (err) => {
-    console.error("Comments listener error:", err);
-    listContainer.innerHTML = `<p style="font-size: 12px; color: var(--danger);">Unable to load replies (${err.code}).</p>`;
-  });
+
+    container.innerHTML = commentsHtml;
+  } catch (err) {
+    console.warn(`Could not load comments for post ${postId}:`, err);
+  }
 }
+
+// Handle Submitting a Reply
+async function handleReplySubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const postId = form.dataset.postId;
+  const input = form.querySelector(".input-reply");
+  const text = input?.value.trim();
+  const btn = form.querySelector("button[type='submit']");
+
+  if (!text) return;
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "...";
+  }
+
+  try {
+    await addDoc(collection(db, `posts/${postId}/comments`), {
+      text: text,
+      authorUid: activeUser.uid,
+      authorName: activeUser.displayName || activeUser.email.split("@")[0],
+      authorRole: activeRole,
+      createdAt: serverTimestamp()
+    });
+
+    form.reset();
+    loadComments(postId);
+  } catch (err) {
+    console.error("Reply failed:", err);
+    alert("Could not post reply: " + err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Reply";
+    }
+  }
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[s]));
+}
+
+// Bootstrapping
+initAuthGuard({
+  onReady: ({ user, userData, role }) => {
+    activeUser = user;
+    activeRole = role;
+    activeClassCode = userData.classroomCode || "";
+    listenToFeed();
+  }
+});

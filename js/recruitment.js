@@ -1,180 +1,198 @@
-import { auth, db } from "./firebase-init.js";
-import { enforceAuth } from "./auth-guard.js";
+import { db } from "./firebase-init.js";
+import { initAuthGuard } from "./auth-guard.js";
 import { 
   collection, 
-  addDoc, 
-  getDoc, 
-  doc, 
-  updateDoc, 
+  query, 
+  where, 
   onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  doc, 
   serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-enforceAuth(["faculty", "student", "admin"]);
+const facultyActions = document.getElementById("faculty-actions");
+const btnOpenJob = document.getElementById("btn-open-job-modal");
+const btnCloseJob = document.getElementById("btn-close-job-modal");
+const jobModal = document.getElementById("job-modal");
+const formCreateJob = document.getElementById("form-create-job");
+
+const btnOpenCandidate = document.getElementById("btn-open-candidate-modal");
+const btnCloseCandidate = document.getElementById("btn-close-candidate-modal");
+const candidateModal = document.getElementById("candidate-modal");
+const formInjectCandidate = document.getElementById("form-inject-candidate");
 
 const jobOrdersContainer = document.getElementById("job-orders-container");
-const candidatesContainer = document.getElementById("candidates-container");
+const candidatesTbody = document.getElementById("candidates-tbody");
 
-document.addEventListener("DOMContentLoaded", () => {
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) return;
+let activeRole = "student";
+let activeClassCode = "";
+let currentStudentUid = null;
 
-    try {
-      const userSnap = await getDoc(doc(db, "users", user.uid));
-      if (!userSnap.exists()) return;
+// Modal Controls
+btnOpenJob?.addEventListener("click", () => { if (jobModal) jobModal.style.display = "block"; });
+btnCloseJob?.addEventListener("click", () => { if (jobModal) jobModal.style.display = "none"; });
 
-      const userData = userSnap.data();
-      const isFaculty = userData.role === "faculty" || userData.role === "admin";
+btnOpenCandidate?.addEventListener("click", () => { if (candidateModal) candidateModal.style.display = "block"; });
+btnCloseCandidate?.addEventListener("click", () => { if (candidateModal) candidateModal.style.display = "none"; });
 
-      // If Faculty, render "+ Post Requisition" and "+ Add Candidate" actions
-      if (isFaculty && jobOrdersContainer) {
-        renderFacultyActionControls(user.uid, `${userData.firstName} ${userData.lastName}`);
-      }
+// Create Job Order
+formCreateJob?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const title = document.getElementById("job-title-input")?.value.trim();
+  const dept = document.getElementById("job-dept-input")?.value.trim();
+  const reqs = document.getElementById("job-reqs-input")?.value.trim();
 
-      // 1. Live Job Requisitions Synchronization
-      onSnapshot(collection(db, "job_orders"), (snapshot) => {
-        jobOrdersContainer.innerHTML = "";
+  if (!title) return;
 
-        if (snapshot.empty) {
-          jobOrdersContainer.innerHTML = `<p style="color: var(--text-secondary); font-size: 13px;">No active requisitions published. Faculty can create job orders above.</p>`;
-          return;
-        }
+  try {
+    await addDoc(collection(db, "job_orders"), {
+      title,
+      department: dept,
+      requirements: reqs,
+      classroomCode: activeClassCode || "GLOBAL",
+      createdAt: serverTimestamp()
+    });
 
-        snapshot.forEach((docSnap) => {
-          const job = docSnap.data();
-          const card = document.createElement("div");
-          card.className = "applicant-card";
-          card.style.borderLeftColor = "var(--brand-ocean)";
-          card.innerHTML = `
-            <div class="applicant-header">
-              <span class="applicant-name">${job.title}</span>
-              <span class="applicant-role">${job.department}</span>
-            </div>
-            <p style="font-size: 13px; color: var(--text-primary); margin-bottom: 8px;">${job.description || ""}</p>
-            <div style="font-size: 12px; color: var(--text-secondary);">
-              <strong>Evaluation Rubric:</strong> ${job.rubric || "Standard"}
-            </div>
-            <div style="margin-top: 8px; font-size: 11px; color: var(--text-tertiary);">
-              Posted by: ${job.facultyName || "Faculty"} • ${job.createdAt ? new Date(job.createdAt.toDate()).toLocaleDateString() : "Active"}
-            </div>
-          `;
-          jobOrdersContainer.appendChild(card);
-        });
-      });
-
-      // 2. Live Candidates Screening Queue Synchronization
-      onSnapshot(collection(db, "candidates"), (snapshot) => {
-        candidatesContainer.innerHTML = "";
-
-        if (snapshot.empty) {
-          candidatesContainer.innerHTML = `<p style="color: var(--text-secondary); font-size: 13px;">No applicants in the evaluation queue.</p>`;
-          return;
-        }
-
-        snapshot.forEach((candDoc) => {
-          const cand = candDoc.data();
-          const cid = candDoc.id;
-
-          let statusClass = "status-pending";
-          if (cand.status === "Approved") statusClass = "status-graded";
-          if (cand.status === "Rejected") statusClass = "status-pending"; // Styled as warning/danger
-
-          const card = document.createElement("div");
-          card.className = "applicant-card";
-          card.innerHTML = `
-            <div class="applicant-header">
-              <div>
-                <span class="applicant-name">${cand.name}</span>
-                <span class="applicant-role" style="margin-left: 8px;">${cand.roleApplied}</span>
-              </div>
-              <span class="status-badge ${statusClass}">${cand.status || "Pending"}</span>
-            </div>
-            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;"><strong>Qualifications:</strong> ${cand.qualifications}</p>
-            ${cand.reviewNotes ? `<p style="font-size: 12.5px; background: var(--bg-app); padding: 8px; border-radius: 4px; margin-bottom: 8px;"><em>Decision Note:</em> ${cand.reviewNotes}</p>` : ''}
-            <div class="applicant-actions">
-              <button class="btn btn-approve" id="approve-${cid}">Approve</button>
-              <button class="btn btn-interview" id="interview-${cid}">Interview</button>
-              <button class="btn btn-reject" id="reject-${cid}">Reject</button>
-            </div>
-          `;
-
-          card.querySelector(`#approve-${cid}`).addEventListener("click", () => updatePipelineStatus(cid, "Approved", `${userData.firstName} ${userData.lastName}`));
-          card.querySelector(`#interview-${cid}`).addEventListener("click", () => updatePipelineStatus(cid, "Interview Scheduled", `${userData.firstName} ${userData.lastName}`));
-          card.querySelector(`#reject-${cid}`).addEventListener("click", () => updatePipelineStatus(cid, "Rejected", `${userData.firstName} ${userData.lastName}`));
-
-          candidatesContainer.appendChild(card);
-        });
-      });
-
-    } catch (err) {
-      console.error("Recruitment engine initialization error:", err);
-    }
-  });
+    if (jobModal) jobModal.style.display = "none";
+    if (formCreateJob) formCreateJob.reset();
+  } catch (err) {
+    console.error("Job order creation failed:", err);
+    alert("Could not post job order: " + err.message);
+  }
 });
 
-function renderFacultyActionControls(facultyUid, facultyName) {
-  const controlsDiv = document.createElement("div");
-  controlsDiv.style.display = "flex";
-  controlsDiv.style.gap = "10px";
-  controlsDiv.style.marginBottom = "16px";
+// Inject Candidate (Faculty Only)
+formInjectCandidate?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = document.getElementById("cand-name-input")?.value.trim();
+  const exp = document.getElementById("cand-exp-input")?.value.trim();
+  const resume = document.getElementById("cand-resume-input")?.value.trim();
 
-  const btnPostJob = document.createElement("button");
-  btnPostJob.className = "btn btn-primary";
-  btnPostJob.style.flex = "1";
-  btnPostJob.textContent = "+ Post Job Requisition";
-  btnPostJob.addEventListener("click", async () => {
-    const title = prompt("Target Job Title (e.g., Talent Acquisition Specialist):");
-    if (!title || !title.trim()) return;
-    const dept = prompt("Department:", "Human Resources") || "Human Resources";
-    const desc = prompt("Role Requirements & Duties:");
-    const rubric = prompt("Evaluation Rubric Competencies (e.g., Screening, Behavioral Interviewing, Compliance):");
+  if (!name) return;
 
-    await addDoc(collection(db, "job_orders"), {
-      title: title.trim(),
-      department: dept.trim(),
-      description: desc ? desc.trim() : "",
-      rubric: rubric ? rubric.trim() : "Communication, Experience, Cultural Fit",
-      facultyUid,
-      facultyName,
-      createdAt: serverTimestamp()
-    });
-  });
-
-  const btnAddCandidate = document.createElement("button");
-  btnAddCandidate.className = "btn btn-outline";
-  btnAddCandidate.style.flex = "1";
-  btnAddCandidate.textContent = "+ Inject Simulation Candidate";
-  btnAddCandidate.addEventListener("click", async () => {
-    const name = prompt("Candidate Full Name:");
-    if (!name || !name.trim()) return;
-    const roleApplied = prompt("Role Applied For:");
-    const qualifications = prompt("Candidate Background (e.g., 4 Yrs HR, Certified Recruiter, BS Psychology):");
-
-    await addDoc(collection(db, "candidates"), {
-      name: name.trim(),
-      roleApplied: roleApplied ? roleApplied.trim() : "General Application",
-      qualifications: qualifications ? qualifications.trim() : "Standard Resume Profile",
-      status: "In Review",
-      reviewNotes: "",
-      createdAt: serverTimestamp()
-    });
-  });
-
-  controlsDiv.appendChild(btnPostJob);
-  controlsDiv.appendChild(btnAddCandidate);
-  jobOrdersContainer.parentElement.insertBefore(controlsDiv, jobOrdersContainer);
-}
-
-async function updatePipelineStatus(candidateId, newStatus, reviewerName) {
-  const notes = prompt(`Enter evaluation note for marked status [${newStatus}]:`);
   try {
-    await updateDoc(doc(db, "candidates", candidateId), {
-      status: newStatus,
-      reviewNotes: notes ? `${notes} (By: ${reviewerName})` : `Updated to ${newStatus}`,
-      evaluatedAt: serverTimestamp()
+    await addDoc(collection(db, "candidates"), {
+      name,
+      experienceYears: Number(exp) || 0,
+      resumeSummary: resume,
+      status: "Under Review",
+      classroomCode: activeClassCode || "GLOBAL",
+      createdAt: serverTimestamp()
     });
+
+    if (candidateModal) candidateModal.style.display = "none";
+    if (formInjectCandidate) formInjectCandidate.reset();
   } catch (err) {
-    console.error("Pipeline update error:", err);
-    alert("Could not update candidate status.");
+    console.error("Candidate injection failed:", err);
+    alert("Could not inject candidate: " + err.message);
   }
+});
+
+// Real-Time Listeners
+function listenToRecruitment() {
+  const jobQ = activeClassCode 
+    ? query(collection(db, "job_orders"), where("classroomCode", "==", activeClassCode))
+    : query(collection(db, "job_orders"));
+
+  onSnapshot(jobQ, (snapshot) => {
+    if (!jobOrdersContainer) return;
+    if (snapshot.empty) {
+      jobOrdersContainer.innerHTML = `<div class="empty-state"><p>No active requisitions published. Faculty can create job orders above.</p></div>`;
+      return;
+    }
+
+    jobOrdersContainer.innerHTML = snapshot.docs.map(d => {
+      const j = d.data();
+      return `
+        <div class="card" style="padding: 18px; gap: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <h4 style="font-size: 15px; font-weight: 700; color: var(--text-primary);">${escapeHtml(j.title)}</h4>
+            <span class="status-badge active" style="font-size: 10px;">${escapeHtml(j.department || "Operations")}</span>
+          </div>
+          <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.45;">${escapeHtml(j.requirements || "Standard HR qualifications apply.")}</p>
+        </div>
+      `;
+    }).join("");
+  });
+
+  const candQ = activeClassCode 
+    ? query(collection(db, "candidates"), where("classroomCode", "==", activeClassCode))
+    : query(collection(db, "candidates"));
+
+  onSnapshot(candQ, (snapshot) => {
+    if (!candidatesTbody) return;
+    if (snapshot.empty) {
+      candidatesTbody.innerHTML = `<tr><td colspan="5" class="empty-state">No applicants in the evaluation queue.</td></tr>`;
+      return;
+    }
+
+    candidatesTbody.innerHTML = snapshot.docs.map(d => {
+      const c = d.data();
+      const id = d.id;
+
+      let statusColor = "var(--text-tertiary)";
+      if (c.status === "Hired") statusColor = "var(--success)";
+      if (c.status === "Rejected") statusColor = "var(--danger)";
+      if (c.status === "Shortlisted") statusColor = "var(--accent)";
+
+      return `
+        <tr>
+          <td style="font-weight: 600;">${escapeHtml(c.name)}</td>
+          <td>${c.experienceYears} Years</td>
+          <td style="font-size: 12.5px; color: var(--text-secondary); max-width: 320px;">${escapeHtml(c.resumeSummary || "Standard candidate profile.")}</td>
+          <td><span class="status-badge" style="color: ${statusColor};">${escapeHtml(c.status || "Under Review")}</span></td>
+          <td>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="btn btn-secondary btn-status" data-id="${id}" data-status="Shortlisted" style="padding: 4px 8px; font-size: 11px;">Shortlist</button>
+              <button type="button" class="btn btn-primary btn-status" data-id="${id}" data-status="Hired" style="padding: 4px 8px; font-size: 11px;">Hire</button>
+              <button type="button" class="btn btn-secondary btn-status" data-id="${id}" data-status="Rejected" style="padding: 4px 8px; font-size: 11px; color: var(--danger);">Reject</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    // Attach Status Update Listeners
+    candidatesTbody.querySelectorAll(".btn-status").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const candidateId = btn.dataset.id;
+        const newStatus = btn.dataset.status;
+        try {
+          await updateDoc(doc(db, "candidates", candidateId), {
+            status: newStatus,
+            decidedBy: currentStudentUid
+          });
+        } catch (err) {
+          console.error("Decision update failed:", err);
+        }
+      });
+    });
+  });
 }
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[s]));
+}
+
+// Auth Guard Initializer
+initAuthGuard({
+  onReady: ({ user, userData, role }) => {
+    activeRole = role;
+    currentStudentUid = user.uid;
+    activeClassCode = userData.classroomCode || "";
+
+    // Show injector & post buttons only to Faculty
+    if (activeRole === "faculty" && facultyActions) {
+      facultyActions.style.display = "flex";
+    }
+
+    listenToRecruitment();
+  }
+});
