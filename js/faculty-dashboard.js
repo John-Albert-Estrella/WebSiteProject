@@ -97,7 +97,7 @@ function setExpiredState() {
   if (rosterTbody) {
     rosterTbody.innerHTML = `
       <tr>
-        <td colspan="4" class="empty-state">No active classroom session. Generate a code above to view students.</td>
+        <td colspan="5" class="empty-state">No active classroom session. Generate a code above to view students.</td>
       </tr>
     `;
   }
@@ -119,7 +119,7 @@ function listenToClassRoster(classCode) {
       if (rosterTbody) {
         rosterTbody.innerHTML = `
           <tr>
-            <td colspan="4" class="empty-state">No students joined with code ${classCode} yet.</td>
+            <td colspan="5" class="empty-state">No students joined with code ${classCode} yet.</td>
           </tr>
         `;
       }
@@ -129,6 +129,7 @@ function listenToClassRoster(classCode) {
     let rowsHtml = "";
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
+      const studentUid = docSnap.id;
       const studentName = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Anonymous Student";
       const studentEmail = data.email || "No institutional email";
       const joinedDate = data.createdAt ? data.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
@@ -139,11 +140,35 @@ function listenToClassRoster(classCode) {
           <td style="color: var(--text-secondary);">${escapeHtml(studentEmail)}</td>
           <td style="color: var(--text-tertiary);">${joinedDate}</td>
           <td><span class="status-badge" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8;">Student</span></td>
+          <td>
+            <button type="button" class="btn btn-secondary btn-kick-student" data-uid="${studentUid}" data-name="${escapeHtml(studentName)}" style="padding: 4px 10px; font-size: 11px; color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">
+              Remove
+            </button>
+          </td>
         </tr>
       `;
     });
 
     if (rosterTbody) rosterTbody.innerHTML = rowsHtml;
+
+    // Attach Student Removal Event Listeners
+    document.querySelectorAll(".btn-kick-student").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const uid = btn.dataset.uid;
+        const name = btn.dataset.name;
+
+        if (confirm(`Remove ${name} from this classroom section?`)) {
+          try {
+            await updateDoc(doc(db, "users", uid), {
+              classroomCode: ""
+            });
+          } catch (err) {
+            console.error("Failed to remove student:", err);
+            alert("Could not remove student: " + err.message);
+          }
+        }
+      });
+    });
   }, (err) => {
     console.error("Error reading class roster:", err);
   });
@@ -202,7 +227,7 @@ btnGenerate?.addEventListener("click", async () => {
     setActiveState(newCode, expiresAt);
   } catch (error) {
     console.error("Failed to generate code:", error);
-    alert("Could not activate class code.");
+    alert(`Could not activate class code: ${error.message}`);
   } finally {
     btnGenerate.disabled = false;
   }

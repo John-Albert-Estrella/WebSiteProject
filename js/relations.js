@@ -147,4 +147,4 @@ initAuthGuard({
     activeClassCode = userData.classroomCode || "";
     listenToGrievances();
   }
-});
+}); 

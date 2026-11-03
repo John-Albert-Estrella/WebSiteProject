@@ -8,7 +8,6 @@ import {
   addDoc, 
   orderBy, 
   serverTimestamp, 
-  doc, 
   getDocs 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
@@ -22,7 +21,19 @@ let activeRole = "student";
 let activeClassCode = "";
 let feedUnsubscribe = null;
 
-// Submit New Main Post
+// Safe Date Formatter to avoid .toDate() on null during optimistic Firestore writes
+function formatSafeDate(timestamp) {
+  if (!timestamp) return "Just now";
+  if (typeof timestamp.toDate === "function") {
+    return timestamp.toDate().toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+  }
+  if (timestamp instanceof Date) {
+    return timestamp.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+  }
+  return "Just now";
+}
+
+// Submit New Post
 formCreatePost?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const content = postContentInput?.value.trim();
@@ -55,7 +66,7 @@ formCreatePost?.addEventListener("submit", async (e) => {
   }
 });
 
-// Real-Time Classroom Feed Listener
+// Real-Time Feed Listener
 function listenToFeed() {
   if (feedUnsubscribe) feedUnsubscribe();
 
@@ -89,12 +100,11 @@ function listenToFeed() {
     snapshot.forEach((docSnap) => {
       const post = docSnap.data();
       const postId = docSnap.id;
-      const formattedDate = post.createdAt ? post.createdAt.toDate().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : "Just now";
+      const formattedDate = formatSafeDate(post.createdAt);
       const isFacultyPost = post.authorRole === "faculty";
 
       postsHtml += `
         <article class="card" style="gap: 14px;">
-          <!-- Post Header -->
           <div class="card-header" style="align-items: center;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span style="font-weight: 700; color: var(--text-primary); font-size: 15px;">
@@ -107,18 +117,13 @@ function listenToFeed() {
             <span style="font-size: 12px; color: var(--text-tertiary);">${formattedDate}</span>
           </div>
 
-          <!-- Post Content -->
           <p style="font-size: 14.5px; color: var(--text-secondary); line-height: 1.55; white-space: pre-wrap;">
             ${escapeHtml(post.content)}
           </p>
 
-          <!-- Comment Thread Sub-Section -->
           <div style="border-top: 1px solid var(--surface-border); padding-top: 12px; display: flex; flex-direction: column; gap: 10px;">
-            <div id="comments-container-${postId}" style="display: flex; flex-direction: column; gap: 8px;">
-              <!-- Comments dynamically loaded here -->
-            </div>
+            <div id="comments-container-${postId}" style="display: flex; flex-direction: column; gap: 8px;"></div>
 
-            <!-- Reply Input Box -->
             <form class="form-reply" data-post-id="${postId}" style="display: flex; gap: 8px; margin-top: 4px;">
               <input 
                 type="text" 
@@ -127,9 +132,7 @@ function listenToFeed() {
                 required
                 style="padding: 8px 12px; font-size: 13px;"
               >
-              <button type="submit" class="btn btn-primary" style="padding: 8px 16px; font-size: 13px;">
-                Reply
-              </button>
+              <button type="submit" class="btn btn-primary" style="padding: 8px 16px; font-size: 13px;">Reply</button>
             </form>
           </div>
         </article>
@@ -138,12 +141,10 @@ function listenToFeed() {
 
     if (postsStream) postsStream.innerHTML = postsHtml;
 
-    // Load replies for each post
     snapshot.forEach((docSnap) => {
       loadComments(docSnap.id);
     });
 
-    // Attach Reply Handlers
     document.querySelectorAll(".form-reply").forEach((form) => {
       form.addEventListener("submit", handleReplySubmit);
     });
@@ -153,7 +154,6 @@ function listenToFeed() {
   });
 }
 
-// Load Comments Sub-Collection
 async function loadComments(postId) {
   const container = document.getElementById(`comments-container-${postId}`);
   if (!container) return;
@@ -170,7 +170,7 @@ async function loadComments(postId) {
     let commentsHtml = "";
     snap.forEach((docSnap) => {
       const comment = docSnap.data();
-      const timeStr = comment.createdAt ? comment.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
+      const timeStr = formatSafeDate(comment.createdAt);
       const isFacultyReply = comment.authorRole === "faculty";
 
       commentsHtml += `
@@ -199,7 +199,6 @@ async function loadComments(postId) {
   }
 }
 
-// Handle Submitting a Reply
 async function handleReplySubmit(e) {
   e.preventDefault();
   const form = e.target;
@@ -247,7 +246,6 @@ function escapeHtml(str) {
   }[s]));
 }
 
-// Bootstrapping
 initAuthGuard({
   onReady: ({ user, userData, role }) => {
     activeUser = user;

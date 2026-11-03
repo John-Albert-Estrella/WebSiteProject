@@ -894,3 +894,34 @@ body.auth-body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   CLEAN EMPTY STATE BENTO (Light & Dark Contrast Fix)
+   ========================================================================== */
+.empty-state-box, .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 44px 20px;
+  border-radius: var(--radius-md);
+  border: 1.5px dashed var(--surface-border-bright);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  gap: 10px;
+  width: 100%;
+}
+
+[data-theme="light"] .empty-state-box, 
+[data-theme="light"] .empty-state {
+  background: #f8fafc !important;
+  border: 1.5px dashed rgba(2, 132, 199, 0.3) !important;
+  color: #475569 !important;
+}
+
+.empty-state-desc, .empty-state p {
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+  margin: 0;
+}
