@@ -8,37 +8,38 @@
 </head>
 <body>
 
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
-      <p>Management Simulator</p>
-    </div>
-    
-    <!-- BENTO WELCOME & THEME TOGGLE CARD -->
-    <div class="sidebar-user-card">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="welcome-tag">WORKSPACE</span>
-        <!-- Theme Pills -->
-        <div class="theme-switch-pills">
-          <button class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-          <button class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-        </div>
-      </div>
-      <h3 id="sidebar-greeting-name">Welcome back!</h3>
-    </div>
+<!-- Floating Bento Rail Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
+    <p>Management Simulator</p>
+  </div>
 
-    <nav class="sidebar-nav">
-      <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
-      <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
-      <a href="feed.html" class="nav-item"><span>💬</span> HR Feed</a>
-      <a href="case-library.html" class="nav-item"><span>📁</span> HR Case Library</a>
-      <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
-      <a href="relations.html" class="nav-item active"><span>🤝</span> Employee Relations</a>
-      <a href="analytics.html" class="nav-item"><span>📉</span> HR Analytics</a>
-      <a href="portfolio.html" class="nav-item"><span>💼</span> Portfolio & Assessment</a>
-    </nav>
-  </aside>
+  <div class="sidebar-user-card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span class="welcome-tag">WORKSPACE</span>
+      <!-- Working Theme Pills -->
+      <div class="theme-switch-pills">
+        <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
+        <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
+      </div>
+    </div>
+    <h3 id="sidebar-greeting-name">Welcome back!</h3>
+  </div>
+
+  <!-- Standardized 9-Item Nav Rail -->
+  <nav class="sidebar-nav">
+    <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
+    <a href="planner.html" class="nav-item">📋 Project Planner</a>
+    <a href="feed.html" class="nav-item">💬 HR Feed</a>
+    <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
+    <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
+    <a href="performance.html" class="nav-item">📈 Performance Management</a>
+    <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
+    <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
+    <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+  </nav>
+</aside>
 
   <main class="main-content">
     <header class="topbar">

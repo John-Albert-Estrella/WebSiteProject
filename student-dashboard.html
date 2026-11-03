@@ -1,96 +1,131 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aimser - Student Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aimser - Student Workspace</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- MASTER STUDENT SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-     <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
-      <p>Student Portal</p>
-    </div>
-    
-    <!-- BENTO WELCOME & THEME TOGGLE CARD -->
-    <div class="sidebar-user-card">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="welcome-tag">WORKSPACE</span>
-        <!-- Theme Pills -->
-        <div class="theme-switch-pills">
-          <button class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-          <button class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-        </div>
+  <!-- Floating Bento Rail Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
+    <p>Management Simulator</p>
+  </div>
+
+  <div class="sidebar-user-card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span class="welcome-tag">WORKSPACE</span>
+      <!-- Working Theme Pills -->
+      <div class="theme-switch-pills">
+        <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
+        <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
       </div>
-      <h3 id="sidebar-greeting-name">Welcome back!</h3>
     </div>
+    <h3 id="sidebar-greeting-name">Welcome back!</h3>
+  </div>
 
-    <nav class="sidebar-nav">
-      <a href="student-dashboard.html" class="nav-item active"><span>📊</span> Dashboard</a>
-      <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
-      <a href="feed.html" class="nav-item"><span>💬</span> HR Feed</a>
-      <a href="case-library.html" class="nav-item"><span>📁</span> HR Case Library</a>
-      <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
-      <a href="relations.html" class="nav-item"><span>🤝</span> Employee Relations</a>
-      <a href="analytics.html" class="nav-item"><span>📉</span> HR Analytics</a>
-      <a href="portfolio.html" class="nav-item"><span>💼</span> Portfolio & Assessment</a>
-    </nav>
-  </aside>
+  <!-- Standardized 9-Item Nav Rail -->
+  <nav class="sidebar-nav">
+    <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
+    <a href="planner.html" class="nav-item">📋 Project Planner</a>
+    <a href="feed.html" class="nav-item">💬 HR Feed</a>
+    <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
+    <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
+    <a href="performance.html" class="nav-item">📈 Performance Management</a>
+    <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
+    <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
+    <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+  </nav>
+</aside>
 
-  <!-- MAIN APP AREA -->
-  <main class="main-content">
-    
+  <!-- Main Content Space -->
+  <div class="main-content">
     <header class="topbar">
-      <div>
-        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
-        <span class="status-badge status-graded" style="margin-left: 8px;">Student</span>
+      <div class="brand-group">
+        <span class="faculty-name-display" id="topbar-student-name">Student</span>
+        <span class="role-tag">Student</span>
       </div>
-      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+      </div>
     </header>
 
-    <div class="page-container">
+    <main class="page-container">
       <div class="page-header">
-        <h1 class="page-title">Student Dashboard</h1>
-        <p class="page-subtitle">Enroll in a class using your instructor's code and review your team tasks.</p>
+        <div>
+          <h1 class="page-title">Simulator Workspace</h1>
+          <p class="page-subtitle">Track your cohort status, active simulations, and assigned HR modules.</p>
+        </div>
       </div>
 
-      <div id="module-content">
-        <!-- Join Form Section -->
-        <div class="room-code-card" id="join-room-card" style="border-color: var(--student-accent);">
-          <h3 style="color: var(--text-secondary); text-transform: uppercase; font-size: 14px;">Class Enrollment</h3>
-          <p style="font-size: 14px; color: var(--text-secondary); margin-top: 8px;">Enter the 7-character room code provided by your faculty instructor.</p>
-          
-          <div class="join-input-group">
-            <input type="text" id="input-room-code" class="form-control" placeholder="XXX-XXXX" maxlength="8">
-            <button class="btn btn-primary" id="btn-join-room" style="background: var(--student-accent);">Join Class</button>
+      <!-- Classroom Join Banner (Shown when student has no active classroom code) -->
+      <section class="card" id="join-classroom-card" style="display: none; border-color: rgba(56, 189, 248, 0.4);">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Join a Classroom Session</h2>
+            <p class="card-subtitle">Enter the 60-minute code generated by your instructor.</p>
           </div>
+          <span class="status-badge">Action Required</span>
         </div>
+        <form id="form-join-class" style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <input 
+            type="text" 
+            id="input-class-code" 
+            class="form-control" 
+            placeholder="e.g. AIM-7X9B" 
+            style="max-width: 280px; text-transform: uppercase;" 
+            required
+          >
+          <button type="submit" class="btn btn-primary" id="btn-join-class">Link Classroom</button>
+        </form>
+      </section>
 
-        <!-- Active Enrollment Status -->
-        <div class="card" id="enrollment-status-card" style="border-top: 4px solid var(--student-accent); display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+      <!-- Dashboard Grid -->
+      <div class="dashboard-grid">
+        <section class="card">
+          <div class="card-header">
             <div>
-              <h3 style="margin-bottom: 4px;" id="enrolled-class-title">Enrolled in Class</h3>
-              <p style="font-size: 13px; color: var(--text-secondary);" id="enrolled-faculty-name">Instructor: --</p>
+              <h2 class="card-title">Classroom Status</h2>
+              <p class="card-subtitle">Your current enrolled section</p>
             </div>
-            <span class="status-badge status-graded">Active Member</span>
+            <span class="status-badge active" id="badge-class-status">Active</span>
           </div>
+          <div class="enrolled-stat-number" id="display-enrolled-code">------</div>
+          <p class="stat-description" id="display-class-desc">Connecting to simulator network...</p>
+        </section>
 
-          <div style="background: var(--bg-main); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--surface-border);">
-            <h4 style="font-size: 14px; margin-bottom: 12px;">Active Room Code</h4>
-            <p style="font-weight: 700; font-size: 18px; color: var(--text-primary);" id="enrolled-code-display">---</p>
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Completed Modules</h2>
+              <p class="card-subtitle">Verified assignment submissions</p>
+            </div>
           </div>
-        </div>
+          <div class="enrolled-stat-number" id="stat-completed-count">0</div>
+          <p class="stat-description">Deliverables submitted and recorded in your portfolio.</p>
+        </section>
+
+        <section class="card" style="grid-column: 1 / -1;">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Quick Navigation</h2>
+              <p class="card-subtitle">Jump straight to your active learning modules.</p>
+            </div>
+          </div>
+          <div class="card-actions">
+            <a href="case-library.html" class="btn btn-primary">📁 Go to Case Library</a>
+            <a href="planner.html" class="btn btn-secondary">📋 Open Project Planner</a>
+            <a href="feed.html" class="btn btn-secondary">💬 Read HR Feed</a>
+          </div>
+        </section>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 
   <script type="module" src="js/student-dashboard.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
   <script type="module" src="js/theme.js"></script>
 </body>
 </html>

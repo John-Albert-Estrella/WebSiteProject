@@ -1,94 +1,170 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Aimser - HR Case Library</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- MASTER SIDEBAR -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
+<!-- Floating Bento Rail Sidebar -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
     <p>Management Simulator</p>
   </div>
-    
-    <!-- BENTO WELCOME & THEME TOGGLE CARD -->
-    <div class="sidebar-user-card">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="welcome-tag">WORKSPACE</span>
-        <!-- Theme Pills -->
-        <div class="theme-switch-pills">
-          <button class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-          <button class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-        </div>
+
+  <div class="sidebar-user-card">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span class="welcome-tag">WORKSPACE</span>
+      <!-- Working Theme Pills -->
+      <div class="theme-switch-pills">
+        <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
+        <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
       </div>
-      <h3 id="sidebar-greeting-name">Welcome back!</h3>
     </div>
+    <h3 id="sidebar-greeting-name">Welcome back!</h3>
+  </div>
 
-    <nav class="sidebar-nav">
-      <a href="index.html" class="nav-item"><span>📊</span> Dashboard</a>
-      <a href="planner.html" class="nav-item"><span>📋</span> Project Planner</a>
-      <a href="feed.html" class="nav-item"><span>💬</span> HR Feed</a>
-      <a href="case-library.html" class="nav-item active"><span>📁</span> HR Case Library</a>
-      <a href="recruitment.html" class="nav-item"><span>🎯</span> Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item"><span>📈</span> Performance Management</a>
-      <a href="relations.html" class="nav-item"><span>🤝</span> Employee Relations</a>
-      <a href="analytics.html" class="nav-item"><span>📉</span> HR Analytics</a>
-      <a href="portfolio.html" class="nav-item"><span>💼</span> Portfolio & Assessment</a>
-    </nav>
-  </aside>
+  <!-- Standardized 9-Item Nav Rail -->
+  <nav class="sidebar-nav">
+    <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
+    <a href="planner.html" class="nav-item">📋 Project Planner</a>
+    <a href="feed.html" class="nav-item">💬 HR Feed</a>
+    <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
+    <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
+    <a href="performance.html" class="nav-item">📈 Performance Management</a>
+    <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
+    <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
+    <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+  </nav>
+</aside>
 
-  <!-- MAIN APP AREA -->
-  <main class="main-content">
-    
-    <!-- TOPBAR -->
+  <!-- Main Content Space -->
+  <div class="main-content">
     <header class="topbar">
-      <div>
-        <span id="header-user-name" style="font-weight: 600; color: var(--text-primary);">Loading...</span>
-        <span id="header-user-role" class="status-badge status-graded" style="margin-left: 8px;">--</span>
+      <div class="brand-group">
+        <span class="faculty-name-display" id="topbar-student-name">Student</span>
+        <span class="role-tag">Student</span>
       </div>
-      <button id="btn-logout" class="btn btn-reject">Sign Out</button>
+      <div class="nav-actions">
+        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+      </div>
     </header>
 
-    <!-- PAGE CONTAINER -->
-    <div class="page-container">
+    <main class="page-container">
       <div class="page-header">
-        <h1 class="page-title">HR Case Library</h1>
-        <p class="page-subtitle">Examine corporate legal, ethical, and organizational challenges.</p>
+        <div>
+          <h1 class="page-title">HR Case Library</h1>
+          <p class="page-subtitle">Examine corporate legal, ethical, and organizational challenges. Upload completed case deliverables.</p>
+        </div>
       </div>
 
-      <!-- INSTRUCTOR-ONLY CASE PUBLISHER -->
-      <div class="card" id="faculty-upload-card" style="margin-bottom: 24px; display: none;">
-        <h3 style="margin-bottom: 12px;">Publish New Case Study</h3>
-        <div class="form-group">
-          <label class="form-label">Case Title</label>
-          <input type="text" id="case-title-input" class="form-control" placeholder="e.g., TechCorp Turnover Crisis 2026">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Case Description & Background</label>
-          <textarea id="case-desc-input" class="form-control" rows="3" placeholder="Brief summary of the workplace dilemma..."></textarea>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Attach Case PDF or Document</label>
-          <input type="file" id="case-file-input" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx">
-        </div>
-        <button class="btn btn-primary" id="btn-publish-case">Upload & Publish Case</button>
+      <!-- Case Studies Grid -->
+      <div class="dashboard-grid">
+        
+        <!-- Case 1 -->
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Case #1: Workplace Restructuring</h2>
+              <p class="card-subtitle">Organizational Development & Downsizing Protocol</p>
+            </div>
+            <span class="status-badge active">Active Case</span>
+          </div>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;">
+            A tech company is merging two departments. Design a transition strategy that maintains team morale, honors legal severance requirements, and preserves institutional knowledge.
+          </p>
+          <div class="card-actions">
+            <button type="button" class="btn btn-primary btn-open-upload" data-case-id="CASE-01" data-case-title="Workplace Restructuring">
+              Upload Deliverable
+            </button>
+          </div>
+        </article>
+
+        <!-- Case 2 -->
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Case #2: Grievance & Harassment Inquiry</h2>
+              <p class="card-subtitle">Employee Relations & Labor Compliance</p>
+            </div>
+            <span class="status-badge active">Active Case</span>
+          </div>
+          <p style="font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;">
+            A junior associate files a grievance against a senior team lead. Outline the step-by-step investigation procedure, documentation integrity requirements, and final mediation strategy.
+          </p>
+          <div class="card-actions">
+            <button type="button" class="btn btn-primary btn-open-upload" data-case-id="CASE-02" data-case-title="Grievance & Harassment Inquiry">
+              Upload Deliverable
+            </button>
+          </div>
+        </article>
+
       </div>
 
-      <!-- PUBLIC CASE GRID -->
-      <h3 style="margin-bottom: 16px; color: var(--text-primary);">Available Case Studies</h3>
-      <div class="case-grid" id="cases-grid-container">
-        <p style="color: var(--text-secondary);">Loading cases...</p>
-      </div>
-    </div>
-  </main>
+      <!-- Submission Modal / Upload Section -->
+      <section class="card" id="upload-panel" style="display: none; border-color: rgba(56, 189, 248, 0.4);">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" id="upload-panel-title">Submit Deliverable</h2>
+            <p class="card-subtitle">Allowed formats: PDF, DOCX, PNG, JPG (10 MB max)</p>
+          </div>
+          <button type="button" class="btn btn-secondary" id="btn-close-upload">Cancel</button>
+        </div>
 
-  <!-- CONTROLLER -->
+        <form id="form-upload-deliverable" style="display: flex; flex-direction: column; gap: 1rem;">
+          <input type="hidden" id="upload-case-id">
+          
+          <div class="form-group">
+            <label class="form-label" for="file-input">Select Deliverable File</label>
+            <input type="file" id="file-input" class="form-control" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="notes-input">Student Submission Notes (Optional)</label>
+            <textarea id="notes-input" class="form-control" placeholder="Add any comments or context for your instructor..."></textarea>
+          </div>
+
+          <div class="card-actions">
+            <button type="submit" class="btn btn-primary" id="btn-submit-file">
+              Upload to Cloudinary & Submit
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Past Submissions Section -->
+      <section class="card roster-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Your Submitted Deliverables</h2>
+            <p class="card-subtitle">Verified assignment logs stored in the simulator cloud.</p>
+          </div>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Case Title</th>
+                <th>File Name</th>
+                <th>Submitted Date</th>
+                <th>Cloud Link</th>
+              </tr>
+            </thead>
+            <tbody id="submissions-tbody">
+              <tr>
+                <td colspan="4" class="empty-state">No deliverables submitted yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
   <script type="module" src="js/case-library.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
   <script type="module" src="js/theme.js"></script>
 </body>
 </html>

@@ -1,114 +1,150 @@
 import { auth, db } from "./firebase-init.js";
-import { enforceAuth } from "./auth-guard.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { 
   doc, 
   getDoc, 
   updateDoc, 
-  arrayUnion 
+  collection, 
+  query, 
+  where, 
+  getDocs 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// Restrict access strictly to students
-enforceAuth(["student"]);
+const studentSidebarName = document.getElementById("student-sidebar-name");
+const topbarStudentName = document.getElementById("topbar-student-name");
+const joinCard = document.getElementById("join-classroom-card");
+const formJoinClass = document.getElementById("form-join-class");
+const inputClassCode = document.getElementById("input-class-code");
+const btnJoinClass = document.getElementById("btn-join-class");
+const displayEnrolledCode = document.getElementById("display-enrolled-code");
+const displayClassDesc = document.getElementById("display-class-desc");
+const badgeClassStatus = document.getElementById("badge-class-status");
+const statCompletedCount = document.getElementById("stat-completed-count");
+const btnLogout = document.getElementById("btn-logout");
 
-const joinCard = document.getElementById("join-room-card");
-const statusCard = document.getElementById("enrollment-status-card");
-const inputCode = document.getElementById("input-room-code");
-const btnJoin = document.getElementById("btn-join-room");
-const enrolledCodeDisplay = document.getElementById("enrolled-code-display");
-const enrolledFacultyName = document.getElementById("enrolled-faculty-name");
+let currentStudentUid = null;
 
-document.addEventListener("DOMContentLoaded", () => {
-  const user = auth.currentUser;
-  if (!user) return;
+// Logout Handler
+btnLogout?.addEventListener("click", async () => {
+  try {
+    await signOut(auth);
+    window.location.replace("login.html");
+  } catch (err) {
+    console.error("Sign-out error:", err);
+  }
+});
 
-  loadStudentEnrollment(user.uid);
+// Join Classroom Form Submission
+formJoinClass?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const enteredCode = inputClassCode?.value.trim().toUpperCase();
 
-  btnJoin.addEventListener("click", async () => {
-    const code = inputCode.value.trim().toUpperCase();
-    if (code.length < 7) {
-      alert("Please enter a valid room code.");
+  if (!enteredCode) {
+    alert("Please enter a classroom code.");
+    return;
+  }
+
+  if (btnJoinClass) {
+    btnJoinClass.disabled = true;
+    btnJoinClass.textContent = "Verifying...";
+  }
+
+  try {
+    // 1. Verify code exists and is active in classrooms collection
+    const q = query(
+      collection(db, "classrooms"),
+      where("code", "==", enteredCode),
+      where("active", "==", true)
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      alert("Invalid or expired classroom code. Please check with your instructor.");
       return;
     }
 
-    btnJoin.disabled = true;
-    btnJoin.textContent = "Joining...";
-
-    try {
-      const roomRef = doc(db, "rooms", code);
-      const roomSnap = await getDoc(roomRef);
-
-      if (!roomSnap.exists()) {
-        throw new Error("Invalid room code. Please check with your instructor.");
-      }
-
-      const roomData = roomSnap.data();
-      const now = new Date();
-      const expiresAt = roomData.expiresAt.toDate();
-
-      if (now > expiresAt) {
-        throw new Error("This room code has expired.");
-      }
-
-      const currentStudents = roomData.students || [];
-      if (currentStudents.length >= 100) {
-        throw new Error("This class is already at maximum capacity (100 students).");
-      }
-
-      const alreadyJoined = currentStudents.some((s) => s.uid === user.uid);
-      if (alreadyJoined) {
-        throw new Error("You are already enrolled in this class.");
-      }
-
-      const userDocRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userDocRef);
-      const userData = userSnap.data();
-
-      // Enroll student into room
-      await updateDoc(roomRef, {
-        students: arrayUnion({
-          uid: user.uid,
-          name: `${userData.firstName} ${userData.lastName}`,
-          joinedAt: new Date().toISOString()
-        })
-      });
-
-      // Update student user profile
-      await updateDoc(userDocRef, {
-        roomCode: code
-      });
-
-      renderEnrolledUI(code, roomData.facultyName);
-      alert("Successfully enrolled in class!");
-
-    } catch (error) {
-      console.error("Enrollment error:", error);
-      alert(error.message);
-    } finally {
-      btnJoin.disabled = false;
-      btnJoin.textContent = "Join Class";
+    const classroomDoc = snap.docs[0].data();
+    if (classroomDoc.expiresAt && classroomDoc.expiresAt.toDate() <= new Date()) {
+      alert("This classroom code has expired. Ask your instructor to regenerate a code.");
+      return;
     }
-  });
+
+    // 2. Link student to this code in Firestore
+    await updateDoc(doc(db, "users", currentStudentUid), {
+      classroomCode: enteredCode
+    });
+
+    alert(`Successfully enrolled in classroom session: ${enteredCode}`);
+    window.location.reload();
+
+  } catch (err) {
+    console.error("Classroom join error:", err);
+    alert("Failed to join classroom: " + err.message);
+  } finally {
+    if (btnJoinClass) {
+      btnJoinClass.disabled = false;
+      btnJoinClass.textContent = "Link Classroom";
+    }
+  }
 });
 
-async function loadStudentEnrollment(uid) {
+// Count completed submissions
+async function loadSubmissionCount(uid) {
   try {
-    const userSnap = await getDoc(doc(db, "users", uid));
-    if (!userSnap.exists()) return;
-
-    const userData = userSnap.data();
-    if (userData.roomCode) {
-      const roomSnap = await getDoc(doc(db, "rooms", userData.roomCode));
-      const facultyName = roomSnap.exists() ? roomSnap.data().facultyName : "Unknown Instructor";
-      renderEnrolledUI(userData.roomCode, facultyName);
-    }
-  } catch (error) {
-    console.error("Error loading enrollment:", error);
+    const q = query(collection(db, "submissions"), where("studentUid", "==", uid));
+    const snap = await getDocs(q);
+    if (statCompletedCount) statCompletedCount.textContent = snap.size;
+  } catch (e) {
+    console.warn("Could not load submissions count:", e);
   }
 }
 
-function renderEnrolledUI(roomCode, facultyName) {
-  joinCard.style.display = "none";
-  statusCard.style.display = "block";
-  enrolledCodeDisplay.textContent = roomCode;
-  enrolledFacultyName.textContent = `Instructor: ${facultyName}`;
-}
+// Auth State Guard
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.replace("login.html");
+    return;
+  }
+
+  currentStudentUid = user.uid;
+
+  try {
+    const userDocRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userDocRef);
+
+    if (!snap.exists()) {
+      window.location.replace("login.html");
+      return;
+    }
+
+    const data = snap.data();
+    const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Student";
+
+    if (studentSidebarName) studentSidebarName.textContent = fullName;
+    if (topbarStudentName) topbarStudentName.textContent = fullName;
+
+    // Check classroom status
+    if (data.classroomCode) {
+      if (joinCard) joinCard.style.display = "none";
+      if (displayEnrolledCode) displayEnrolledCode.textContent = data.classroomCode;
+      if (displayClassDesc) displayClassDesc.textContent = "Enrolled and linked to instructor session.";
+      if (badgeClassStatus) {
+        badgeClassStatus.textContent = "Enrolled";
+        badgeClassStatus.className = "status-badge active";
+      }
+    } else {
+      if (joinCard) joinCard.style.display = "block";
+      if (displayEnrolledCode) displayEnrolledCode.textContent = "UNLINKED";
+      if (displayClassDesc) displayClassDesc.textContent = "No classroom linked. Enter your instructor's code above.";
+      if (badgeClassStatus) {
+        badgeClassStatus.textContent = "Unlinked";
+        badgeClassStatus.className = "status-badge";
+      }
+    }
+
+    loadSubmissionCount(user.uid);
+
+  } catch (err) {
+    console.error("Error loading student profile:", err);
+  }
+});

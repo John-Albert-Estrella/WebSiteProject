@@ -1,108 +1,196 @@
 import { auth, db } from "./firebase-init.js";
-import { enforceAuth } from "./auth-guard.js";
 import { uploadToCloudinary } from "./cloudinary-config.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { 
+  doc, 
+  getDoc, 
   collection, 
   addDoc, 
-  getDoc, 
-  doc, 
-  onSnapshot, 
+  query, 
+  where, 
+  getDocs, 
   serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-enforceAuth(["student", "faculty", "admin"]);
+const studentSidebarName = document.getElementById("student-sidebar-name");
+const topbarStudentName = document.getElementById("topbar-student-name");
+const uploadPanel = document.getElementById("upload-panel");
+const uploadPanelTitle = document.getElementById("upload-panel-title");
+const uploadCaseId = document.getElementById("upload-case-id");
+const fileInput = document.getElementById("file-input");
+const notesInput = document.getElementById("notes-input");
+const formUpload = document.getElementById("form-upload-deliverable");
+const btnSubmitFile = document.getElementById("btn-submit-file");
+const btnCloseUpload = document.getElementById("btn-close-upload");
+const submissionsTbody = document.getElementById("submissions-tbody");
+const btnLogout = document.getElementById("btn-logout");
 
-const facultyUploadCard = document.getElementById("faculty-upload-card");
-const casesGrid = document.getElementById("cases-grid-container");
-const caseTitle = document.getElementById("case-title-input");
-const caseDesc = document.getElementById("case-desc-input");
-const caseFileInput = document.getElementById("case-file-input");
-const btnPublish = document.getElementById("btn-publish-case");
+let currentStudent = null;
 
-document.addEventListener("DOMContentLoaded", () => {
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) return;
+// Logout
+btnLogout?.addEventListener("click", async () => {
+  try {
+    await signOut(auth);
+    window.location.replace("login.html");
+  } catch (err) {
+    console.error("Logout error:", err);
+  }
+});
 
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    if (!userDoc.exists()) return;
+// Setup Upload Buttons on Cards
+document.querySelectorAll(".btn-open-upload").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const caseId = btn.dataset.caseId;
+    const caseTitle = btn.dataset.caseTitle;
+    
+    if (uploadCaseId) uploadCaseId.value = caseId;
+    if (uploadPanelTitle) uploadPanelTitle.textContent = `Submit Deliverable: ${caseTitle}`;
+    if (uploadPanel) {
+      uploadPanel.style.display = "block";
+      uploadPanel.scrollIntoView({ behavior: "smooth" });
+    }
+  });
+});
 
-    const userData = userDoc.data();
-    const isFaculty = userData.role === "faculty" || userData.role === "admin";
+// Cancel Upload
+btnCloseUpload?.addEventListener("click", () => {
+  if (uploadPanel) uploadPanel.style.display = "none";
+  if (formUpload) formUpload.reset();
+});
 
-    if (isFaculty && facultyUploadCard) {
-      facultyUploadCard.style.display = "block";
+// Load Submissions History
+async function loadSubmissions(uid) {
+  if (!submissionsTbody) return;
 
-      btnPublish.addEventListener("click", async () => {
-        const title = caseTitle.value.trim();
-        const desc = caseDesc.value.trim();
-        const file = caseFileInput.files[0];
+  try {
+    const q = query(collection(db, "submissions"), where("studentUid", "==", uid));
+    const snap = await getDocs(q);
 
-        if (!title || !desc) {
-          alert("Please fill in both the case title and description.");
-          return;
-        }
-
-        btnPublish.disabled = true;
-        btnPublish.textContent = "Uploading to Cloudinary...";
-
-        try {
-          let downloadURL = null;
-          let originalFileName = null;
-
-          if (file) {
-            originalFileName = file.name;
-            downloadURL = await uploadToCloudinary(file);
-          }
-
-          await addDoc(collection(db, "cases"), {
-            title: title,
-            description: desc,
-            fileUrl: downloadURL,
-            fileName: originalFileName,
-            author: `${userData.firstName} ${userData.lastName}`,
-            facultyUid: user.uid,
-            createdAt: serverTimestamp()
-          });
-
-          caseTitle.value = "";
-          caseDesc.value = "";
-          caseFileInput.value = "";
-          alert("Case study published to the library!");
-        } catch (err) {
-          console.error("Case study upload error:", err);
-          alert("Failed to publish case: " + err.message);
-        } finally {
-          btnPublish.disabled = false;
-          btnPublish.textContent = "Upload & Publish Case";
-        }
-      });
+    if (snap.empty) {
+      submissionsTbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="empty-state">No deliverables submitted yet.</td>
+        </tr>
+      `;
+      return;
     }
 
-    // Stream available cases in real time
-    onSnapshot(collection(db, "cases"), (snapshot) => {
-      if (!casesGrid) return;
-      casesGrid.innerHTML = "";
-
-      if (snapshot.empty) {
-        casesGrid.innerHTML = `<p style="color: var(--text-secondary);">No case studies available in the library yet.</p>`;
-        return;
-      }
-
-      snapshot.forEach((snap) => {
-        const item = snap.data();
-        const card = document.createElement("div");
-        card.className = "case-card";
-        card.innerHTML = `
-          <div style="font-size: 28px;">📄</div>
-          <div class="case-title">${item.title}</div>
-          <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.5;">${item.description}</p>
-          <div class="case-meta" style="margin: 8px 0;">Instructor: <strong>${item.author || "Faculty"}</strong></div>
-          ${item.fileUrl 
-            ? `<a href="${item.fileUrl}" target="_blank" class="btn btn-outline" style="text-align: center; margin-top: auto;">Download Material (${item.fileName || "File"})</a>` 
-            : `<span style="font-size: 12px; color: var(--text-tertiary); margin-top: auto;">No attached document</span>`}
-        `;
-        casesGrid.appendChild(card);
-      });
+    let rowsHtml = "";
+    snap.forEach(docSnap => {
+      const data = docSnap.data();
+      const submittedAt = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : "Recent";
+      rowsHtml += `
+        <tr>
+          <td style="font-weight: 600;">${escapeHtml(data.caseTitle || data.caseId)}</td>
+          <td style="color: var(--text-secondary);">${escapeHtml(data.fileName || "File")}</td>
+          <td style="color: var(--text-tertiary);">${submittedAt}</td>
+          <td>
+            <a href="${data.fileUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;">
+              View File ↗
+            </a>
+          </td>
+        </tr>
+      `;
     });
-  });
+
+    submissionsTbody.innerHTML = rowsHtml;
+  } catch (err) {
+    console.error("Error loading submissions:", err);
+  }
+}
+
+// Upload & Submit Handler
+formUpload?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const file = fileInput?.files[0];
+  if (!file) {
+    alert("Please select a file to upload.");
+    return;
+  }
+
+  const caseId = uploadCaseId?.value || "UNKNOWN";
+  const notes = notesInput?.value.trim() || "";
+
+  if (btnSubmitFile) {
+    btnSubmitFile.disabled = true;
+    btnSubmitFile.textContent = "Uploading to Cloudinary...";
+  }
+
+  try {
+    // 1. Upload directly to Cloudinary (using unsigned preset)
+    const fileUrl = await uploadToCloudinary(file);
+
+    if (btnSubmitFile) btnSubmitFile.textContent = "Saving submission...";
+
+    // 2. Save submission record in Firestore
+    await addDoc(collection(db, "submissions"), {
+      studentUid: currentStudent.uid,
+      studentName: currentStudent.name,
+      studentEmail: currentStudent.email,
+      classroomCode: currentStudent.classroomCode || "",
+      caseId: caseId,
+      caseTitle: uploadPanelTitle?.textContent.replace("Submit Deliverable: ", "") || caseId,
+      fileName: file.name,
+      fileUrl: fileUrl,
+      notes: notes,
+      createdAt: serverTimestamp()
+    });
+
+    alert("Deliverable uploaded and submitted successfully!");
+    if (formUpload) formUpload.reset();
+    if (uploadPanel) uploadPanel.style.display = "none";
+    loadSubmissions(currentStudent.uid);
+
+  } catch (err) {
+    console.error("Submission failed:", err);
+    alert("Upload failed: " + err.message);
+  } finally {
+    if (btnSubmitFile) {
+      btnSubmitFile.disabled = false;
+      btnSubmitFile.textContent = "Upload to Cloudinary & Submit";
+    }
+  }
+});
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[s]));
+}
+
+// Auth Guard
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.replace("login.html");
+    return;
+  }
+
+  try {
+    const userDocRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userDocRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Student";
+      
+      currentStudent = {
+        uid: user.uid,
+        name: fullName,
+        email: data.email || user.email,
+        classroomCode: data.classroomCode || ""
+      };
+
+      if (studentSidebarName) studentSidebarName.textContent = fullName;
+      if (topbarStudentName) topbarStudentName.textContent = fullName;
+
+      loadSubmissions(user.uid);
+    }
+  } catch (e) {
+    console.error("Profile load error:", e);
+  }
 });
