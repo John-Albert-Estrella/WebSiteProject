@@ -1,192 +1,289 @@
 import { auth, db } from "./firebase-init.js";
-import { enforceAuth } from "./auth-guard.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { 
   doc, 
-  getDoc, 
   setDoc, 
+  getDoc, 
   updateDoc, 
+  collection, 
+  query, 
+  where, 
   onSnapshot, 
-  serverTimestamp 
+  serverTimestamp, 
+  Timestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-enforceAuth(["faculty", "admin"]);
+let timerInterval = null;
+let currentFacultyUid = null;
+let currentActiveCode = null;
+let rosterUnsubscribe = null;
 
-const roomCodeDisplay = document.getElementById("faculty-room-code");
-const btnOpenModal = document.getElementById("btn-open-create-modal");
-const modal = document.getElementById("create-class-modal");
-const btnCancelModal = document.getElementById("btn-cancel-modal");
-const btnSaveCustomClass = document.getElementById("btn-save-custom-class");
-const customTitleInput = document.getElementById("custom-class-title");
-const customCodeInput = document.getElementById("custom-room-code");
-
-const btnGenerateRandom = document.getElementById("btn-generate-code");
+// DOM Elements
+const displayCode = document.getElementById("display-class-code");
+const countdownEl = document.getElementById("code-countdown");
+const badgeStatus = document.getElementById("class-status-badge");
+const btnGenerate = document.getElementById("btn-generate-code");
 const btnCopy = document.getElementById("btn-copy-code");
-const rosterList = document.getElementById("class-roster-list");
-const rosterBadge = document.getElementById("roster-count-badge");
+const btnExpire = document.getElementById("btn-expire-code");
+const facultyNameDisplay = document.getElementById("faculty-display-name");
+const enrolledCountEl = document.getElementById("enrolled-count");
+const rosterTbody = document.getElementById("roster-tbody");
+const btnLogout = document.getElementById("btn-logout");
 
-let unsubscribeRoomListener = null;
-
+// Generate clean 8-character code: e.g., "AIM-7X9B"
 function generateRandomCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-  for (let i = 0; i < 7; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Omit confusing 0, O, 1, I
+  let part = "";
+  for (let i = 0; i < 4; i++) {
+    part += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return `${code.slice(0, 3)}-${code.slice(3)}`;
+  return `AIM-${part}`;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  auth.onAuthStateChanged((user) => {
-    if (!user) return;
-    loadFacultyProfile(user.uid);
+// 60-Minute Countdown Clock
+function runCountdown(expiryDate) {
+  if (timerInterval) clearInterval(timerInterval);
 
-    // Modal toggles
-    if (btnOpenModal) {
-      btnOpenModal.addEventListener("click", () => {
-        modal.style.display = "block";
-        customCodeInput.value = "";
-        customTitleInput.value = "";
-      });
-    }
+  function tick() {
+    const now = new Date().getTime();
+    const distance = expiryDate.getTime() - now;
 
-    if (btnCancelModal) {
-      btnCancelModal.addEventListener("click", () => {
-        modal.style.display = "none";
-      });
-    }
-
-    // Save Custom Class
-    if (btnSaveCustomClass) {
-      btnSaveCustomClass.addEventListener("click", async () => {
-        const title = customTitleInput.value.trim() || "HR Management Simulation";
-        let code = customCodeInput.value.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
-
-        if (!code) {
-          code = generateRandomCode();
-        } else if (code.length < 4 || code.length > 8) {
-          alert("Room code must be between 4 and 8 characters.");
-          return;
-        }
-
-        btnSaveCustomClass.disabled = true;
-        btnSaveCustomClass.textContent = "Creating...";
-
-        try {
-          const roomRef = doc(db, "rooms", code);
-          const roomSnap = await getDoc(roomRef);
-
-          if (roomSnap.exists()) {
-            alert(`Room code "${code}" is already in use. Please choose another code.`);
-            btnSaveCustomClass.disabled = false;
-            btnSaveCustomClass.textContent = "Confirm & Activate";
-            return;
-          }
-
-          await createAndActivateRoom(user.uid, code, title);
-          modal.style.display = "none";
-        } catch (err) {
-          console.error("Custom room creation error:", err);
-          alert("Error: " + err.message);
-        } finally {
-          btnSaveCustomClass.disabled = false;
-          btnSaveCustomClass.textContent = "Confirm & Activate";
-        }
-      });
-    }
-
-    // Quick Random Generator
-    if (btnGenerateRandom) {
-      btnGenerateRandom.addEventListener("click", async () => {
-        btnGenerateRandom.disabled = true;
-        try {
-          const randomCode = generateRandomCode();
-          await createAndActivateRoom(user.uid, randomCode, "HR Management Course");
-        } catch (err) {
-          console.error("Random code error:", err);
-          alert("Failed to create room.");
-        } finally {
-          btnGenerateRandom.disabled = false;
-        }
-      });
-    }
-
-    // Copy Button
-    if (btnCopy) {
-      btnCopy.addEventListener("click", () => {
-        const code = roomCodeDisplay.textContent.trim();
-        if (!code || code === "---") return;
-        navigator.clipboard.writeText(code);
-        btnCopy.textContent = "Copied!";
-        setTimeout(() => (btnCopy.textContent = "Copy Code"), 2000);
-      });
-    }
-  });
-});
-
-async function createAndActivateRoom(facultyUid, code, title) {
-  const userDocRef = doc(db, "users", facultyUid);
-  const userSnap = await getDoc(userDocRef);
-  const facultyData = userSnap.data();
-
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 24);
-
-  // 1. Write Room Document
-  await setDoc(doc(db, "rooms", code), {
-    facultyUid: facultyUid,
-    facultyName: `${facultyData.firstName} ${facultyData.lastName}`,
-    classTitle: title,
-    createdAt: serverTimestamp(),
-    expiresAt: expiresAt,
-    students: []
-  });
-
-  // 2. Link active room to Faculty Document
-  await updateDoc(userDocRef, {
-    activeRoomCode: code
-  });
-
-  listenToRoomRoster(code);
-}
-
-async function loadFacultyProfile(uid) {
-  const snap = await getDoc(doc(db, "users", uid));
-  if (snap.exists() && snap.data().activeRoomCode) {
-    listenToRoomRoster(snap.data().activeRoomCode);
-  }
-}
-
-function listenToRoomRoster(roomCode) {
-  if (roomCodeDisplay) roomCodeDisplay.textContent = roomCode;
-
-  if (unsubscribeRoomListener) unsubscribeRoomListener();
-
-  unsubscribeRoomListener = onSnapshot(doc(db, "rooms", roomCode), (snapshot) => {
-    if (!snapshot.exists()) {
-      rosterList.innerHTML = `<li class="roster-item" style="color: var(--text-secondary);">Room not found.</li>`;
+    if (distance <= 0) {
+      clearInterval(timerInterval);
+      setExpiredState();
       return;
     }
 
-    const room = snapshot.data();
-    const students = room.students || [];
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-    if (rosterBadge) rosterBadge.textContent = `${students.length} / 100 Enrolled`;
-    if (rosterList) {
-      rosterList.innerHTML = "";
-      if (students.length === 0) {
-        rosterList.innerHTML = `<li class="roster-item" style="color: var(--text-secondary);">No students enrolled yet. Share code <strong>${roomCode}</strong>.</li>`;
-        return;
-      }
-
-      students.forEach((s, idx) => {
-        const item = document.createElement("li");
-        item.className = "roster-item";
-        item.innerHTML = `
-          <span style="font-weight: 600;">${idx + 1}. ${s.name}</span>
-          <span class="status-badge status-graded">Enrolled</span>
-        `;
-        rosterList.appendChild(item);
-      });
+    if (countdownEl) {
+      countdownEl.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
     }
+  }
+
+  tick();
+  timerInterval = setInterval(tick, 1000);
+}
+
+// Set Active Session State
+function setActiveState(code, expiryDate) {
+  currentActiveCode = code;
+  if (displayCode) displayCode.textContent = code;
+  if (badgeStatus) {
+    badgeStatus.textContent = "Session Active";
+    badgeStatus.className = "status-badge active";
+  }
+  if (btnCopy) btnCopy.disabled = false;
+  if (btnExpire) btnExpire.disabled = false;
+  if (btnGenerate) btnGenerate.textContent = "Regenerate New Code";
+  runCountdown(expiryDate);
+  listenToClassRoster(code);
+}
+
+// Set Expired/Inactive State
+function setExpiredState() {
+  if (timerInterval) clearInterval(timerInterval);
+  currentActiveCode = null;
+  if (displayCode) displayCode.textContent = "------";
+  if (countdownEl) countdownEl.textContent = "--:--";
+  if (badgeStatus) {
+    badgeStatus.textContent = "No Active Session";
+    badgeStatus.className = "status-badge";
+  }
+  if (btnCopy) btnCopy.disabled = true;
+  if (btnExpire) btnExpire.disabled = true;
+  if (btnGenerate) btnGenerate.textContent = "Generate 60-Minute Code";
+
+  if (rosterUnsubscribe) {
+    rosterUnsubscribe();
+    rosterUnsubscribe = null;
+  }
+  if (enrolledCountEl) enrolledCountEl.textContent = "0";
+  if (rosterTbody) {
+    rosterTbody.innerHTML = `
+      <tr>
+        <td colspan="4" class="empty-state">No active classroom session. Generate a code above to view students.</td>
+      </tr>
+    `;
+  }
+}
+
+// Real-Time Student Roster Listener
+function listenToClassRoster(classCode) {
+  if (rosterUnsubscribe) rosterUnsubscribe();
+
+  const q = query(
+    collection(db, "users"),
+    where("role", "==", "student"),
+    where("classroomCode", "==", classCode)
+  );
+
+  rosterUnsubscribe = onSnapshot(q, (snapshot) => {
+    if (enrolledCountEl) enrolledCountEl.textContent = snapshot.size;
+
+    if (snapshot.empty) {
+      if (rosterTbody) {
+        rosterTbody.innerHTML = `
+          <tr>
+            <td colspan="4" class="empty-state">No students joined with code ${classCode} yet.</td>
+          </tr>
+        `;
+      }
+      return;
+    }
+
+    let rowsHtml = "";
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const studentName = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Anonymous Student";
+      const studentEmail = data.email || "No institutional email";
+      const joinedDate = data.createdAt ? data.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
+
+      rowsHtml += `
+        <tr>
+          <td style="font-weight: 500;">${escapeHtml(studentName)}</td>
+          <td style="color: #94a3b8;">${escapeHtml(studentEmail)}</td>
+          <td style="color: #94a3b8;">${joinedDate}</td>
+          <td><span class="status-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;">Student</span></td>
+        </tr>
+      `;
+    });
+
+    if (rosterTbody) rosterTbody.innerHTML = rowsHtml;
+  }, (err) => {
+    console.error("Error reading class roster:", err);
   });
 }
+
+function escapeHtml(string) {
+  return String(string).replace(/[&<>"']/g, (s) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[s]));
+}
+
+// Fetch Existing Session on Page Load
+async function checkExistingClassCode(uid) {
+  try {
+    const classDocRef = doc(db, "classrooms", uid);
+    const snap = await getDoc(classDocRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.active && data.expiresAt) {
+        const expiryDate = data.expiresAt.toDate();
+        if (expiryDate > new Date()) {
+          setActiveState(data.code, expiryDate);
+          return;
+        }
+      }
+    }
+    setExpiredState();
+  } catch (err) {
+    console.error("Error reading classroom state:", err);
+    setExpiredState();
+  }
+}
+
+// Generate/Regenerate Code Click
+btnGenerate?.addEventListener("click", async () => {
+  if (!currentFacultyUid) return;
+
+  btnGenerate.disabled = true;
+  btnGenerate.textContent = "Generating...";
+
+  const newCode = generateRandomCode();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 60 minutes from now
+
+  try {
+    await setDoc(doc(db, "classrooms", currentFacultyUid), {
+      facultyUid: currentFacultyUid,
+      code: newCode,
+      active: true,
+      createdAt: serverTimestamp(),
+      expiresAt: Timestamp.fromDate(expiresAt)
+    });
+
+    setActiveState(newCode, expiresAt);
+  } catch (error) {
+    console.error("Failed to generate code:", error);
+    alert("Could not activate class code. Please check your internet connection.");
+  } finally {
+    btnGenerate.disabled = false;
+  }
+});
+
+// Deactivate Code Click
+btnExpire?.addEventListener("click", async () => {
+  if (!currentFacultyUid) return;
+
+  btnExpire.disabled = true;
+  try {
+    await updateDoc(doc(db, "classrooms", currentFacultyUid), {
+      active: false
+    });
+    setExpiredState();
+  } catch (error) {
+    console.error("Failed to deactivate code:", error);
+  } finally {
+    btnExpire.disabled = false;
+  }
+});
+
+// Copy Code Button
+btnCopy?.addEventListener("click", async () => {
+  const code = displayCode ? displayCode.textContent : "";
+  if (!code || code === "------") return;
+
+  try {
+    await navigator.clipboard.writeText(code);
+    btnCopy.textContent = "✓";
+    setTimeout(() => { btnCopy.textContent = "📋"; }, 1500);
+  } catch (err) {
+    alert(`Classroom Code: ${code}`);
+  }
+});
+
+// Logout Handler
+btnLogout?.addEventListener("click", async () => {
+  try {
+    await signOut(auth);
+    window.location.replace("login.html");
+  } catch (err) {
+    console.error("Logout failed:", err);
+  }
+});
+
+// Auth Guard & Bootstrapping
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.replace("login.html");
+    return;
+  }
+
+  currentFacultyUid = user.uid;
+
+  // Verify faculty role
+  try {
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      if (userData.role !== "faculty") {
+        alert("Access restricted: Student accounts cannot access the Faculty Portal.");
+        window.location.replace("student-dashboard.html");
+        return;
+      }
+      if (facultyNameDisplay) {
+        facultyNameDisplay.textContent = `Prof. ${userData.lastName || userData.firstName || "Instructor"}`;
+      }
+    }
+  } catch (e) {
+    console.error("Error verifying faculty role:", e);
+  }
+
+  checkExistingClassCode(user.uid);
+});

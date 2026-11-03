@@ -31,7 +31,7 @@
             <span class="role-text">Faculty</span>
           </button>
         </div>
-        <!-- Hidden input for form submission -->
+        <!-- Hidden input for tracking selected role -->
         <input type="hidden" id="register-role" value="student">
       </div>
 
@@ -64,12 +64,29 @@
           </div>
         </div>
 
+        <!-- Faculty Passcode Input (Revealed only when Faculty is chosen) -->
+        <div class="form-group" id="group-faculty-secret" style="display: none;">
+          <label class="form-label" for="reg-faculty-code">
+            Faculty Authorization Code <span style="color: #ef4444;">*</span>
+          </label>
+          <input 
+            type="password" 
+            id="reg-faculty-code" 
+            class="form-control" 
+            placeholder="Enter instructor verification key"
+            autocomplete="off"
+          >
+          <small style="font-size: 11px; color: var(--text-tertiary, #94a3b8); display: block; margin-top: 4px;">
+            Requires authorization key issued by the department coordinator.
+          </small>
+        </div>
+
         <!-- Student Classroom Code Input (Hidden when Faculty is selected) -->
         <div class="form-group" id="group-classroom-code">
           <label class="form-label" for="reg-classcode">
             Classroom Code <span class="label-hint">(Optional during registration)</span>
           </label>
-          <input type="text" id="reg-classcode" class="form-control" placeholder="e.g. E5P-8AQ7" uppercase>
+          <input type="text" id="reg-classcode" class="form-control" placeholder="e.g. E5P-8AQ7">
         </div>
 
         <button type="submit" id="btn-register" class="btn btn-primary auth-submit-btn">
@@ -85,12 +102,12 @@
     </div>
   </div>
 
-  <!-- Role toggle script + Auth Controller -->
+  <!-- Role Toggle Script -->
   <script type="module">
-    // Segmented role button click toggle
     const roleBtns = document.querySelectorAll('.role-btn');
     const roleInput = document.getElementById('register-role');
     const classCodeGroup = document.getElementById('group-classroom-code');
+    const facultySecretGroup = document.getElementById('group-faculty-secret');
 
     roleBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -99,17 +116,19 @@
         const role = btn.dataset.role;
         roleInput.value = role;
 
-        // Auto hide classroom code requirement for faculty
         if (role === 'faculty') {
+          facultySecretGroup.style.display = 'block';
           classCodeGroup.style.display = 'none';
         } else {
-          classCodeGroup.style.display = 'flex';
+          facultySecretGroup.style.display = 'none';
+          classCodeGroup.style.display = 'block';
         }
       });
     });
   </script>
+
+  <!-- Core Logic Scripts -->
   <script type="module" src="js/register.js"></script>
   <script type="module" src="js/theme.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
 </body>
 </html>

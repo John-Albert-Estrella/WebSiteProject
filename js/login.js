@@ -7,76 +7,69 @@ function setupLogin() {
   const btnLogin = document.getElementById("btn-login") || document.querySelector("button[type='submit']");
 
   if (!loginForm) {
-    console.warn("Login form not found in DOM.");
+    console.warn("Login form element not found.");
     return;
   }
 
   loginForm.onsubmit = async (e) => {
     e.preventDefault();
 
-    // 1. Resolve inputs defensively
-    const emailInput = document.getElementById("login-email") || document.getElementById("email") || document.querySelector("input[type='email']");
-    const passwordInput = document.getElementById("login-password") || document.getElementById("password") || document.querySelector("input[type='password']");
-
-    const email = emailInput?.value.trim() || "";
-    const password = passwordInput?.value || "";
+    const email = (document.getElementById("login-email") || document.getElementById("email"))?.value.trim() || "";
+    const password = (document.getElementById("login-password") || document.getElementById("password"))?.value || "";
 
     if (!email || !password) {
-      alert("Please enter both your email address and password.");
+      alert("Please enter both your email and password.");
       return;
     }
 
-    // 2. Button state
     if (btnLogin) {
       btnLogin.disabled = true;
       btnLogin.textContent = "Authenticating...";
     }
 
     try {
-      // 3. Authenticate with Firebase Auth
+      // 1. Authenticate with Firebase
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 4. Fetch User Profile Document to check Role
-      const userDocRef = doc(db, "users", user.uid);
-      const userSnap = await getDoc(userDocRef);
+      // 2. Fetch role from Firestore
+      const userDocSnap = await getDoc(doc(db, "users", user.uid));
 
       const currentPath = window.location.pathname;
       const basePath = currentPath.substring(0, currentPath.lastIndexOf("/") + 1);
 
-      if (!userSnap.exists()) {
-        console.warn("User has an auth record but no Firestore document. Defaulting to student.");
+      if (!userDocSnap.exists()) {
+        // Fallback default routing if profile document is missing
         window.location.replace(basePath + "student-dashboard.html");
         return;
       }
 
-      const userData = userSnap.data();
-      const role = userData.role || "student";
+      const userData = userDocSnap.data();
 
-      // 5. Role-based redirect
-      if (role === "faculty" || role === "admin") {
+      // 3. Route according to verified role
+      if (userData.role === "faculty") {
         window.location.replace(basePath + "faculty-dashboard.html");
       } else {
         window.location.replace(basePath + "student-dashboard.html");
       }
 
     } catch (error) {
-      console.error("Login Error:", error);
+      console.error("Login Error details:", error);
 
-      let message = "Invalid email or password.";
-      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
-        message = "Incorrect email address or password. Please verify and try again.";
-      } else if (error.code === "auth/invalid-email") {
-        message = "The email address format is invalid.";
-      } else if (error.code === "auth/too-many-requests") {
-        message = "Too many failed attempts. Please wait a few minutes before trying again.";
+      // Distinct error handling for API origin blocks vs wrong credentials
+      if (error.code === "auth/invalid-credential" || error.code === "auth/wrong-password" || error.code === "auth/user-not-found") {
+        alert("Sign In Failed: Incorrect email or password.");
+      } else if (error.message && (error.message.includes("API key") || error.message.includes("requests from this referer are blocked"))) {
+        alert("Origin Blocked: Use http://localhost:5500 instead of 127.0.0.1 to match your Google Cloud API key restrictions.");
+      } else if (error.code === "auth/network-request-failed") {
+        alert("Network Error: Could not connect to authentication servers. If you are on 127.0.0.1, switch to localhost:5500.");
+      } else {
+        alert("Sign In Failed: " + error.message);
       }
-
-      alert("Sign In Failed: " + message);
     } finally {
       if (btnLogin) {
         btnLogin.disabled = false;
-        btnLogin.textContent = "Sign In";
+        btnLogin.textContent = "Sign In to Simulator";
       }
     }
   };
