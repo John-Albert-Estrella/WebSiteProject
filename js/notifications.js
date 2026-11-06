@@ -3,7 +3,6 @@ import {
   collection, 
   query, 
   where, 
-  orderBy, 
   onSnapshot, 
   doc, 
   updateDoc, 
@@ -13,6 +12,10 @@ import {
 
 let unsubscribeNotifs = null;
 
+/**
+ * Initializes real-time listener for current user notifications
+ * Uses client-side sorting to eliminate the requirement for Firestore composite indexes.
+ */
 export function initNotifications(currentUser) {
   if (!currentUser) return;
 
@@ -24,23 +27,28 @@ export function initNotifications(currentUser) {
 
   if (!bellBtn || !dropdown || !notifList) return;
 
+  // Toggle notification tray visibility
   bellBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     dropdown.classList.toggle("show");
   });
 
+  // Close tray when clicking outside
   document.addEventListener("click", (e) => {
     if (!dropdown.contains(e.target) && !bellBtn.contains(e.target)) {
       dropdown.classList.remove("show");
     }
   });
 
-  if (unsubscribeNotifs) unsubscribeNotifs();
+  // Tear down existing listener if previously initialized
+  if (unsubscribeNotifs) {
+    unsubscribeNotifs();
+  }
 
+  // Single-field query: Only filters by recipientUid (No composite index required!)
   const q = query(
     collection(db, "notifications"),
-    where("recipientUid", "==", currentUser.uid),
-    orderBy("createdAt", "desc")
+    where("recipientUid", "==", currentUser.uid)
   );
 
   unsubscribeNotifs = onSnapshot(q, (snapshot) => {
@@ -50,10 +58,20 @@ export function initNotifications(currentUser) {
     snapshot.forEach((docSnap) => {
       const data = docSnap.data();
       data.id = docSnap.id;
-      if (!data.read) unreadCount++;
+      if (!data.read) {
+        unreadCount++;
+      }
       notifications.push(data);
     });
 
+    // In-memory JavaScript sort: Newest first
+    notifications.sort((a, b) => {
+      const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
+    });
+
+    // Dynamic red badge updater
     if (badge) {
       if (unreadCount > 0) {
         badge.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
@@ -69,6 +87,7 @@ export function initNotifications(currentUser) {
     console.error("Notifications listener error:", err);
   });
 
+  // Mark all notifications as read
   btnMarkAll?.addEventListener("click", async () => {
     try {
       const qUnread = query(
@@ -90,6 +109,9 @@ export function initNotifications(currentUser) {
   });
 }
 
+/**
+ * Builds and renders the notification items inside the dropdown popover
+ */
 function renderNotificationList(items, container) {
   container.innerHTML = "";
 
@@ -102,9 +124,12 @@ function renderNotificationList(items, container) {
     const el = document.createElement("div");
     el.className = `notif-item ${item.read ? "" : "unread"}`;
 
-    const dateStr = item.createdAt?.toDate 
-      ? item.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      : "Just now";
+    let dateStr = "Just now";
+    if (item.createdAt?.toDate) {
+      dateStr = item.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (item.createdAt) {
+      dateStr = new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
 
     el.innerHTML = `
       <div class="notif-item-header">
