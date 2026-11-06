@@ -62,12 +62,13 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Classroom Management</h1>
-          <p class="page-subtitle">Create permanent classroom sections, share permanent join codes with students, and manage enrollment rosters.</p>
+          <p class="page-subtitle">Create permanent classroom sections, review pending enrollment join requests, and manage student rosters.</p>
         </div>
         <button type="button" class="btn btn-primary" id="btn-open-create-modal">+ Create New Class</button>
       </div>
 
-      <section class="card" id="create-class-modal">
+      <!-- Create New Class Modal -->
+      <section class="card" id="create-class-modal" style="display: none;">
         <div class="card-header">
           <div>
             <h2 class="card-title">Create Simulation Classroom</h2>
@@ -92,11 +93,12 @@
         </form>
       </section>
 
+      <!-- Active Classes Grid -->
       <section class="card roster-card">
         <div class="card-header">
           <div>
             <h2 class="card-title">Your Classroom Spaces</h2>
-            <p class="card-subtitle">Select a class to inspect enrolled students or grab its permanent join code.</p>
+            <p class="card-subtitle">Select a class below to review pending enrollment requests and inspect roster.</p>
           </div>
         </div>
         <div id="classes-grid" class="dashboard-grid">
@@ -104,39 +106,74 @@
         </div>
       </section>
 
-      <section class="card roster-card" id="roster-panel">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title" id="roster-heading">Enrolled Students</h2>
-            <p class="card-subtitle" id="roster-subheading">Classroom roster list</p>
+      <!-- Selected Class Management Container -->
+      <div id="roster-panel" style="display: none; display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- PENDING REQUESTS QUEUE -->
+        <section class="card roster-card" id="pending-requests-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Pending Join Requests</h2>
+              <p class="card-subtitle" id="pending-subheading">Students waiting for your approval to join.</p>
+            </div>
+            <span class="status-badge" id="pending-badge-count" style="background: rgba(234, 179, 8, 0.15); color: #eab308; border-color: rgba(234, 179, 8, 0.3);">0 Pending</span>
           </div>
-          <div class="nav-actions">
-            <button type="button" class="btn btn-secondary" id="btn-copy-class-code">📋 Copy Join Code</button>
-            <button type="button" class="btn btn-secondary danger-action" id="btn-delete-class">
-              Delete Classroom
-            </button>
-          </div>
-        </div>
 
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Student Name</th>
-                <th>Institutional Email</th>
-                <th>Joined At</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="roster-tbody">
-              <tr>
-                <td colspan="5" class="empty-state">No students enrolled yet. Share the code to invite students.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Student Name</th>
+                  <th>Institutional Email</th>
+                  <th>Requested Date</th>
+                  <th>Decision</th>
+                </tr>
+              </thead>
+              <tbody id="pending-tbody">
+                <tr>
+                  <td colspan="4" class="empty-state">No pending join requests for this section.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ENROLLED ROSTER TABLE -->
+        <section class="card roster-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="roster-heading">Enrolled Students</h2>
+              <p class="card-subtitle" id="roster-subheading">Official classroom roster</p>
+            </div>
+            <div class="nav-actions">
+              <button type="button" class="btn btn-secondary" id="btn-copy-class-code">📋 Copy Join Code</button>
+              <button type="button" class="btn btn-secondary danger-action" id="btn-delete-class">
+                Delete Classroom
+              </button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Student Name</th>
+                  <th>Institutional Email</th>
+                  <th>Joined At</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="roster-tbody">
+                <tr>
+                  <td colspan="5" class="empty-state">No students enrolled yet. Share the code to invite students.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
 
     </main>
   </div>

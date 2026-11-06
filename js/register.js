@@ -3,17 +3,18 @@ import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebase
 import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { logActivity } from "./audit-logger.js";
 
-// DOM Elements - Perfectly matched to register.html IDs
+// DOM Elements
 const formRegister = document.getElementById("form-register");
 const inputFirstName = document.getElementById("reg-first-name");
 const inputLastName = document.getElementById("reg-last-name");
 const inputEmail = document.getElementById("reg-email");
+const selectRole = document.getElementById("reg-role");
 const inputPassword = document.getElementById("reg-password");
 const inputConfirmPassword = document.getElementById("reg-confirm-password");
 const btnSubmit = document.getElementById("btn-submit-register");
 const errorBox = document.getElementById("register-error-box");
 
-// Password Visibility Toggle Logic
+// Password Visibility Toggle Handlers
 document.querySelectorAll(".btn-toggle-password").forEach((btn) => {
   btn.addEventListener("click", () => {
     const targetId = btn.dataset.target;
@@ -49,11 +50,12 @@ formRegister?.addEventListener("submit", async (e) => {
   const firstName = inputFirstName?.value.trim();
   const lastName = inputLastName?.value.trim();
   const email = inputEmail?.value.trim().toLowerCase();
+  const role = selectRole?.value;
   const password = inputPassword?.value;
   const confirmPassword = inputConfirmPassword?.value;
 
   // Validation
-  if (!firstName || !lastName || !email || !password || !confirmPassword) {
+  if (!firstName || !lastName || !email || !role || !password || !confirmPassword) {
     showError("Please fill out all required fields.");
     return;
   }
@@ -76,31 +78,32 @@ formRegister?.addEventListener("submit", async (e) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // 2. Default initial role: student (admins promote via Admin Console)
-    const initialRole = "student";
-
-    // 3. Create User Profile in Firestore
+    // 2. Write User Document in Firestore
     await setDoc(doc(db, "users", user.uid), {
       firstName,
       lastName,
       email,
-      role: initialRole,
+      role: role, // 'student' or 'faculty'
       classroomCode: null,
       classroomId: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
 
-    // 4. Log Audit Activity
+    // 3. Log Audit Activity
     await logActivity({
       category: "Authentication",
-      details: `New account registered: ${email} (${firstName} ${lastName}) with role [${initialRole}]`,
+      details: `New account registered: ${email} (${firstName} ${lastName}) as [${role}]`,
       classroomCode: "GLOBAL",
       userEmail: email
     });
 
-    // 5. Route to Student Dashboard
-    window.location.replace("student-dashboard.html");
+    // 4. Redirect based on selected role
+    if (role === "faculty") {
+      window.location.replace("faculty-dashboard.html");
+    } else {
+      window.location.replace("student-dashboard.html");
+    }
 
   } catch (err) {
     console.error("Registration error:", err);
