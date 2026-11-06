@@ -5,6 +5,7 @@ import {
   collection, 
   query, 
   where, 
+  onSnapshot,
   getDocs, 
   getDoc,
   addDoc, 
@@ -39,6 +40,7 @@ let currentUser = null;
 let selectedClassId = null;
 let selectedClassCode = "";
 let currentClassData = null;
+let unsubscribeClassrooms = null;
 
 // Helper: Generate unique 4-character classroom code
 function generateClassCode() {
@@ -64,25 +66,28 @@ initAuthGuard({
   allowedRoles: ["faculty", "admin"],
   onReady: async ({ user }) => {
     currentUser = user;
-    await loadFacultyClassrooms();
+    initRealtimeClassrooms();
   }
 });
 
 /**
- * Loads all classrooms owned by the currently authenticated faculty member
+ * Listens in real time to all classrooms owned by the authenticated faculty member.
+ * Automatically refreshes pending requests and rosters as soon as students submit.
  */
-async function loadFacultyClassrooms() {
+function initRealtimeClassrooms() {
   if (!classesGrid) return;
-  classesGrid.innerHTML = `<div class="empty-state"><p>Loading your classrooms...</p></div>`;
 
-  try {
-    const q = query(
-      collection(db, "classrooms"), 
-      where("facultyUid", "==", currentUser.uid)
-    );
-    const snap = await getDocs(q);
+  if (unsubscribeClassrooms) {
+    unsubscribeClassrooms();
+  }
 
-    if (snap.empty) {
+  const q = query(
+    collection(db, "classrooms"), 
+    where("facultyUid", "==", currentUser.uid)
+  );
+
+  unsubscribeClassrooms = onSnapshot(q, (snapshot) => {
+    if (snapshot.empty) {
       classesGrid.innerHTML = `
         <div class="empty-state">
           <p>You have not created any classrooms yet.</p>
@@ -94,15 +99,25 @@ async function loadFacultyClassrooms() {
     }
 
     classesGrid.innerHTML = "";
+    let autoSelectedData = null;
+    let autoSelectedId = null;
 
-    snap.forEach((docSnap) => {
+    snapshot.forEach((docSnap) => {
       const data = docSnap.data();
+      const classId = docSnap.id;
       const card = document.createElement("div");
       card.className = "card module-card";
-      card.dataset.id = docSnap.id;
+      card.dataset.id = classId;
 
       const studentCount = Array.isArray(data.students) ? data.students.length : 0;
       const pendingCount = Array.isArray(data.pendingRequests) ? data.pendingRequests.length : 0;
+
+      // Highlight active classroom card
+      if (selectedClassId === classId) {
+        card.style.borderColor = "var(--accent)";
+        autoSelectedData = data;
+        autoSelectedId = classId;
+      }
 
       card.innerHTML = `
         <div class="card-header">
@@ -115,20 +130,28 @@ async function loadFacultyClassrooms() {
         <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 13px; color: var(--text-secondary);">
             Enrolled: <strong>${studentCount}</strong>
-            ${pendingCount > 0 ? `<span style="margin-left: 6px; color: #eab308; font-weight: 700;">(${pendingCount} pending)</span>` : ""}
+            ${pendingCount > 0 ? `<span style="margin-left: 6px; color: #ef4444; font-weight: 800;">(${pendingCount} pending)</span>` : ""}
           </span>
           <button type="button" class="btn btn-secondary view-roster-btn" style="padding: 4px 10px; font-size: 12px;">Manage</button>
         </div>
       `;
 
-      card.addEventListener("click", () => selectClassroom(docSnap.id, data));
+      card.addEventListener("click", () => selectClassroom(classId, data));
       classesGrid.appendChild(card);
     });
 
-  } catch (err) {
-    console.error("Error loading classrooms:", err);
+    // If a class was already active, refresh its tables immediately with the live data
+    if (selectedClassId && autoSelectedData) {
+      selectClassroom(autoSelectedId, autoSelectedData);
+    } else if (!selectedClassId && snapshot.docs.length > 0) {
+      // Auto-select the first classroom on load so the pending queue is immediately visible
+      const firstDoc = snapshot.docs[0];
+      selectClassroom(firstDoc.id, firstDoc.data());
+    }
+  }, (err) => {
+    console.error("Error in real-time classrooms listener:", err);
     classesGrid.innerHTML = `<div class="empty-state"><p>Failed to load classrooms: ${err.message}</p></div>`;
-  }
+  });
 }
 
 /**
@@ -149,8 +172,6 @@ function selectClassroom(classId, classData) {
 
   renderPendingTable(classData.pendingRequests || []);
   renderRosterTable(classData.students || []);
-
-  rosterPanel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 /**
@@ -162,6 +183,15 @@ function renderPendingTable(pendingList) {
 
   if (pendingBadgeCount) {
     pendingBadgeCount.textContent = `${pendingList.length} Pending`;
+    if (pendingList.length > 0) {
+      pendingBadgeCount.style.background = "rgba(239, 68, 68, 0.15)";
+      pendingBadgeCount.style.color = "#ef4444";
+      pendingBadgeCount.style.borderColor = "rgba(239, 68, 68, 0.3)";
+    } else {
+      pendingBadgeCount.style.background = "";
+      pendingBadgeCount.style.color = "";
+      pendingBadgeCount.style.borderColor = "";
+    }
   }
 
   if (pendingList.length === 0) {
@@ -284,12 +314,6 @@ async function handleRequestDecision(studentIndex, student, isApproved) {
       alert(`Declined request for ${student.name || student.email}.`);
     }
 
-    currentClassData.pendingRequests = pendingRequests;
-    currentClassData.students = enrolledStudents;
-    renderPendingTable(pendingRequests);
-    renderRosterTable(enrolledStudents);
-    await loadFacultyClassrooms();
-
   } catch (err) {
     console.error("Decision error:", err);
     alert("Error processing decision: " + err.message);
@@ -375,7 +399,6 @@ formCreateClass?.addEventListener("submit", async (e) => {
 
     formCreateClass.reset();
     if (createModal) createModal.style.display = "none";
-    await loadFacultyClassrooms();
 
   } catch (err) {
     console.error("Failed to create classroom:", err);
@@ -453,7 +476,6 @@ btnDeleteClass?.addEventListener("click", async () => {
     selectedClassId = null;
     selectedClassCode = "";
     if (rosterPanel) rosterPanel.style.display = "none";
-    await loadFacultyClassrooms();
 
     alert("Classroom deleted successfully.");
 
@@ -499,8 +521,6 @@ async function removeStudent(studentIndex, studentData) {
         createdAt: serverTimestamp()
       });
     }
-
-    renderRosterTable(currentStudents);
 
   } catch (err) {
     console.error("Error removing student:", err);
