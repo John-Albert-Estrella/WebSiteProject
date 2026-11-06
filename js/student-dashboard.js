@@ -47,30 +47,73 @@ async function renderEnrolledSection(user, userData) {
   const pendingCode = userData.pendingClassroomCode;
 
   if (classroomCode) {
-    if (joinCard) joinCard.style.display = "none";
-    if (displayEnrolledCode) displayEnrolledCode.textContent = classroomCode;
-    if (badgeClassStatus) {
-      badgeClassStatus.textContent = "ENROLLED";
-      badgeClassStatus.className = "status-badge active";
-    }
-
     try {
       const classQ = query(collection(db, "classrooms"), where("code", "==", classroomCode));
       const classSnap = await getDocs(classQ);
 
-      if (!classSnap.empty) {
-        const classData = classSnap.docs[0].data();
-        if (displayClassDesc) {
-          displayClassDesc.textContent = `${classData.name || "Academic Classroom"} (${classData.section || "Cohort"})`;
-        }
-      } else {
-        if (displayClassDesc) displayClassDesc.textContent = "Enrolled Section: " + classroomCode;
+      // Auto-cleanup: If the classroom was deleted by faculty, unlink the student immediately
+      if (classSnap.empty) {
+        await updateDoc(doc(db, "users", user.uid), {
+          classroomCode: null,
+          classroomId: null,
+          updatedAt: serverTimestamp()
+        });
+        showUnlinkedUI();
+        return;
       }
+
+      const classData = classSnap.docs[0].data();
+      
+      // Verify student is actually present in the classroom's student roster
+      const isEnrolled = (classData.students || []).some(s => s.uid === user.uid);
+      if (!isEnrolled) {
+        await updateDoc(doc(db, "users", user.uid), {
+          classroomCode: null,
+          classroomId: null,
+          updatedAt: serverTimestamp()
+        });
+        showUnlinkedUI();
+        return;
+      }
+
+      // Valid Active Enrollment
+      if (joinCard) joinCard.style.display = "none";
+      if (displayEnrolledCode) displayEnrolledCode.textContent = classroomCode;
+      if (badgeClassStatus) {
+        badgeClassStatus.textContent = "ENROLLED";
+        badgeClassStatus.className = "status-badge active";
+        badgeClassStatus.style.background = "";
+        badgeClassStatus.style.color = "";
+        badgeClassStatus.style.borderColor = "";
+      }
+      if (displayClassDesc) {
+        displayClassDesc.textContent = `${classData.name || "Academic Classroom"} (${classData.section || "Cohort"})`;
+      }
+
     } catch (err) {
-      console.error("Failed to load classroom details:", err);
+      console.error("Failed to verify classroom records:", err);
+      showUnlinkedUI();
     }
+
   } else if (pendingCode) {
-    // Student has a request waiting for faculty approval
+    // Check if the pending class was deleted while waiting
+    try {
+      const pendingQ = query(collection(db, "classrooms"), where("code", "==", pendingCode));
+      const pendingSnap = await getDocs(pendingQ);
+
+      if (pendingSnap.empty) {
+        await updateDoc(doc(db, "users", user.uid), {
+          pendingClassroomCode: null,
+          pendingClassroomId: null,
+          updatedAt: serverTimestamp()
+        });
+        showUnlinkedUI();
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
     if (joinCard) joinCard.style.display = "none";
     if (displayEnrolledCode) displayEnrolledCode.textContent = pendingCode;
     if (badgeClassStatus) {
@@ -84,18 +127,22 @@ async function renderEnrolledSection(user, userData) {
       displayClassDesc.textContent = `Join request sent for ${pendingCode}. Waiting for faculty instructor approval.`;
     }
   } else {
-    if (joinCard) joinCard.style.display = "block";
-    if (displayEnrolledCode) displayEnrolledCode.textContent = "UNLINKED";
-    if (badgeClassStatus) {
-      badgeClassStatus.textContent = "UNLINKED";
-      badgeClassStatus.className = "status-badge";
-      badgeClassStatus.style.background = "";
-      badgeClassStatus.style.color = "";
-      badgeClassStatus.style.borderColor = "";
-    }
-    if (displayClassDesc) {
-      displayClassDesc.textContent = "No classroom linked. Enter a join code to request enrollment.";
-    }
+    showUnlinkedUI();
+  }
+}
+
+function showUnlinkedUI() {
+  if (joinCard) joinCard.style.display = "block";
+  if (displayEnrolledCode) displayEnrolledCode.textContent = "UNLINKED";
+  if (badgeClassStatus) {
+    badgeClassStatus.textContent = "UNLINKED";
+    badgeClassStatus.className = "status-badge";
+    badgeClassStatus.style.background = "";
+    badgeClassStatus.style.color = "";
+    badgeClassStatus.style.borderColor = "";
+  }
+  if (displayClassDesc) {
+    displayClassDesc.textContent = "No classroom linked. Enter a join code to request enrollment.";
   }
 }
 
@@ -141,7 +188,6 @@ function setupJoinForm(user, userData) {
       const classroomRef = classroomDoc.ref;
       const classroomData = classroomDoc.data();
 
-      // Check if student is already in roster or already pending
       const alreadyEnrolled = (classroomData.students || []).some(s => s.uid === user.uid);
       if (alreadyEnrolled) {
         alert("You are already enrolled in this classroom.");
@@ -167,19 +213,16 @@ function setupJoinForm(user, userData) {
         requestedAt: new Date().toISOString()
       };
 
-      // 1. Add student to classroom's pendingRequests array
       await updateDoc(classroomRef, {
         pendingRequests: arrayUnion(requestEntry)
       });
 
-      // 2. Mark student's user doc as pending approval
       await updateDoc(doc(db, "users", user.uid), {
         pendingClassroomCode: enteredCode,
         pendingClassroomId: classroomDoc.id,
         updatedAt: serverTimestamp()
       });
 
-      // 3. Dispatch in-app notification to the FACULTY instructor
       if (classroomData.facultyUid) {
         await addDoc(collection(db, "notifications"), {
           recipientUid: classroomData.facultyUid,
@@ -191,7 +234,6 @@ function setupJoinForm(user, userData) {
         });
       }
 
-      // 4. Log audit event
       await logActivity({
         category: "Classroom",
         details: `${user.email} submitted join request for class ${enteredCode}`,

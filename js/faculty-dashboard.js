@@ -11,6 +11,7 @@ import {
   getDoc,
   deleteDoc, 
   updateDoc,
+  writeBatch,
   serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
@@ -137,9 +138,6 @@ function selectClassroom(classId, classData) {
   rosterPanel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-/**
- * Renders the pending join requests with Approve and Decline actions
- */
 function renderPendingTable(pendingList) {
   if (!pendingTbody) return;
   pendingTbody.innerHTML = "";
@@ -189,9 +187,6 @@ function renderPendingTable(pendingList) {
   });
 }
 
-/**
- * Handles Faculty Approve or Decline Decision
- */
 async function handleRequestDecision(studentIndex, student, isApproved) {
   if (!selectedClassId) return;
 
@@ -203,12 +198,10 @@ async function handleRequestDecision(studentIndex, student, isApproved) {
   const pendingRequests = [...(data.pendingRequests || [])];
   const enrolledStudents = [...(data.students || [])];
 
-  // Remove student from pending list
   pendingRequests.splice(studentIndex, 1);
 
   try {
     if (isApproved) {
-      // 1. Move to enrolled students
       const newEnrolledEntry = {
         uid: student.uid,
         email: student.email,
@@ -222,7 +215,6 @@ async function handleRequestDecision(studentIndex, student, isApproved) {
         students: enrolledStudents
       });
 
-      // 2. Update Student User Document to official enrolled code
       await updateDoc(doc(db, "users", student.uid), {
         classroomCode: selectedClassCode,
         classroomId: selectedClassId,
@@ -231,7 +223,6 @@ async function handleRequestDecision(studentIndex, student, isApproved) {
         updatedAt: serverTimestamp()
       });
 
-      // 3. Dispatch in-app notification to the STUDENT
       await addDoc(collection(db, "notifications"), {
         recipientUid: student.uid,
         category: "Enrollment",
@@ -241,7 +232,6 @@ async function handleRequestDecision(studentIndex, student, isApproved) {
         createdAt: serverTimestamp()
       });
 
-      // 4. Log Audit
       await logActivity({
         category: "Classroom",
         details: `${currentUser.email} approved join request for ${student.email} into ${selectedClassCode}`,
@@ -252,19 +242,16 @@ async function handleRequestDecision(studentIndex, student, isApproved) {
       alert(`Approved ${student.name || student.email}! Notification sent to student.`);
 
     } else {
-      // Declined
       await updateDoc(classRef, {
         pendingRequests: pendingRequests
       });
 
-      // Clear student pending state
       await updateDoc(doc(db, "users", student.uid), {
         pendingClassroomCode: null,
         pendingClassroomId: null,
         updatedAt: serverTimestamp()
       });
 
-      // Dispatch decline notification to the STUDENT
       await addDoc(collection(db, "notifications"), {
         recipientUid: student.uid,
         category: "Enrollment",
@@ -384,17 +371,57 @@ btnCopyCode?.addEventListener("click", () => {
   });
 });
 
+/**
+ * Deletes the classroom AND unlinks all enrolled and pending students cleanly
+ */
 btnDeleteClass?.addEventListener("click", async () => {
   if (!selectedClassId) return;
 
-  const confirmDelete = confirm(`Are you sure you want to delete classroom code ${selectedClassCode}? This action cannot be undone.`);
+  const confirmDelete = confirm(`Are you sure you want to delete classroom code ${selectedClassCode}? All enrolled students will be unlinked.`);
   if (!confirmDelete) return;
 
   try {
-    await deleteDoc(doc(db, "classrooms", selectedClassId));
+    const classRef = doc(db, "classrooms", selectedClassId);
+    const snap = await getDoc(classRef);
+
+    if (snap.exists()) {
+      const classData = snap.data();
+      const allStudents = [...(classData.students || []), ...(classData.pendingRequests || [])];
+
+      // Unlink all students in this section
+      for (const student of allStudents) {
+        if (student.uid) {
+          try {
+            await updateDoc(doc(db, "users", student.uid), {
+              classroomCode: null,
+              classroomId: null,
+              pendingClassroomCode: null,
+              pendingClassroomId: null,
+              updatedAt: serverTimestamp()
+            });
+
+            // Notify student of dissolution
+            await addDoc(collection(db, "notifications"), {
+              recipientUid: student.uid,
+              category: "Classroom",
+              message: `Classroom ${selectedClassCode} has been closed and removed by the instructor.`,
+              link: "student-dashboard.html",
+              read: false,
+              createdAt: serverTimestamp()
+            });
+          } catch (e) {
+            console.warn("Could not notify student " + student.uid, e);
+          }
+        }
+      }
+    }
+
+    // Delete classroom document
+    await deleteDoc(classRef);
+
     await logActivity({
       category: "Classroom",
-      details: `${currentUser.email} deleted classroom ${selectedClassCode}`,
+      details: `${currentUser.email} deleted classroom ${selectedClassCode} and unlinked all members`,
       classroomCode: selectedClassCode,
       userEmail: currentUser.email
     });
@@ -403,6 +430,8 @@ btnDeleteClass?.addEventListener("click", async () => {
     selectedClassCode = "";
     if (rosterPanel) rosterPanel.style.display = "none";
     await loadFacultyClassrooms();
+
+    alert("Classroom deleted and all enrolled students unlinked successfully.");
 
   } catch (err) {
     console.error("Error deleting classroom:", err);
@@ -431,10 +460,10 @@ async function removeStudent(studentIndex, studentData) {
     if (studentData.uid) {
       await updateDoc(doc(db, "users", studentData.uid), {
         classroomCode: null,
-        classroomId: null
+        classroomId: null,
+        updatedAt: serverTimestamp()
       });
 
-      // Notify the removed student
       await addDoc(collection(db, "notifications"), {
         recipientUid: studentData.uid,
         category: "Classroom",
