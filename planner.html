@@ -8,7 +8,6 @@
 </head>
 <body>
 
-  <!-- Sidebar Rail -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
@@ -16,18 +15,12 @@
     </div>
 
     <div class="sidebar-user-card">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="welcome-tag">WORKSPACE</span>
-        <div class="theme-switch-pills">
-          <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-          <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-        </div>
-      </div>
-      <h3 id="sidebar-greeting-name">Welcome back!</h3>
+      <span class="welcome-tag">WORKSPACE</span>
+      <h3 id="sidebar-greeting-name">Loading...</h3>
     </div>
 
     <nav class="sidebar-nav">
-      <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
+      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
       <a href="planner.html" class="nav-item active">📋 Project Planner</a>
       <a href="feed.html" class="nav-item">💬 HR Feed</a>
       <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
@@ -36,18 +29,32 @@
       <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
       <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
       <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
 
-  <!-- Main Content Space -->
   <div class="main-content">
     <header class="topbar">
       <div class="brand-group">
-        <span class="faculty-name-display" id="topbar-user-name">Loading...</span>
-        <span class="role-tag" id="topbar-role-badge">--</span>
+        <span class="faculty-name-display" id="topbar-user-name">User</span>
+        <span class="role-tag" id="topbar-role-badge">STUDENT</span>
       </div>
       <div class="nav-actions">
-        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+        <div class="notifications-wrapper">
+          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
+            <img src="assets/bell.png" alt="Bell" class="bell-icon">
+            <span class="notif-badge hidden" id="notif-badge">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-header">
+              <h4 class="notif-title">Notifications</h4>
+              <button type="button" class="btn-mark-all-read" id="btn-mark-all-read">Mark all as read</button>
+            </div>
+            <div class="notif-list" id="notif-list">
+              <div class="notif-empty">No notifications yet.</div>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -55,81 +62,75 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Project Planner</h1>
-          <p class="page-subtitle">Track deliverables in real-time across simulation execution phases.</p>
+          <p class="page-subtitle">Interactive Kanban board for milestone tracking and deliverable management.</p>
         </div>
-        <button type="button" class="btn btn-primary" id="btn-add-task">+ Add New Task</button>
+        <button type="button" class="btn btn-primary" id="btn-open-task-modal">+ Add Task</button>
       </div>
 
-      <!-- Create Task Modal -->
-      <section class="card" id="task-modal" style="display: none; border-color: rgba(56, 189, 248, 0.4);">
+      <section class="card" id="task-modal">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Create Simulation Deliverable</h2>
-            <p class="card-subtitle">Assign a milestone for your cohort or project team.</p>
+            <h2 class="card-title">Create Planner Task</h2>
+            <p class="card-subtitle">Add a task item to your section board.</p>
           </div>
-          <button type="button" class="btn btn-secondary" id="btn-cancel-task">Cancel</button>
+          <button type="button" class="btn btn-secondary" id="btn-close-task-modal">Cancel</button>
         </div>
 
-        <form id="form-create-task" style="display: flex; flex-direction: column; gap: 12px;">
-          <div class="form-row-duo">
-            <div class="form-group">
-              <label class="form-label" for="task-title-input">Milestone Title</label>
-              <input type="text" id="task-title-input" class="form-control" placeholder="e.g. Draft Severance Matrix" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="task-phase-input">Starting Column</label>
-              <select id="task-phase-input" class="form-control">
-                <option value="todo">To Do</option>
-                <option value="inprogress">In Progress</option>
-                <option value="done">Done</option>
-              </select>
-            </div>
+        <form id="form-create-task" class="auth-form">
+          <div class="form-group">
+            <label class="form-label" for="task-title">Task Title</label>
+            <input type="text" id="task-title" class="form-control" placeholder="e.g. Draft Recruitment Rubric" required>
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="task-desc-input">Task Details & Criteria</label>
-            <textarea id="task-desc-input" class="form-control" placeholder="Describe the objectives or labor compliance checks needed..."></textarea>
+            <label class="form-label" for="task-desc">Description</label>
+            <textarea id="task-desc" class="form-control" rows="3" placeholder="Task specifics and deliverables"></textarea>
+          </div>
+
+          <div class="form-row-duo">
+            <div class="form-group">
+              <label class="form-label" for="task-priority">Priority</label>
+              <select id="task-priority" class="form-control">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="task-due-date">Due Date</label>
+              <input type="date" id="task-due-date" class="form-control">
+            </div>
           </div>
 
           <div class="card-actions">
-            <button type="submit" class="btn btn-primary">Create Deliverable</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-task">Create Task</button>
           </div>
         </form>
       </section>
 
-      <!-- Scoped Kanban Board -->
       <div class="kanban-board">
-        <!-- Column 1: To Do -->
-        <div class="kanban-column">
+        <div class="kanban-column" data-status="todo">
           <div class="kanban-column-header">
-            <span>To Do</span>
-            <span class="task-count" id="count-todo">0</span>
+            <h3 class="kanban-column-title">To Do</h3>
+            <span class="kanban-count" id="count-todo">0</span>
           </div>
-          <div class="kanban-task-container" id="todo-tasks">
-            <div class="empty-state" style="padding: 24px 12px; font-size: 13px;">No tasks.</div>
-          </div>
+          <div class="kanban-tasks" id="tasks-todo"></div>
         </div>
 
-        <!-- Column 2: In Progress -->
-        <div class="kanban-column">
+        <div class="kanban-column" data-status="in_progress">
           <div class="kanban-column-header">
-            <span>In Progress</span>
-            <span class="task-count" id="count-inprogress">0</span>
+            <h3 class="kanban-column-title">In Progress</h3>
+            <span class="kanban-count" id="count-in_progress">0</span>
           </div>
-          <div class="kanban-task-container" id="inprogress-tasks">
-            <div class="empty-state" style="padding: 24px 12px; font-size: 13px;">No tasks.</div>
-          </div>
+          <div class="kanban-tasks" id="tasks-in_progress"></div>
         </div>
 
-        <!-- Column 3: Done -->
-        <div class="kanban-column">
+        <div class="kanban-column" data-status="done">
           <div class="kanban-column-header">
-            <span>Done</span>
-            <span class="task-count" id="count-done">0</span>
+            <h3 class="kanban-column-title">Done</h3>
+            <span class="kanban-count" id="count-done">0</span>
           </div>
-          <div class="kanban-task-container" id="done-tasks">
-            <div class="empty-state" style="padding: 24px 12px; font-size: 13px;">No tasks.</div>
-          </div>
+          <div class="kanban-tasks" id="tasks-done"></div>
         </div>
       </div>
     </main>

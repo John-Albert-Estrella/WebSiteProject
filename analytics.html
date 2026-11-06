@@ -8,7 +8,6 @@
 </head>
 <body>
 
-  <!-- Sidebar Rail -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
@@ -16,18 +15,12 @@
     </div>
 
     <div class="sidebar-user-card">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="welcome-tag">WORKSPACE</span>
-        <div class="theme-switch-pills">
-          <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-          <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-        </div>
-      </div>
-      <h3 id="sidebar-greeting-name">Welcome back!</h3>
+      <span class="welcome-tag">WORKSPACE</span>
+      <h3 id="sidebar-greeting-name">Loading...</h3>
     </div>
 
     <nav class="sidebar-nav">
-      <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
+      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
       <a href="planner.html" class="nav-item">📋 Project Planner</a>
       <a href="feed.html" class="nav-item">💬 HR Feed</a>
       <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
@@ -36,92 +29,65 @@
       <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
       <a href="analytics.html" class="nav-item active">📊 HR Analytics</a>
       <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
 
-  <!-- Main Content Space -->
   <div class="main-content">
     <header class="topbar">
       <div class="brand-group">
-        <span class="faculty-name-display" id="topbar-user-name">Loading...</span>
-        <span class="role-tag" id="topbar-role-badge">--</span>
+        <span class="faculty-name-display" id="topbar-user-name">User</span>
+        <span class="role-tag" id="topbar-role-badge">STUDENT</span>
       </div>
       <div class="nav-actions">
-        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+        <div class="notifications-wrapper">
+          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
+            <img src="assets/bell.png" alt="Bell" class="bell-icon">
+            <span class="notif-badge hidden" id="notif-badge">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-header">
+              <h4 class="notif-title">Notifications</h4>
+              <button type="button" class="btn-mark-all-read" id="btn-mark-all-read">Mark all as read</button>
+            </div>
+            <div class="notif-list" id="notif-list">
+              <div class="notif-empty">No notifications yet.</div>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
     <main class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Workforce & Academic Analytics</h1>
-          <p class="page-subtitle">Real-time simulation metrics calculated across live database records.</p>
+          <h1 class="page-title">HR Analytics & Activity Telemetry</h1>
+          <p class="page-subtitle">Real-time simulation audit logs and cohort engagement telemetry.</p>
         </div>
       </div>
 
-      <!-- Bento Metrics Grid -->
-      <div class="dashboard-grid">
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Enrolled Cohort</h2>
-              <p class="card-subtitle">Students linked to this section</p>
-            </div>
-          </div>
-          <div class="enrolled-stat-number" id="metric-students">0</div>
-        </section>
-
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Submitted Deliverables</h2>
-              <p class="card-subtitle">Total uploaded case files</p>
-            </div>
-          </div>
-          <div class="enrolled-stat-number" id="metric-submissions">0</div>
-        </section>
-
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Active Planner Tasks</h2>
-              <p class="card-subtitle">Tasks in progress or to do</p>
-            </div>
-          </div>
-          <div class="enrolled-stat-number" id="metric-tasks">0</div>
-        </section>
-
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Labor Grievances</h2>
-              <p class="card-subtitle">Active or resolved reports</p>
-            </div>
-          </div>
-          <div class="enrolled-stat-number" id="metric-grievances">0</div>
-        </section>
-      </div>
-
-      <!-- Activity Summary Card -->
       <section class="card roster-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Simulation Activity Log</h2>
-            <p class="card-subtitle">Real-time audit stream of simulation actions.</p>
+            <h2 class="card-title">Real-Time Simulation Audit Trail</h2>
+            <p class="card-subtitle">Synchronized event logs from <code>activity_logs</code> collection</p>
           </div>
         </div>
+
         <div class="table-container">
           <table class="data-table">
             <thead>
               <tr>
                 <th>Timestamp</th>
-                <th>Action Category</th>
-                <th>Details</th>
+                <th>Category</th>
+                <th>User Account</th>
+                <th>Section Scope</th>
+                <th>Event Description</th>
               </tr>
             </thead>
-            <tbody id="logs-tbody">
+            <tbody id="activity-logs-tbody">
               <tr>
-                <td colspan="3" class="empty-state">No simulation activities logged yet.</td>
+                <td colspan="5" class="empty-state">Streaming telemetry events...</td>
               </tr>
             </tbody>
           </table>

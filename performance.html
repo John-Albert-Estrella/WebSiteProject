@@ -8,7 +8,6 @@
 </head>
 <body>
 
-  <!-- Sidebar Rail -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
@@ -16,14 +15,8 @@
     </div>
 
     <div class="sidebar-user-card">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="welcome-tag">WORKSPACE</span>
-        <div class="theme-switch-pills">
-          <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-          <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-        </div>
-      </div>
-      <h3 id="sidebar-greeting-name">Welcome back!</h3>
+      <span class="welcome-tag">WORKSPACE</span>
+      <h3 id="sidebar-greeting-name">Loading...</h3>
     </div>
 
     <nav class="sidebar-nav">
@@ -36,62 +29,68 @@
       <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
       <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
       <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
 
-  <!-- Main Content Space -->
   <div class="main-content">
     <header class="topbar">
       <div class="brand-group">
         <span class="faculty-name-display" id="topbar-user-name">User</span>
-        <span class="role-tag" id="topbar-role-badge">WORKSPACE</span>
+        <span class="role-tag" id="topbar-role-badge">STUDENT</span>
       </div>
       <div class="nav-actions">
-        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+        <div class="notifications-wrapper">
+          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
+            <img src="assets/bell.png" alt="Bell" class="bell-icon">
+            <span class="notif-badge hidden" id="notif-badge">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-header">
+              <h4 class="notif-title">Notifications</h4>
+              <button type="button" class="btn-mark-all-read" id="btn-mark-all-read">Mark all as read</button>
+            </div>
+            <div class="notif-list" id="notif-list">
+              <div class="notif-empty">No notifications yet.</div>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
     <main class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Performance Management</h1>
-          <p class="page-subtitle">Configure evaluation cycles, set KPIs, and complete appraisal reviews.</p>
+          <h1 class="page-title">Performance Management & KPI Appraisal</h1>
+          <p class="page-subtitle">Simulate quarterly performance reviews, grade scorecards, and provide 360-degree appraisal feedback.</p>
         </div>
       </div>
 
-      <!-- Set Appraisal Parameters Card (Faculty Only) -->
-      <section class="card" id="kpi-create-panel" style="display: none;">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">Set Appraisal Parameters</h2>
-            <p class="card-subtitle">Establish performance expectations and core evaluation metrics for this simulation cycle.</p>
-          </div>
-        </div>
-        <form id="form-create-kpi" style="display: flex; flex-direction: column; gap: 12px;">
-          <div class="form-group">
-            <label class="form-label" for="kpi-title-input">Review Cycle Title</label>
-            <input type="text" id="kpi-title-input" class="form-control" placeholder="e.g. Q4 Performance & Operational Review" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="kpi-metric-input">Core KPI Metric</label>
-            <input type="text" id="kpi-metric-input" class="form-control" placeholder="e.g. Deliverable Completion Rate ≥ 90%" required>
-          </div>
-          <div class="card-actions">
-            <button type="submit" class="btn btn-primary" id="btn-publish-kpi">Publish KPI Cycle</button>
-          </div>
-        </form>
-      </section>
-
-      <!-- Active Appraisal Cycles Card -->
       <section class="card roster-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Active Appraisal Benchmarks & Submissions</h2>
-            <p class="card-subtitle">Ongoing appraisal cycles initiated for your cohort.</p>
+            <h2 class="card-title">Active Review Cycles</h2>
+            <p class="card-subtitle">Organizational KPI evaluations</p>
           </div>
         </div>
-        <div id="kpi-cycles-container" style="display: flex; flex-direction: column; gap: 14px;">
-          <div class="empty-state"><p>No appraisal cycles currently initiated.</p></div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Cycle Name</th>
+                <th>Target Department</th>
+                <th>Metric Focus</th>
+                <th>Status</th>
+                <th>Appraisal Action</th>
+              </tr>
+            </thead>
+            <tbody id="kpi-cycles-tbody">
+              <tr>
+                <td colspan="5" class="empty-state">Loading performance cycles...</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </main>

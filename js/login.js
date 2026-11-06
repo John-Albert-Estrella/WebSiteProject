@@ -2,81 +2,71 @@ import { auth, db } from "./firebase-init.js";
 import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-function setupLogin() {
-  const loginForm = document.getElementById("form-login") || document.querySelector("form");
-  const btnLogin = document.getElementById("btn-login") || document.querySelector("button[type='submit']");
+const formLogin = document.getElementById("form-login");
+const inputEmail = document.getElementById("login-email");
+const inputPassword = document.getElementById("login-password");
+const btnSubmit = document.getElementById("btn-submit-login");
+const errorBox = document.getElementById("login-error-box");
 
-  if (!loginForm) {
-    console.warn("Login form element not found.");
-    return;
+// Password Censoring / Uncensoring Toggle Handlers
+document.querySelectorAll(".btn-toggle-password").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const targetId = btn.dataset.target;
+    const input = document.getElementById(targetId);
+    if (!input) return;
+
+    if (input.type === "password") {
+      input.type = "text";
+      btn.textContent = "🙈";
+    } else {
+      input.type = "password";
+      btn.textContent = "👁️";
+    }
+  });
+});
+
+function showError(message) {
+  if (!errorBox) return;
+  errorBox.style.display = "block";
+  errorBox.textContent = message;
+}
+
+formLogin?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = inputEmail.value.trim();
+  const password = inputPassword.value;
+
+  if (!email || !password) return;
+
+  btnSubmit.disabled = true;
+  btnSubmit.textContent = "Signing In...";
+  if (errorBox) errorBox.style.display = "none";
+
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    const role = userDoc.exists() ? userDoc.data().role : "student";
+
+    if (role === "admin") {
+      window.location.replace("admin-dashboard.html");
+    } else if (role === "faculty") {
+      window.location.replace("faculty-dashboard.html");
+    } else {
+      window.location.replace("student-dashboard.html");
+    }
+  } catch (err) {
+    console.error("Login failure:", err);
+    let errorMsg = "Failed to sign in. Please check your email and password.";
+    if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
+      errorMsg = "Invalid email or password. Please verify your credentials.";
+    } else if (err.code === "auth/too-many-requests") {
+      errorMsg = "Account temporarily locked due to multiple failed attempts. Try again later or reset password.";
+    }
+    showError(errorMsg);
+  } finally {
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = "Sign In to Simulator";
   }
-
-  loginForm.onsubmit = async (e) => {
-    e.preventDefault();
-
-    const email = (document.getElementById("login-email") || document.getElementById("email"))?.value.trim() || "";
-    const password = (document.getElementById("login-password") || document.getElementById("password"))?.value || "";
-
-    if (!email || !password) {
-      alert("Please enter both your email and password.");
-      return;
-    }
-
-    if (btnLogin) {
-      btnLogin.disabled = true;
-      btnLogin.textContent = "Authenticating...";
-    }
-
-    try {
-      // 1. Authenticate with Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // 2. Fetch role from Firestore
-      const userDocSnap = await getDoc(doc(db, "users", user.uid));
-
-      const currentPath = window.location.pathname;
-      const basePath = currentPath.substring(0, currentPath.lastIndexOf("/") + 1);
-
-      if (!userDocSnap.exists()) {
-        // Fallback default routing if profile document is missing
-        window.location.replace(basePath + "student-dashboard.html");
-        return;
-      }
-
-      const userData = userDocSnap.data();
-
-      // 3. Route according to verified role
-      if (userData.role === "faculty") {
-        window.location.replace(basePath + "faculty-dashboard.html");
-      } else {
-        window.location.replace(basePath + "student-dashboard.html");
-      }
-
-    } catch (error) {
-      console.error("Login Error details:", error);
-
-      // Distinct error handling for API origin blocks vs wrong credentials
-      if (error.code === "auth/invalid-credential" || error.code === "auth/wrong-password" || error.code === "auth/user-not-found") {
-        alert("Sign In Failed: Incorrect email or password.");
-      } else if (error.message && (error.message.includes("API key") || error.message.includes("requests from this referer are blocked"))) {
-        alert("Origin Blocked: Use http://localhost:5500 instead of 127.0.0.1 to match your Google Cloud API key restrictions.");
-      } else if (error.code === "auth/network-request-failed") {
-        alert("Network Error: Could not connect to authentication servers. If you are on 127.0.0.1, switch to localhost:5500.");
-      } else {
-        alert("Sign In Failed: " + error.message);
-      }
-    } finally {
-      if (btnLogin) {
-        btnLogin.disabled = false;
-        btnLogin.textContent = "Sign In to Simulator";
-      }
-    }
-  };
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", setupLogin);
-} else {
-  setupLogin();
-}
+});

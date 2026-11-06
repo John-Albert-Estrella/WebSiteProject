@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Aimser - HR Discussion Forum</title>
+  <title>Aimser - HR Discussion Feed</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- Standard Sidebar Rail -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
@@ -16,18 +15,12 @@
     </div>
 
     <div class="sidebar-user-card">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="welcome-tag">WORKSPACE</span>
-        <div class="theme-switch-pills">
-          <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-          <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-        </div>
-      </div>
-      <h3 id="sidebar-greeting-name">Welcome back!</h3>
+      <span class="welcome-tag">WORKSPACE</span>
+      <h3 id="sidebar-greeting-name">Loading...</h3>
     </div>
 
     <nav class="sidebar-nav">
-      <a href="faculty-dashboard.html" class="nav-item">📊 Dashboard</a>
+      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
       <a href="planner.html" class="nav-item">📋 Project Planner</a>
       <a href="feed.html" class="nav-item active">💬 HR Feed</a>
       <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
@@ -36,54 +29,70 @@
       <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
       <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
       <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
 
-  <!-- Main Content Space -->
   <div class="main-content">
     <header class="topbar">
       <div class="brand-group">
-        <span class="faculty-name-display" id="topbar-user-name">Loading...</span>
-        <span class="role-tag" id="topbar-role-badge">--</span>
+        <span class="faculty-name-display" id="topbar-user-name">User</span>
+        <span class="role-tag" id="topbar-role-badge">STUDENT</span>
       </div>
       <div class="nav-actions">
-        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+        <div class="notifications-wrapper">
+          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
+            <img src="assets/bell.png" alt="Bell" class="bell-icon">
+            <span class="notif-badge hidden" id="notif-badge">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-header">
+              <h4 class="notif-title">Notifications</h4>
+              <button type="button" class="btn-mark-all-read" id="btn-mark-all-read">Mark all as read</button>
+            </div>
+            <div class="notif-list" id="notif-list">
+              <div class="notif-empty">No notifications yet.</div>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
     <main class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">HR Discussion Forum</h1>
-          <p class="page-subtitle">Debate real-world workplace scenarios, labor policies, and ethics cases with your cohort.</p>
+          <h1 class="page-title">HR Discussion Feed</h1>
+          <p class="page-subtitle">Engage with section peers on organizational policy, case solutions, and simulator scenarios.</p>
         </div>
       </div>
 
-      <!-- Create Post Bento Card -->
-      <section class="card" style="border-color: rgba(56, 189, 248, 0.35);">
-        <form id="form-create-post" style="display: flex; flex-direction: column; gap: 12px;">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Start a Discussion</h2>
+            <p class="card-subtitle">Broadcast a topic to all peers in your active section.</p>
+          </div>
+        </div>
+
+        <form id="form-create-post" class="auth-form">
           <div class="form-group">
             <textarea 
-              id="post-content-input" 
+              id="input-post-body" 
               class="form-control" 
-              placeholder="Share an HR scenario, ask a labor policy question, or post an update for your cohort..." 
+              rows="3" 
+              placeholder="What organizational issue or case scenario would you like to discuss?" 
               required
-              style="min-height: 80px;"
             ></textarea>
           </div>
-          <div style="display: flex; justify-content: flex-end;">
-            <button type="submit" class="btn btn-primary" id="btn-submit-post">
-              Post to Forum
-            </button>
+
+          <div class="card-actions">
+            <button type="submit" class="btn btn-primary" id="btn-submit-post">Publish Discussion</button>
           </div>
         </form>
       </section>
 
-      <!-- Live Posts Stream Container -->
-      <div id="posts-stream" style="display: flex; flex-direction: column; gap: 20px;">
-        <div class="empty-state">
-          <p>Loading classroom discussions...</p>
-        </div>
+      <div id="posts-container" class="dashboard-grid feed-stream-grid">
+        <div class="empty-state"><p>Loading section discussions...</p></div>
       </div>
     </main>
   </div>

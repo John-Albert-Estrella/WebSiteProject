@@ -1,272 +1,308 @@
-import { db } from "./firebase-init.js";
+import { auth, db } from "./firebase-init.js";
 import { initAuthGuard } from "./auth-guard.js";
+import { logActivity } from "./audit-logger.js";
 import { 
-  doc, 
-  setDoc, 
-  getDoc, 
-  updateDoc, 
   collection, 
   query, 
   where, 
-  onSnapshot, 
-  serverTimestamp, 
-  Timestamp 
+  getDocs, 
+  addDoc, 
+  doc, 
+  deleteDoc, 
+  updateDoc,
+  serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-let timerInterval = null;
-let currentFacultyUid = null;
-let currentActiveCode = null;
-let rosterUnsubscribe = null;
-
 // DOM Elements
-const displayCode = document.getElementById("display-class-code");
-const countdownEl = document.getElementById("code-countdown");
-const badgeStatus = document.getElementById("class-status-badge");
-const btnGenerate = document.getElementById("btn-generate-code");
-const btnCopy = document.getElementById("btn-copy-code");
-const btnExpire = document.getElementById("btn-expire-code");
-const enrolledCountEl = document.getElementById("enrolled-count");
-const rosterTbody = document.getElementById("roster-tbody");
+const btnOpenCreateModal = document.getElementById("btn-open-create-modal");
+const btnCloseCreateModal = document.getElementById("btn-close-create-modal");
+const createModal = document.getElementById("create-class-modal");
+const formCreateClass = document.getElementById("form-create-class");
+const inputClassName = document.getElementById("input-class-name");
+const inputClassSection = document.getElementById("input-class-section");
+const btnSubmitCreate = document.getElementById("btn-submit-create-class");
 
-function generateRandomCode() {
+const classesGrid = document.getElementById("classes-grid");
+const rosterPanel = document.getElementById("roster-panel");
+const rosterHeading = document.getElementById("roster-heading");
+const rosterSubheading = document.getElementById("roster-subheading");
+const rosterTbody = document.getElementById("roster-tbody");
+const btnCopyCode = document.getElementById("btn-copy-class-code");
+const btnDeleteClass = document.getElementById("btn-delete-class");
+
+let currentUser = null;
+let selectedClassId = null;
+let selectedClassCode = "";
+
+// Helper to generate clean unique 6-character classroom code
+function generateClassCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let part = "";
+  let result = "AIM-";
   for (let i = 0; i < 4; i++) {
-    part += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  return `AIM-${part}`;
+  return result;
 }
 
-function runCountdown(expiryDate) {
-  if (timerInterval) clearInterval(timerInterval);
+// Modal controls
+btnOpenCreateModal?.addEventListener("click", () => {
+  if (createModal) createModal.style.display = "block";
+});
 
-  function tick() {
-    const now = new Date().getTime();
-    const distance = expiryDate.getTime() - now;
+btnCloseCreateModal?.addEventListener("click", () => {
+  if (createModal) createModal.style.display = "none";
+});
 
-    if (distance <= 0) {
-      clearInterval(timerInterval);
-      setExpiredState();
+// Initialize via Auth Guard
+initAuthGuard({
+  allowedRoles: ["faculty", "admin"],
+  onReady: async ({ user, userData, role }) => {
+    currentUser = user;
+    await loadFacultyClassrooms();
+  }
+});
+
+/**
+ * Loads ONLY the classrooms created by the currently authenticated faculty/admin.
+ */
+async function loadFacultyClassrooms() {
+  if (!classesGrid) return;
+  classesGrid.innerHTML = `<div class="empty-state"><p>Loading your classrooms...</p></div>`;
+
+  try {
+    // Strictly filter classrooms by the current user's UID
+    const q = query(
+      collection(db, "classrooms"), 
+      where("facultyUid", "==", currentUser.uid)
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      classesGrid.innerHTML = `
+        <div class="empty-state">
+          <p>You have not created any classrooms yet.</p>
+          <small>Click "+ Create New Class" above to set up your first section.</small>
+        </div>
+      `;
+      if (rosterPanel) rosterPanel.style.display = "none";
       return;
     }
 
-    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+    classesGrid.innerHTML = "";
 
-    if (countdownEl) {
-      countdownEl.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-    }
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      const card = document.createElement("div");
+      card.className = "card module-card";
+      card.dataset.id = docSnap.id;
+
+      const studentCount = Array.isArray(data.students) ? data.students.length : 0;
+
+      card.innerHTML = `
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">${data.name || "Untitled Course"}</h3>
+            <p class="card-subtitle">${data.section || "General Section"}</p>
+          </div>
+          <span class="status-badge active">${data.code || "NO CODE"}</span>
+        </div>
+        <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 13px; color: var(--text-secondary);">Enrolled: <strong>${studentCount}</strong></span>
+          <button type="button" class="btn btn-secondary view-roster-btn" style="padding: 4px 10px; font-size: 12px;">Manage</button>
+        </div>
+      `;
+
+      card.addEventListener("click", () => selectClassroom(docSnap.id, data));
+      classesGrid.appendChild(card);
+    });
+
+  } catch (err) {
+    console.error("Error loading classrooms:", err);
+    classesGrid.innerHTML = `<div class="empty-state"><p>Failed to load classrooms: ${err.message}</p></div>`;
   }
-
-  tick();
-  timerInterval = setInterval(tick, 1000);
 }
 
-function setActiveState(code, expiryDate) {
-  currentActiveCode = code;
-  if (displayCode) displayCode.textContent = code;
-  if (badgeStatus) {
-    badgeStatus.textContent = "Session Active";
-    badgeStatus.className = "status-badge active";
-  }
-  if (btnCopy) btnCopy.disabled = false;
-  if (btnExpire) btnExpire.disabled = false;
-  if (btnGenerate) btnGenerate.textContent = "Regenerate New Code";
-  runCountdown(expiryDate);
-  listenToClassRoster(code);
+/**
+ * Displays roster details and management actions for a selected class
+ */
+function selectClassroom(classId, classData) {
+  selectedClassId = classId;
+  selectedClassCode = classData.code;
+
+  if (rosterPanel) rosterPanel.style.display = "block";
+  if (rosterHeading) rosterHeading.textContent = `${classData.name} (${classData.section})`;
+  if (rosterSubheading) rosterSubheading.textContent = `Permanent Join Code: ${classData.code}`;
+
+  renderRosterTable(classData.students || []);
+
+  rosterPanel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
-function setExpiredState() {
-  if (timerInterval) clearInterval(timerInterval);
-  currentActiveCode = null;
-  if (displayCode) displayCode.textContent = "------";
-  if (countdownEl) countdownEl.textContent = "--:--";
-  if (badgeStatus) {
-    badgeStatus.textContent = "No Active Session";
-    badgeStatus.className = "status-badge";
-  }
-  if (btnCopy) btnCopy.disabled = true;
-  if (btnExpire) btnExpire.disabled = true;
-  if (btnGenerate) btnGenerate.textContent = "Generate 60-Minute Code";
+/**
+ * Populates the enrolled students table with options to remove students
+ */
+function renderRosterTable(students) {
+  if (!rosterTbody) return;
+  rosterTbody.innerHTML = "";
 
-  if (rosterUnsubscribe) {
-    rosterUnsubscribe();
-    rosterUnsubscribe = null;
-  }
-  if (enrolledCountEl) enrolledCountEl.textContent = "0";
-  if (rosterTbody) {
+  if (students.length === 0) {
     rosterTbody.innerHTML = `
       <tr>
-        <td colspan="5" class="empty-state">No active classroom session. Generate a code above to view students.</td>
+        <td colspan="5" class="empty-state">No students enrolled yet. Share the code to invite students.</td>
       </tr>
     `;
+    return;
   }
-}
 
-function listenToClassRoster(classCode) {
-  if (rosterUnsubscribe) rosterUnsubscribe();
+  students.forEach((student, index) => {
+    const tr = document.createElement("tr");
+    const joinedDate = student.joinedAt ? new Date(student.joinedAt).toLocaleDateString() : "N/A";
 
-  const q = query(
-    collection(db, "users"),
-    where("role", "==", "student"),
-    where("classroomCode", "==", classCode)
-  );
+    tr.innerHTML = `
+      <td><strong>${student.name || "Student"}</strong></td>
+      <td>${student.email || "No email"}</td>
+      <td>${joinedDate}</td>
+      <td><span class="status-badge active">Enrolled</span></td>
+      <td>
+        <button type="button" class="btn btn-secondary danger-action remove-student-btn" data-index="${index}" style="padding: 4px 8px; font-size: 11px;">
+          Remove
+        </button>
+      </td>
+    `;
 
-  rosterUnsubscribe = onSnapshot(q, (snapshot) => {
-    if (enrolledCountEl) enrolledCountEl.textContent = snapshot.size;
-
-    if (snapshot.empty) {
-      if (rosterTbody) {
-        rosterTbody.innerHTML = `
-          <tr>
-            <td colspan="5" class="empty-state">No students joined with code ${classCode} yet.</td>
-          </tr>
-        `;
-      }
-      return;
-    }
-
-    let rowsHtml = "";
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      const studentUid = docSnap.id;
-      const studentName = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Anonymous Student";
-      const studentEmail = data.email || "No institutional email";
-      const joinedDate = data.createdAt ? data.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now";
-
-      rowsHtml += `
-        <tr>
-          <td style="font-weight: 600;">${escapeHtml(studentName)}</td>
-          <td style="color: var(--text-secondary);">${escapeHtml(studentEmail)}</td>
-          <td style="color: var(--text-tertiary);">${joinedDate}</td>
-          <td><span class="status-badge" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8;">Student</span></td>
-          <td>
-            <button type="button" class="btn btn-secondary btn-kick-student" data-uid="${studentUid}" data-name="${escapeHtml(studentName)}" style="padding: 4px 10px; font-size: 11px; color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">
-              Remove
-            </button>
-          </td>
-        </tr>
-      `;
+    tr.querySelector(".remove-student-btn")?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await removeStudent(index, student);
     });
 
-    if (rosterTbody) rosterTbody.innerHTML = rowsHtml;
-
-    // Attach Student Removal Event Listeners
-    document.querySelectorAll(".btn-kick-student").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const uid = btn.dataset.uid;
-        const name = btn.dataset.name;
-
-        if (confirm(`Remove ${name} from this classroom section?`)) {
-          try {
-            await updateDoc(doc(db, "users", uid), {
-              classroomCode: ""
-            });
-          } catch (err) {
-            console.error("Failed to remove student:", err);
-            alert("Could not remove student: " + err.message);
-          }
-        }
-      });
-    });
-  }, (err) => {
-    console.error("Error reading class roster:", err);
+    rosterTbody.appendChild(tr);
   });
 }
 
-function escapeHtml(string) {
-  return String(string).replace(/[&<>"']/g, (s) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[s]));
-}
+/**
+ * Creates a brand new classroom section
+ */
+formCreateClass?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = inputClassName.value.trim();
+  const section = inputClassSection.value.trim();
 
-async function checkExistingClassCode(uid) {
+  if (!name || !section) return;
+
+  btnSubmitCreate.disabled = true;
+  btnSubmitCreate.textContent = "Creating...";
+
   try {
-    const classDocRef = doc(db, "classrooms", uid);
-    const snap = await getDoc(classDocRef);
+    const code = generateClassCode();
 
-    if (snap.exists()) {
-      const data = snap.data();
-      if (data.active && data.expiresAt) {
-        const expiryDate = data.expiresAt.toDate();
-        if (expiryDate > new Date()) {
-          setActiveState(data.code, expiryDate);
-          return;
-        }
-      }
+    const newClassData = {
+      name,
+      section,
+      code,
+      facultyUid: currentUser.uid,
+      facultyEmail: currentUser.email,
+      students: [],
+      createdAt: serverTimestamp()
+    };
+
+    const docRef = await addDoc(collection(db, "classrooms"), newClassData);
+
+    await logActivity({
+      category: "Classroom",
+      details: `${currentUser.email} created new classroom ${name} (${code})`,
+      classroomCode: code,
+      userEmail: currentUser.email
+    });
+
+    formCreateClass.reset();
+    if (createModal) createModal.style.display = "none";
+    await loadFacultyClassrooms();
+
+  } catch (err) {
+    console.error("Failed to create classroom:", err);
+    alert("Could not create classroom: " + err.message);
+  } finally {
+    btnSubmitCreate.disabled = false;
+    btnSubmitCreate.textContent = "Create Class Space";
+  }
+});
+
+/**
+ * Copy join code to clipboard
+ */
+btnCopyCode?.addEventListener("click", () => {
+  if (!selectedClassCode) return;
+  navigator.clipboard.writeText(selectedClassCode).then(() => {
+    const originalText = btnCopyCode.textContent;
+    btnCopyCode.textContent = "Copied!";
+    setTimeout(() => {
+      btnCopyCode.textContent = originalText;
+    }, 2000);
+  });
+});
+
+/**
+ * Deletes the currently selected classroom
+ */
+btnDeleteClass?.addEventListener("click", async () => {
+  if (!selectedClassId) return;
+
+  const confirmDelete = confirm(`Are you sure you want to delete classroom code ${selectedClassCode}? This action cannot be undone.`);
+  if (!confirmDelete) return;
+
+  try {
+    await deleteDoc(doc(db, "classrooms", selectedClassId));
+    await logActivity({
+      category: "Classroom",
+      details: `${currentUser.email} deleted classroom ${selectedClassCode}`,
+      classroomCode: selectedClassCode,
+      userEmail: currentUser.email
+    });
+
+    selectedClassId = null;
+    selectedClassCode = "";
+    if (rosterPanel) rosterPanel.style.display = "none";
+    await loadFacultyClassrooms();
+
+  } catch (err) {
+    console.error("Error deleting classroom:", err);
+    alert("Failed to delete classroom: " + err.message);
+  }
+});
+
+/**
+ * Removes a student from a classroom roster
+ */
+async function removeStudent(studentIndex, studentData) {
+  if (!selectedClassId) return;
+
+  const confirmRemove = confirm(`Remove ${studentData.name || studentData.email} from this classroom?`);
+  if (!confirmRemove) return;
+
+  try {
+    const classRef = doc(db, "classrooms", selectedClassId);
+    const snap = await getDocs(query(collection(db, "classrooms"), where("code", "==", selectedClassCode)));
+    
+    if (snap.empty) return;
+    const currentStudents = snap.docs[0].data().students || [];
+    currentStudents.splice(studentIndex, 1);
+
+    await updateDoc(classRef, {
+      students: currentStudents
+    });
+
+    // Also unassign classroomCode on the student's user document if UID is available
+    if (studentData.uid) {
+      await updateDoc(doc(db, "users", studentData.uid), {
+        classroomCode: null,
+        classroomId: null
+      });
     }
-    setExpiredState();
+
+    renderRosterTable(currentStudents);
+
   } catch (err) {
-    console.error("Error reading classroom state:", err);
-    setExpiredState();
+    console.error("Error removing student:", err);
+    alert("Failed to remove student: " + err.message);
   }
 }
-
-btnGenerate?.addEventListener("click", async () => {
-  if (!currentFacultyUid) return;
-
-  btnGenerate.disabled = true;
-  btnGenerate.textContent = "Generating...";
-
-  const newCode = generateRandomCode();
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-
-  try {
-    await setDoc(doc(db, "classrooms", currentFacultyUid), {
-      facultyUid: currentFacultyUid,
-      code: newCode,
-      active: true,
-      createdAt: serverTimestamp(),
-      expiresAt: Timestamp.fromDate(expiresAt)
-    });
-
-    setActiveState(newCode, expiresAt);
-  } catch (error) {
-    console.error("Failed to generate code:", error);
-    alert(`Could not activate class code: ${error.message}`);
-  } finally {
-    btnGenerate.disabled = false;
-  }
-});
-
-btnExpire?.addEventListener("click", async () => {
-  if (!currentFacultyUid) return;
-
-  btnExpire.disabled = true;
-  try {
-    await updateDoc(doc(db, "classrooms", currentFacultyUid), {
-      active: false
-    });
-    setExpiredState();
-  } catch (error) {
-    console.error("Failed to deactivate code:", error);
-  } finally {
-    btnExpire.disabled = false;
-  }
-});
-
-btnCopy?.addEventListener("click", async () => {
-  const code = displayCode ? displayCode.textContent : "";
-  if (!code || code === "------") return;
-
-  try {
-    await navigator.clipboard.writeText(code);
-    btnCopy.textContent = "✓";
-    setTimeout(() => { btnCopy.textContent = "📋"; }, 1500);
-  } catch (err) {
-    alert(`Classroom Code: ${code}`);
-  }
-});
-
-// Guard: Strictly Requires Faculty
-initAuthGuard({
-  requiredRole: "faculty",
-  onReady: ({ user }) => {
-    currentFacultyUid = user.uid;
-    checkExistingClassCode(user.uid);
-  }
-});

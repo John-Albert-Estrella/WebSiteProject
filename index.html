@@ -61,16 +61,13 @@
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
     import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-    // Helper: Safely navigate relative to current directory (handles GitHub Pages repo subpaths)
     function redirectTo(page) {
       const currentPath = window.location.pathname;
       const basePath = currentPath.substring(0, currentPath.lastIndexOf("/") + 1);
       window.location.replace(basePath + page);
     }
 
-    // Safety Timeout: Never stay stuck for more than 4 seconds
     const timeoutFallback = setTimeout(() => {
-      console.warn("Auth check timed out. Redirecting to login...");
       redirectTo("login.html");
     }, 4000);
 
@@ -87,13 +84,14 @@
         
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          if (userData.role === "faculty") {
+          if (userData.role === "admin") {
+            redirectTo("admin-dashboard.html");
+          } else if (userData.role === "faculty") {
             redirectTo("faculty-dashboard.html");
           } else {
             redirectTo("student-dashboard.html");
           }
         } else {
-          // Fallback if user record is missing in Firestore
           redirectTo("student-dashboard.html");
         }
       } catch (err) {

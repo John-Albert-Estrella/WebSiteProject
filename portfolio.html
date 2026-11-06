@@ -8,7 +8,6 @@
 </head>
 <body>
 
-  <!-- Sidebar Rail -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
@@ -16,14 +15,8 @@
     </div>
 
     <div class="sidebar-user-card">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="welcome-tag">WORKSPACE</span>
-        <div class="theme-switch-pills">
-          <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-          <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-        </div>
-      </div>
-      <h3 id="sidebar-greeting-name">Welcome back!</h3>
+      <span class="welcome-tag">WORKSPACE</span>
+      <h3 id="sidebar-greeting-name">Loading...</h3>
     </div>
 
     <nav class="sidebar-nav">
@@ -36,10 +29,10 @@
       <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
       <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
       <a href="portfolio.html" class="nav-item active">💼 Portfolio & Assessment</a>
+      <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
 
-  <!-- Main Content Space -->
   <div class="main-content">
     <header class="topbar">
       <div class="brand-group">
@@ -47,90 +40,58 @@
         <span class="role-tag" id="topbar-role-badge">STUDENT</span>
       </div>
       <div class="nav-actions">
-        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+        <div class="notifications-wrapper">
+          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
+            <img src="assets/bell.png" alt="Bell" class="bell-icon">
+            <span class="notif-badge hidden" id="notif-badge">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-header">
+              <h4 class="notif-title">Notifications</h4>
+              <button type="button" class="btn-mark-all-read" id="btn-mark-all-read">Mark all as read</button>
+            </div>
+            <div class="notif-list" id="notif-list">
+              <div class="notif-empty">No notifications yet.</div>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
     <main class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title" id="portfolio-main-title">Portfolio & Assessment</h1>
-          <p class="page-subtitle" id="portfolio-sub-title">Review verified outputs, submitted deliverables, and appraisals.</p>
+          <h1 class="page-title">Portfolio & Assessment Evaluations</h1>
+          <p class="page-subtitle">Reviewed deliverable submissions, faculty scoring rubrics, and feedback documentation.</p>
         </div>
-        <p class="page-header-desc">
-          Aimser verified assessment repository.
-        </p>
       </div>
 
-      <!-- Submissions Table Card -->
       <section class="card roster-card">
         <div class="card-header">
           <div>
-            <h2 class="card-title" id="table-card-heading">Deliverables Queue</h2>
-            <p class="card-subtitle" id="table-card-subheading">Loading database records...</p>
+            <h2 class="card-title">Evaluated Deliverables</h2>
+            <p class="card-subtitle">Graded student submissions</p>
           </div>
         </div>
 
         <div class="table-container">
           <table class="data-table">
             <thead>
-              <tr id="table-header-row">
-                <th>Case Title</th>
-                <th>Student</th>
-                <th>File Deliverable</th>
+              <tr>
+                <th>Case Scenario</th>
+                <th>Asset File</th>
                 <th>Submitted Date</th>
-                <th>Status / Grade</th>
-                <th>Actions</th>
+                <th>Score</th>
+                <th>Faculty Evaluation Notes</th>
               </tr>
             </thead>
             <tbody id="portfolio-tbody">
               <tr>
-                <td colspan="6" class="empty-state">Loading submissions...</td>
+                <td colspan="5" class="empty-state">Loading evaluated submissions...</td>
               </tr>
             </tbody>
           </table>
         </div>
-      </section>
-
-      <!-- Faculty Grading Drawer / Modal -->
-      <section class="card" id="grade-panel" style="display: none; border-color: rgba(56, 189, 248, 0.4);">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title" id="grade-panel-title">Assess Deliverable</h2>
-            <p class="card-subtitle">Assign numerical grade and constructive feedback.</p>
-          </div>
-          <button type="button" class="btn btn-secondary" id="btn-cancel-grade">Cancel</button>
-        </div>
-
-        <form id="form-grade-submission" style="display: flex; flex-direction: column; gap: 14px;">
-          <input type="hidden" id="grade-submission-id">
-
-          <div class="form-row-duo">
-            <div class="form-group">
-              <label class="form-label" for="grade-score">Numerical Grade (0 - 100)</label>
-              <input type="number" id="grade-score" class="form-control" min="0" max="100" placeholder="e.g. 95" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="grade-status">Appraisal Status</label>
-              <select id="grade-status" class="form-control">
-                <option value="Approved">Approved / Passed</option>
-                <option value="Revisions Needed">Needs Revision</option>
-                <option value="Rejected">Rejected</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="grade-feedback">Instructor Appraisal / Feedback</label>
-            <textarea id="grade-feedback" class="form-control" placeholder="Provide actionable feedback on student's HR strategy..."></textarea>
-          </div>
-
-          <div class="card-actions">
-            <button type="submit" class="btn btn-primary" id="btn-save-grade">
-              Submit Grade & Feedback
-            </button>
-          </div>
-        </form>
       </section>
     </main>
   </div>

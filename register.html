@@ -3,127 +3,88 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Aimser - Create Account</title>
+  <title>Aimser - Institutional Registration</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="auth-body">
 
   <div class="auth-wrapper">
-    <div class="card auth-card">
-      
-      <!-- Brand & Header -->
+    <div class="auth-card">
       <div class="auth-header">
         <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-badge">
         <h1 class="auth-title">Create Account</h1>
-        <p class="auth-subtitle">Select your simulator role and enter your details.</p>
+        <p class="auth-subtitle">Join the institutional Human Resource Management Simulator.</p>
       </div>
 
-      <!-- Segmented Role Selector -->
-      <div class="form-group">
-        <label class="form-label">Register As</label>
-        <div class="role-selector-group" id="role-selector">
-          <button type="button" class="role-btn active" data-role="student">
-            <span class="role-icon">🎓</span>
-            <span class="role-text">Student</span>
-          </button>
-          <button type="button" class="role-btn" data-role="faculty">
-            <span class="role-icon">💼</span>
-            <span class="role-text">Faculty</span>
-          </button>
-        </div>
-        <input type="hidden" id="register-role" value="student">
-      </div>
+      <div id="register-error-box" class="settings-alert-banner danger"></div>
 
-      <!-- Registration Form -->
-      <form id="form-register" class="auth-form" autocomplete="off">
+      <form id="form-register" class="auth-form">
         <div class="form-row-duo">
           <div class="form-group">
-            <label class="form-label" for="reg-firstname">First Name</label>
-            <input type="text" id="reg-firstname" class="form-control" placeholder="e.g. John" required>
+            <label class="form-label" for="reg-first-name">First Name</label>
+            <input type="text" id="reg-first-name" class="form-control" placeholder="e.g. John Albert" required>
           </div>
           <div class="form-group">
-            <label class="form-label" for="reg-lastname">Last Name</label>
-            <input type="text" id="reg-lastname" class="form-control" placeholder="e.g. Estrella" required>
+            <label class="form-label" for="reg-last-name">Last Name</label>
+            <input type="text" id="reg-last-name" class="form-control" placeholder="e.g. Estrella" required>
           </div>
         </div>
 
         <div class="form-group">
           <label class="form-label" for="reg-email">Institutional Email</label>
-          <input type="email" id="reg-email" class="form-control" placeholder="name@domain.edu.ph" required>
+          <input 
+            type="email" 
+            id="reg-email" 
+            class="form-control" 
+            placeholder="e.g. user@mseuf.edu.ph" 
+            autocomplete="email"
+            required
+          >
         </div>
 
         <div class="form-row-duo">
           <div class="form-group">
             <label class="form-label" for="reg-password">Password</label>
-            <input type="password" id="reg-password" class="form-control" placeholder="••••••••" minlength="6" required>
+            <div class="password-input-wrapper">
+              <input 
+                type="password" 
+                id="reg-password" 
+                class="form-control" 
+                placeholder="Min 6 characters" 
+                autocomplete="new-password"
+                minlength="6"
+                required
+              >
+              <button type="button" class="btn-toggle-password" data-target="reg-password" title="Toggle password visibility">👁️</button>
+            </div>
           </div>
           <div class="form-group">
             <label class="form-label" for="reg-confirm-password">Confirm Password</label>
-            <input type="password" id="reg-confirm-password" class="form-control" placeholder="••••••••" minlength="6" required>
+            <div class="password-input-wrapper">
+              <input 
+                type="password" 
+                id="reg-confirm-password" 
+                class="form-control" 
+                placeholder="Re-enter password" 
+                autocomplete="new-password"
+                minlength="6"
+                required
+              >
+              <button type="button" class="btn-toggle-password" data-target="reg-confirm-password" title="Toggle password visibility">👁️</button>
+            </div>
           </div>
         </div>
 
-        <!-- Faculty Passcode Input -->
-        <div class="form-group" id="group-faculty-secret" style="display: none;">
-          <label class="form-label" for="reg-faculty-code">
-            Faculty Authorization Code <span style="color: #ef4444;">*</span>
-          </label>
-          <input 
-            type="password" 
-            id="reg-faculty-code" 
-            class="form-control" 
-            placeholder="Enter instructor verification key"
-            autocomplete="off"
-          >
-          <small style="font-size: 11px; color: var(--text-tertiary); display: block; margin-top: 4px;">
-            Requires authorization key issued by the department coordinator.
-          </small>
-        </div>
-
-        <!-- Student Classroom Code Input -->
-        <div class="form-group" id="group-classroom-code">
-          <label class="form-label" for="reg-classcode">
-            Classroom Code <span class="label-hint">(Optional during registration)</span>
-          </label>
-          <input type="text" id="reg-classcode" class="form-control" placeholder="e.g. AIM-7X9B">
-        </div>
-
-        <button type="submit" id="btn-register" class="btn btn-primary auth-submit-btn">
-          Create Simulator Account
+        <button type="submit" class="btn btn-primary auth-submit-btn" id="btn-submit-register">
+          Complete Registration
         </button>
       </form>
 
-      <!-- Footer navigation -->
       <div class="auth-footer">
-        <p>Already have an account? <a href="login.html" class="auth-link">Sign in here</a></p>
+        Already registered? <a href="login.html" class="auth-link">Sign in here</a>
       </div>
-
     </div>
   </div>
-
-  <script type="module">
-    const roleBtns = document.querySelectorAll('.role-btn');
-    const roleInput = document.getElementById('register-role');
-    const classCodeGroup = document.getElementById('group-classroom-code');
-    const facultySecretGroup = document.getElementById('group-faculty-secret');
-
-    roleBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        roleBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const role = btn.dataset.role;
-        roleInput.value = role;
-
-        if (role === 'faculty') {
-          facultySecretGroup.style.display = 'block';
-          classCodeGroup.style.display = 'none';
-        } else {
-          facultySecretGroup.style.display = 'none';
-          classCodeGroup.style.display = 'block';
-        }
-      });
-    });
-  </script>
 
   <script type="module" src="js/register.js"></script>
   <script type="module" src="js/theme.js"></script>

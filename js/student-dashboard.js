@@ -3,147 +3,177 @@ import { initAuthGuard } from "./auth-guard.js";
 import { logActivity } from "./audit-logger.js";
 import { 
   doc, 
+  getDoc, 
   updateDoc, 
+  arrayUnion, 
   collection, 
   query, 
   where, 
-  getDocs,
-  onSnapshot 
+  getDocs, 
+  serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+// DOM Elements
 const joinCard = document.getElementById("join-classroom-card");
-const formJoinClass = document.getElementById("form-join-class");
-const inputClassCode = document.getElementById("input-class-code");
-const btnJoinClass = document.getElementById("btn-join-class");
-const displayEnrolledCode = document.getElementById("display-enrolled-code");
+const formJoin = document.getElementById("form-join-class");
+const inputCode = document.getElementById("input-class-code");
+const btnJoin = document.getElementById("btn-join-class");
+
 const displayClassDesc = document.getElementById("display-class-desc");
+const displayEnrolledCode = document.getElementById("display-enrolled-code");
 const badgeClassStatus = document.getElementById("badge-class-status");
 const statCompletedCount = document.getElementById("stat-completed-count");
 
-let currentStudentUid = null;
-let currentStudentEmail = "";
-let classroomUnsubscribe = null;
-
-// Join Classroom Form Submission
-formJoinClass?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const enteredCode = inputClassCode?.value.trim().toUpperCase();
-
-  if (!enteredCode) {
-    alert("Please enter a classroom code.");
-    return;
-  }
-
-  if (btnJoinClass) {
-    btnJoinClass.disabled = true;
-    btnJoinClass.textContent = "Verifying...";
-  }
-
-  try {
-    const q = query(
-      collection(db, "classrooms"),
-      where("code", "==", enteredCode),
-      where("active", "==", true)
-    );
-    const snap = await getDocs(q);
-
-    if (snap.empty) {
-      alert("Invalid or inactive classroom code. Please check with your instructor.");
+initAuthGuard({
+  allowedRoles: ["student", "faculty", "admin"],
+  onReady: async ({ user, userData, role }) => {
+    // Prevent Dashboard Overlap: Immediately route non-students to their respective management views
+    if (role === "admin") {
+      window.location.replace("admin-dashboard.html");
+      return;
+    }
+    if (role === "faculty") {
+      window.location.replace("faculty-dashboard.html");
       return;
     }
 
-    const classroomDoc = snap.docs[0].data();
-    if (classroomDoc.expiresAt && classroomDoc.expiresAt.toDate() <= new Date()) {
-      alert("This classroom code has expired. Ask your instructor to regenerate a new code.");
-      return;
-    }
-
-    await updateDoc(doc(db, "users", currentStudentUid), {
-      classroomCode: enteredCode
-    });
-
-    await logActivity({
-      category: "Enrolment",
-      details: `${currentStudentEmail} enrolled into session ${enteredCode}`,
-      classroomCode: enteredCode,
-      userEmail: currentStudentEmail
-    });
-
-    alert(`Successfully enrolled in classroom session: ${enteredCode}`);
-    window.location.reload();
-
-  } catch (err) {
-    console.error("Classroom join error:", err);
-    alert("Failed to join classroom: " + err.message);
-  } finally {
-    if (btnJoinClass) {
-      btnJoinClass.disabled = false;
-      btnJoinClass.textContent = "Link Classroom";
-    }
+    // Setup student dashboard data
+    await renderEnrolledSection(userData);
+    await countCompletedCases(user.uid);
+    setupJoinForm(user, userData);
   }
 });
 
-function listenToClassroomSession(classCode) {
-  if (classroomUnsubscribe) classroomUnsubscribe();
+/**
+ * Renders active classroom affiliation or prompts student to link a code.
+ */
+async function renderEnrolledSection(userData) {
+  const classroomCode = userData.classroomCode;
 
-  const q = query(collection(db, "classrooms"), where("code", "==", classCode));
-  classroomUnsubscribe = onSnapshot(q, (snapshot) => {
-    if (snapshot.empty) {
-      handleSessionExpired("Session no longer exists in database.");
-      return;
+  if (classroomCode) {
+    if (joinCard) joinCard.style.display = "none";
+    if (displayEnrolledCode) displayEnrolledCode.textContent = classroomCode;
+    if (badgeClassStatus) {
+      badgeClassStatus.textContent = "ENROLLED";
+      badgeClassStatus.className = "status-badge active";
     }
 
-    const classData = snapshot.docs[0].data();
-    const isStillActive = classData.active === true;
-    const isNotExpired = classData.expiresAt ? classData.expiresAt.toDate() > new Date() : true;
+    try {
+      const classQ = query(collection(db, "classrooms"), where("code", "==", classroomCode));
+      const classSnap = await getDocs(classQ);
 
-    if (!isStillActive || !isNotExpired) {
-      handleSessionExpired("Instructor has closed or completed this session.");
-    } else {
-      if (joinCard) joinCard.style.display = "none";
-      if (displayEnrolledCode) displayEnrolledCode.textContent = classCode;
-      if (displayClassDesc) displayClassDesc.textContent = "Connected to active instructor simulation session.";
-      if (badgeClassStatus) {
-        badgeClassStatus.textContent = "Session Active";
-        badgeClassStatus.className = "status-badge active";
+      if (!classSnap.empty) {
+        const classData = classSnap.docs[0].data();
+        if (displayClassDesc) {
+          displayClassDesc.textContent = `${classData.name || "Academic Classroom"} (${classData.section || "Active Cohort"})`;
+        }
+      } else {
+        if (displayClassDesc) {
+          displayClassDesc.textContent = "Linked to session code " + classroomCode;
+        }
       }
+    } catch (err) {
+      console.error("Failed to load classroom details:", err);
+      if (displayClassDesc) displayClassDesc.textContent = "Enrolled Section: " + classroomCode;
     }
-  }, (err) => {
-    console.error("Error monitoring classroom session:", err);
+  } else {
+    if (joinCard) joinCard.style.display = "block";
+    if (displayEnrolledCode) displayEnrolledCode.textContent = "UNLINKED";
+    if (badgeClassStatus) {
+      badgeClassStatus.textContent = "UNLINKED";
+      badgeClassStatus.className = "status-badge";
+    }
+    if (displayClassDesc) {
+      displayClassDesc.textContent = "No classroom linked. Enter a new classroom code to join.";
+    }
+  }
+}
+
+/**
+ * Queries completed/graded submissions for the current student.
+ */
+async function countCompletedCases(studentUid) {
+  if (!statCompletedCount) return;
+
+  try {
+    const subQ = query(
+      collection(db, "submissions"), 
+      where("studentUid", "==", studentUid),
+      where("status", "==", "evaluated")
+    );
+    const subSnap = await getDocs(subQ);
+    statCompletedCount.textContent = subSnap.size;
+  } catch (err) {
+    console.error("Failed to fetch completed cases:", err);
+    statCompletedCount.textContent = "0";
+  }
+}
+
+/**
+ * Handles permanent section linking by validating join codes and updating rosters.
+ */
+function setupJoinForm(user, userData) {
+  formJoin?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const enteredCode = inputCode.value.trim().toUpperCase();
+
+    if (!enteredCode) return;
+
+    btnJoin.disabled = true;
+    btnJoin.textContent = "Verifying Code...";
+
+    try {
+      // 1. Locate active classroom by permanent code
+      const classQ = query(collection(db, "classrooms"), where("code", "==", enteredCode));
+      const classSnap = await getDocs(classQ);
+
+      if (classSnap.empty) {
+        alert("Invalid Classroom Code. Please verify with your instructor.");
+        btnJoin.disabled = false;
+        btnJoin.textContent = "Link Classroom";
+        return;
+      }
+
+      const classroomDoc = classSnap.docs[0];
+      const classroomRef = classroomDoc.ref;
+      const classroomData = classroomDoc.data();
+
+      // 2. Add student to classroom's enrolled array
+      const studentEntry = {
+        uid: user.uid,
+        email: user.email,
+        name: `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || user.email,
+        joinedAt: new Date().toISOString()
+      };
+
+      await updateDoc(classroomRef, {
+        students: arrayUnion(studentEntry)
+      });
+
+      // 3. Update student user document
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        classroomCode: enteredCode,
+        classroomId: classroomDoc.id,
+        updatedAt: serverTimestamp()
+      });
+
+      // 4. Log telemetry activity
+      await logActivity({
+        category: "Classroom",
+        details: `${user.email} joined classroom ${enteredCode} (${classroomData.name || "Course"})`,
+        classroomCode: enteredCode,
+        userEmail: user.email
+      });
+
+      alert(`Successfully enrolled in ${classroomData.name || enteredCode}!`);
+      window.location.reload();
+
+    } catch (err) {
+      console.error("Classroom join error:", err);
+      alert("Failed to join classroom: " + err.message);
+      btnJoin.disabled = false;
+      btnJoin.textContent = "Link Classroom";
+    }
   });
 }
-
-function handleSessionExpired(reasonText) {
-  if (joinCard) joinCard.style.display = "block";
-  if (displayEnrolledCode) displayEnrolledCode.textContent = "EXPIRED";
-  if (displayClassDesc) displayClassDesc.textContent = reasonText + " Enter a new code above to re-link.";
-  if (badgeClassStatus) {
-    badgeClassStatus.textContent = "Inactive";
-    badgeClassStatus.className = "status-badge";
-  }
-}
-
-async function loadSubmissionCount(uid) {
-  try {
-    const q = query(collection(db, "submissions"), where("studentUid", "==", uid));
-    const snap = await getDocs(q);
-    if (statCompletedCount) statCompletedCount.textContent = snap.size;
-  } catch (e) {
-    console.warn("Could not load submissions count:", e);
-  }
-}
-
-initAuthGuard({
-  onReady: ({ user, userData }) => {
-    currentStudentUid = user.uid;
-    currentStudentEmail = user.email || "";
-
-    if (userData.classroomCode) {
-      listenToClassroomSession(userData.classroomCode);
-    } else {
-      handleSessionExpired("No classroom session linked.");
-    }
-
-    loadSubmissionCount(user.uid);
-  }
-});

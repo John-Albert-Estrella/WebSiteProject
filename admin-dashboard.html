@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aimser - System Administration</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
+      <p>Management Simulator</p>
+    </div>
+
+    <div class="sidebar-user-card">
+      <span class="welcome-tag">SYSTEM ADMIN</span>
+      <h3 id="sidebar-greeting-name">Administrator</h3>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="admin-dashboard.html" class="nav-item active">🛡️ Admin Console</a>
+      <a href="planner.html" class="nav-item">📋 Project Planner</a>
+      <a href="feed.html" class="nav-item">💬 HR Feed</a>
+      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
+      <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
+      <a href="performance.html" class="nav-item">📈 Performance Management</a>
+      <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
+      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
+      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="settings.html" class="nav-item">⚙️ Settings</a>
+    </nav>
+  </aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="brand-group">
+        <span class="faculty-name-display" id="topbar-user-name">Root Administrator</span>
+        <span class="role-tag admin" id="topbar-role-badge">ADMIN</span>
+      </div>
+      <div class="nav-actions">
+        <div class="notifications-wrapper">
+          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
+            <img src="assets/bell.png" alt="Bell" class="bell-icon">
+            <span class="notif-badge hidden" id="notif-badge">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-header">
+              <h4 class="notif-title">Notifications</h4>
+              <button type="button" class="btn-mark-all-read" id="btn-mark-all-read">Mark all as read</button>
+            </div>
+            <div class="notif-list" id="notif-list">
+              <div class="notif-empty">No notifications yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="page-container">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Aimser Administration Console</h1>
+          <p class="page-subtitle">Global user directory, institutional role elevation, active section monitors, and simulator audit records.</p>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Total Users</h2>
+              <p class="card-subtitle">All registered accounts</p>
+            </div>
+          </div>
+          <div class="enrolled-stat-number" id="admin-stat-users">0</div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Faculty Instructors</h2>
+              <p class="card-subtitle">Elevated academic accounts</p>
+            </div>
+          </div>
+          <div class="enrolled-stat-number" id="admin-stat-faculty">0</div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Active Classrooms</h2>
+              <p class="card-subtitle">Live section spaces</p>
+            </div>
+          </div>
+          <div class="enrolled-stat-number" id="admin-stat-classrooms">0</div>
+        </section>
+
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Total Submissions</h2>
+              <p class="card-subtitle">Cloudinary deliverable assets</p>
+            </div>
+          </div>
+          <div class="enrolled-stat-number" id="admin-stat-submissions">0</div>
+        </section>
+      </div>
+
+      <section class="card roster-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Global User Directory & Role Assignment</h2>
+            <p class="card-subtitle">Promote or demote user roles, inspect classroom allocations, and purge unauthorized records.</p>
+          </div>
+          <button type="button" class="btn btn-secondary" id="btn-refresh-users">🔄 Refresh Directory</button>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>User Full Name</th>
+                <th>Institutional Email</th>
+                <th>Current Role</th>
+                <th>Classroom Code</th>
+                <th>Role Elevation Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-tbody">
+              <tr>
+                <td colspan="5" class="empty-state">Loading user directory from Firestore...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card roster-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Active Simulation Classrooms</h2>
+            <p class="card-subtitle">Instructor codes currently live on the network.</p>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Classroom Code</th>
+                <th>Faculty UID</th>
+                <th>Status</th>
+                <th>Type</th>
+                <th>Administrative Force Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-classrooms-tbody">
+              <tr>
+                <td colspan="5" class="empty-state">Loading active classroom sessions...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/admin-dashboard.js"></script>
+  <script type="module" src="js/theme.js"></script>
+</body>
+</html>

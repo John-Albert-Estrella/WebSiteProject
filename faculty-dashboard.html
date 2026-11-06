@@ -8,7 +8,6 @@
 </head>
 <body>
 
-  <!-- Sidebar Rail -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
@@ -16,13 +15,7 @@
     </div>
 
     <div class="sidebar-user-card">
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <span class="welcome-tag">WORKSPACE</span>
-        <div class="theme-switch-pills">
-          <button type="button" class="theme-pill-btn active" data-theme-set="dark" title="Dark Mode">🌙</button>
-          <button type="button" class="theme-pill-btn" data-theme-set="light" title="Light Mode">☀️</button>
-        </div>
-      </div>
+      <span class="welcome-tag">WORKSPACE</span>
       <h3 id="sidebar-greeting-name">Welcome back!</h3>
     </div>
 
@@ -36,10 +29,10 @@
       <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
       <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
       <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
 
-  <!-- Main Content Space -->
   <div class="main-content">
     <header class="topbar">
       <div class="brand-group">
@@ -47,91 +40,104 @@
         <span class="role-tag faculty" id="topbar-role-badge">FACULTY</span>
       </div>
       <div class="nav-actions">
-        <button type="button" class="btn btn-secondary" id="btn-logout">Sign Out</button>
+        <div class="notifications-wrapper">
+          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
+            <img src="assets/bell.png" alt="Bell" class="bell-icon">
+            <span class="notif-badge hidden" id="notif-badge">0</span>
+          </button>
+          <div class="notif-dropdown" id="notif-dropdown">
+            <div class="notif-header">
+              <h4 class="notif-title">Notifications</h4>
+              <button type="button" class="btn-mark-all-read" id="btn-mark-all-read">Mark all as read</button>
+            </div>
+            <div class="notif-list" id="notif-list">
+              <div class="notif-empty">No notifications yet.</div>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
     <main class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Faculty Control Center</h1>
-          <p class="page-subtitle">Generate active session access codes, track expiration, and manage enrolled cohort rosters.</p>
+          <h1 class="page-title">Classroom Management</h1>
+          <p class="page-subtitle">Create permanent classroom sections, share permanent join codes with students, and manage enrollment rosters.</p>
         </div>
+        <button type="button" class="btn btn-primary" id="btn-open-create-modal">+ Create New Class</button>
       </div>
 
-      <div class="dashboard-grid">
-
-        <!-- Active Class Code Generator Tile -->
-        <section class="card classroom-control-card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Active Classroom Code</h2>
-              <p class="card-subtitle">Generate a temporary join code for student registration.</p>
-            </div>
-            <span class="status-badge" id="class-status-badge">No Active Session</span>
+      <section class="card" id="create-class-modal">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Create Simulation Classroom</h2>
+            <p class="card-subtitle">Permanent class space with unique student join code.</p>
           </div>
-
-          <div class="code-display-container">
-            <div class="code-box">
-              <span id="display-class-code">------</span>
-              <button type="button" class="btn-icon" id="btn-copy-code" title="Copy to clipboard" disabled>📋</button>
+          <button type="button" class="btn btn-secondary" id="btn-close-create-modal">Cancel</button>
+        </div>
+        <form id="form-create-class" class="auth-form">
+          <div class="form-row-duo">
+            <div class="form-group">
+              <label class="form-label" for="input-class-name">Class / Course Name</label>
+              <input type="text" id="input-class-name" class="form-control" placeholder="e.g. Human Resource Management 101" required>
             </div>
-            <div class="countdown-box">
-              <span class="countdown-label">Time Remaining</span>
-              <span class="countdown-timer" id="code-countdown">--:--</span>
+            <div class="form-group">
+              <label class="form-label" for="input-class-section">Section / Cohort</label>
+              <input type="text" id="input-class-section" class="form-control" placeholder="e.g. BSIT 3-A" required>
             </div>
           </div>
-
           <div class="card-actions">
-            <button type="button" class="btn btn-primary" id="btn-generate-code">Generate 60-Minute Code</button>
-            <button type="button" class="btn btn-secondary" id="btn-expire-code" disabled>Deactivate Code</button>
+            <button type="submit" class="btn btn-primary" id="btn-submit-create-class">Create Class Space</button>
           </div>
-        </section>
+        </form>
+      </section>
 
-        <!-- Quick Session Stats Tile -->
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Enrolled Students</h2>
-              <p class="card-subtitle">Total students currently registered with your active code.</p>
-            </div>
+      <section class="card roster-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Your Classroom Spaces</h2>
+            <p class="card-subtitle">Select a class to inspect enrolled students or grab its permanent join code.</p>
           </div>
-          <div class="enrolled-stat-number" id="enrolled-count">0</div>
-          <p class="stat-description">
-            Students will automatically appear in the roster below upon entering this code during signup.
-          </p>
-        </section>
+        </div>
+        <div id="classes-grid" class="dashboard-grid">
+          <div class="empty-state"><p>Loading your classrooms...</p></div>
+        </div>
+      </section>
 
-        <!-- Student Roster Tile -->
-        <section class="card roster-card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Classroom Roster</h2>
-              <p class="card-subtitle">Real-time listing of students connected to your classroom session.</p>
-            </div>
+      <section class="card roster-card" id="roster-panel">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title" id="roster-heading">Enrolled Students</h2>
+            <p class="card-subtitle" id="roster-subheading">Classroom roster list</p>
           </div>
-
-          <div class="table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Student Name</th>
-                  <th>Institutional Email</th>
-                  <th>Joined At</th>
-                  <th>Role</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="roster-tbody">
-                <tr>
-                  <td colspan="5" class="empty-state">No active classroom session. Generate a code above to view students.</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="nav-actions">
+            <button type="button" class="btn btn-secondary" id="btn-copy-class-code">📋 Copy Join Code</button>
+            <button type="button" class="btn btn-secondary danger-action" id="btn-delete-class">
+              Delete Classroom
+            </button>
           </div>
-        </section>
+        </div>
 
-      </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Institutional Email</th>
+                <th>Joined At</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="roster-tbody">
+              <tr>
+                <td colspan="5" class="empty-state">No students enrolled yet. Share the code to invite students.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
     </main>
   </div>
 
