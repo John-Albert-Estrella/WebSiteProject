@@ -3,7 +3,6 @@ import { initAuthGuard } from "./auth-guard.js";
 import { logActivity } from "./audit-logger.js";
 import { 
   doc, 
-  getDoc, 
   updateDoc, 
   arrayUnion, 
   collection, 
@@ -18,11 +17,7 @@ const joinCard = document.getElementById("join-classroom-card");
 const formJoin = document.getElementById("form-join-class");
 const inputCode = document.getElementById("input-class-code");
 const btnJoin = document.getElementById("btn-join-class");
-
-const displayClassDesc = document.getElementById("display-class-desc");
-const displayEnrolledCode = document.getElementById("display-enrolled-code");
-const badgeClassStatus = document.getElementById("badge-class-status");
-const statCompletedCount = document.getElementById("stat-completed-count");
+const displayContainer = document.getElementById("classroom-display-container");
 
 initAuthGuard({
   allowedRoles: ["student", "faculty", "admin"],
@@ -36,130 +31,97 @@ initAuthGuard({
       return;
     }
 
-    await renderEnrolledSection(user, userData);
-    await countCompletedCases(user.uid);
+    await renderClassroomCard(user, userData);
     setupJoinForm(user, userData);
   }
 });
 
-async function renderEnrolledSection(user, userData) {
+async function renderClassroomCard(user, userData) {
   const classroomCode = userData.classroomCode;
   const pendingCode = userData.pendingClassroomCode;
+  displayContainer.innerHTML = "";
 
   if (classroomCode) {
     try {
-      const classQ = query(collection(db, "classrooms"), where("code", "==", classroomCode));
-      const classSnap = await getDocs(classQ);
+      const q = query(collection(db, "classrooms"), where("code", "==", classroomCode));
+      const snap = await getDocs(q);
 
-      // Auto-cleanup: If the classroom was deleted by faculty, unlink the student immediately
-      if (classSnap.empty) {
+      if (snap.empty) {
+        // Classroom deleted
         await updateDoc(doc(db, "users", user.uid), {
           classroomCode: null,
           classroomId: null,
           updatedAt: serverTimestamp()
         });
-        showUnlinkedUI();
+        if (joinCard) joinCard.style.display = "block";
         return;
       }
 
-      const classData = classSnap.docs[0].data();
-      
-      // Verify student is actually present in the classroom's student roster
+      const classData = snap.docs[0].data();
       const isEnrolled = (classData.students || []).some(s => s.uid === user.uid);
+
       if (!isEnrolled) {
         await updateDoc(doc(db, "users", user.uid), {
           classroomCode: null,
           classroomId: null,
           updatedAt: serverTimestamp()
         });
-        showUnlinkedUI();
+        if (joinCard) joinCard.style.display = "block";
         return;
       }
 
-      // Valid Active Enrollment
+      // Hide join card and show active classroom entry button
       if (joinCard) joinCard.style.display = "none";
-      if (displayEnrolledCode) displayEnrolledCode.textContent = classroomCode;
-      if (badgeClassStatus) {
-        badgeClassStatus.textContent = "ENROLLED";
-        badgeClassStatus.className = "status-badge active";
-        badgeClassStatus.style.background = "";
-        badgeClassStatus.style.color = "";
-        badgeClassStatus.style.borderColor = "";
-      }
-      if (displayClassDesc) {
-        displayClassDesc.textContent = `${classData.name || "Academic Classroom"} (${classData.section || "Cohort"})`;
-      }
+
+      const card = document.createElement("div");
+      card.className = "card class-entry-card";
+      card.innerHTML = `
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">${classData.name || "Academic Classroom"}</h2>
+            <p class="card-subtitle">${classData.section || "Active Cohort"} • Instructor: ${classData.facultyEmail || "Faculty"}</p>
+          </div>
+          <span class="status-badge active">ENROLLED</span>
+        </div>
+        <p style="font-size: 13.5px; color: var(--text-secondary); margin: 12px 0;">
+          Permanent Section Code: <strong style="color: var(--accent);">${classroomCode}</strong>
+        </p>
+        <div class="card-actions">
+          <a href="classroom.html?code=${classroomCode}" class="btn btn-primary" style="text-decoration: none;">
+            🚀 Enter Classroom Workspace
+          </a>
+        </div>
+      `;
+
+      displayContainer.appendChild(card);
 
     } catch (err) {
-      console.error("Failed to verify classroom records:", err);
-      showUnlinkedUI();
+      console.error("Error verifying class:", err);
     }
 
   } else if (pendingCode) {
-    // Check if the pending class was deleted while waiting
-    try {
-      const pendingQ = query(collection(db, "classrooms"), where("code", "==", pendingCode));
-      const pendingSnap = await getDocs(pendingQ);
-
-      if (pendingSnap.empty) {
-        await updateDoc(doc(db, "users", user.uid), {
-          pendingClassroomCode: null,
-          pendingClassroomId: null,
-          updatedAt: serverTimestamp()
-        });
-        showUnlinkedUI();
-        return;
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
     if (joinCard) joinCard.style.display = "none";
-    if (displayEnrolledCode) displayEnrolledCode.textContent = pendingCode;
-    if (badgeClassStatus) {
-      badgeClassStatus.textContent = "APPROVAL PENDING";
-      badgeClassStatus.className = "status-badge";
-      badgeClassStatus.style.background = "rgba(234, 179, 8, 0.15)";
-      badgeClassStatus.style.color = "#eab308";
-      badgeClassStatus.style.borderColor = "rgba(234, 179, 8, 0.3)";
-    }
-    if (displayClassDesc) {
-      displayClassDesc.textContent = `Join request sent for ${pendingCode}. Waiting for faculty instructor approval.`;
-    }
+
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Join Request Pending</h2>
+          <p class="card-subtitle">Waiting for instructor approval for section <strong>${pendingCode}</strong>.</p>
+        </div>
+        <span class="status-badge" style="background: rgba(234, 179, 8, 0.15); color: #eab308; border-color: rgba(234, 179, 8, 0.3);">
+          PENDING
+        </span>
+      </div>
+      <p style="font-size: 13.5px; color: var(--text-secondary); margin-top: 8px;">
+        You will receive a notification and full module access once your instructor accepts your request.
+      </p>
+    `;
+
+    displayContainer.appendChild(card);
   } else {
-    showUnlinkedUI();
-  }
-}
-
-function showUnlinkedUI() {
-  if (joinCard) joinCard.style.display = "block";
-  if (displayEnrolledCode) displayEnrolledCode.textContent = "UNLINKED";
-  if (badgeClassStatus) {
-    badgeClassStatus.textContent = "UNLINKED";
-    badgeClassStatus.className = "status-badge";
-    badgeClassStatus.style.background = "";
-    badgeClassStatus.style.color = "";
-    badgeClassStatus.style.borderColor = "";
-  }
-  if (displayClassDesc) {
-    displayClassDesc.textContent = "No classroom linked. Enter a join code to request enrollment.";
-  }
-}
-
-async function countCompletedCases(studentUid) {
-  if (!statCompletedCount) return;
-
-  try {
-    const subQ = query(
-      collection(db, "submissions"), 
-      where("studentUid", "==", studentUid),
-      where("status", "==", "evaluated")
-    );
-    const subSnap = await getDocs(subQ);
-    statCompletedCount.textContent = subSnap.size;
-  } catch (err) {
-    console.error("Failed to fetch completed cases:", err);
-    statCompletedCount.textContent = "0";
+    if (joinCard) joinCard.style.display = "block";
   }
 }
 
@@ -180,7 +142,7 @@ function setupJoinForm(user, userData) {
       if (classSnap.empty) {
         alert("Invalid Classroom Code. Please verify with your instructor.");
         btnJoin.disabled = false;
-        btnJoin.textContent = "Link Classroom";
+        btnJoin.textContent = "Submit Join Request";
         return;
       }
 
@@ -192,7 +154,7 @@ function setupJoinForm(user, userData) {
       if (alreadyEnrolled) {
         alert("You are already enrolled in this classroom.");
         btnJoin.disabled = false;
-        btnJoin.textContent = "Link Classroom";
+        btnJoin.textContent = "Submit Join Request";
         return;
       }
 
@@ -200,21 +162,19 @@ function setupJoinForm(user, userData) {
       if (alreadyPending) {
         alert("You already have a pending join request for this classroom.");
         btnJoin.disabled = false;
-        btnJoin.textContent = "Link Classroom";
+        btnJoin.textContent = "Submit Join Request";
         return;
       }
 
       const studentName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || user.email;
 
-      const requestEntry = {
-        uid: user.uid,
-        email: user.email,
-        name: studentName,
-        requestedAt: new Date().toISOString()
-      };
-
       await updateDoc(classroomRef, {
-        pendingRequests: arrayUnion(requestEntry)
+        pendingRequests: arrayUnion({
+          uid: user.uid,
+          email: user.email,
+          name: studentName,
+          requestedAt: new Date().toISOString()
+        })
       });
 
       await updateDoc(doc(db, "users", user.uid), {
@@ -227,7 +187,7 @@ function setupJoinForm(user, userData) {
         await addDoc(collection(db, "notifications"), {
           recipientUid: classroomData.facultyUid,
           category: "Classroom",
-          message: `${studentName} requested to join your class ${classroomData.name} (${enteredCode}).`,
+          message: `${studentName} requested to join class ${classroomData.name} (${enteredCode}).`,
           link: "faculty-dashboard.html",
           read: false,
           createdAt: serverTimestamp()
@@ -241,14 +201,14 @@ function setupJoinForm(user, userData) {
         userEmail: user.email
       });
 
-      alert(`Join request submitted! The instructor (${classroomData.facultyEmail || "Faculty"}) must approve your request before you can access the class.`);
+      alert(`Join request submitted! You will be notified once approved.`);
       window.location.reload();
 
     } catch (err) {
       console.error("Join request error:", err);
-      alert("Failed to request enrollment: " + err.message);
+      alert("Failed to submit request: " + err.message);
       btnJoin.disabled = false;
-      btnJoin.textContent = "Link Classroom";
+      btnJoin.textContent = "Submit Join Request";
     }
   });
 }

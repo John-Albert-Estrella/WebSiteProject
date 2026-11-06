@@ -20,15 +20,8 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
-      <a href="planner.html" class="nav-item">📋 Project Planner</a>
-      <a href="feed.html" class="nav-item">💬 HR Feed</a>
-      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-      <a href="recruitment.html" class="nav-item active">🎯 Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item">📈 Performance Management</a>
-      <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
-      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="student-dashboard.html" class="nav-item">📊 My Classrooms</a>
+      <a href="#" id="sidebar-class-hub-link" class="nav-item active">🏫 Classroom Hub</a>
       <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
@@ -61,8 +54,11 @@
     <main class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Recruitment & Staffing Simulator</h1>
-          <p class="page-subtitle">Review active job requisitions, evaluate applicant qualification matrices, and advance candidate pipelines.</p>
+          <div style="margin-bottom: 6px;">
+            <a href="#" id="breadcrumb-classroom-link" class="auth-link" style="font-size: 13px;">← Return to Classroom Hub</a>
+          </div>
+          <h1 class="page-title">Recruitment Simulator</h1>
+          <p class="page-subtitle" id="recruitment-subheading">Hiring pipelines and requisitions for section: <strong id="scope-class-code">Loading...</strong></p>
         </div>
       </div>
 
@@ -75,7 +71,7 @@
             </div>
           </div>
           <div id="job-orders-container" class="dashboard-grid feed-stream-grid">
-            <div class="empty-state"><p>Loading job requisitions...</p></div>
+            <div class="empty-state"><p>Loading requisitions for this classroom...</p></div>
           </div>
         </section>
 
@@ -87,7 +83,7 @@
             </div>
           </div>
           <div id="candidates-pipeline-container" class="dashboard-grid feed-stream-grid">
-            <div class="empty-state"><p>Select or inspect applicants...</p></div>
+            <div class="empty-state"><p>Select a job order to view applicants.</p></div>
           </div>
         </section>
       </div>

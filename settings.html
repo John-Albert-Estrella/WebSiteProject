@@ -8,6 +8,7 @@
 </head>
 <body>
 
+  <!-- Global Bento Rail Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
@@ -20,15 +21,7 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
-      <a href="planner.html" class="nav-item">📋 Project Planner</a>
-      <a href="feed.html" class="nav-item">💬 HR Feed</a>
-      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-      <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item">📈 Performance Management</a>
-      <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
-      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="student-dashboard.html" class="nav-item" id="sidebar-home-link">📊 My Classrooms</a>
       <a href="settings.html" class="nav-item active">⚙️ Settings</a>
     </nav>
   </aside>
@@ -61,6 +54,10 @@
     <main class="page-container">
       <div class="page-header">
         <div>
+          <!-- Contextual return to class hub if opened from inside a class -->
+          <div id="settings-classroom-return" style="display: none; margin-bottom: 8px;">
+            <a href="#" id="link-return-class" class="auth-link" style="font-size: 13px;">← Return to Classroom Hub (<span id="return-class-code"></span>)</a>
+          </div>
           <h1 class="page-title">Platform Settings</h1>
           <p class="page-subtitle">Personalize your simulator interface, update security credentials, and manage profile records.</p>
         </div>
@@ -70,7 +67,7 @@
 
       <div class="settings-grid">
         
-        <!-- Theme Picker -->
+        <!-- Appearance & Theme Selector -->
         <section class="card">
           <div class="card-header">
             <div>
@@ -100,7 +97,7 @@
           </div>
         </section>
 
-        <!-- Profile Information -->
+        <!-- Profile Details -->
         <section class="card">
           <div class="card-header">
             <div>
@@ -133,7 +130,7 @@
           </form>
         </section>
 
-        <!-- Password Change -->
+        <!-- Password & Security -->
         <section class="card">
           <div class="card-header">
             <div>
@@ -175,7 +172,7 @@
           </form>
         </section>
 
-        <!-- Sign Out Action Section -->
+        <!-- Dedicated Session Termination -->
         <section class="card danger-zone">
           <div class="card-header">
             <div>
@@ -184,7 +181,7 @@
             </div>
           </div>
           <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
-            Signing out will disconnect your active simulation tokens and return you to the login screen.
+            Signing out will disconnect your active simulation session and return you to the login screen.
           </p>
           <div class="card-actions">
             <button type="button" class="btn btn-logout-danger" id="btn-logout-settings">Sign Out of Aimser</button>

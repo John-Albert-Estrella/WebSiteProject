@@ -11,6 +11,37 @@ import {
   serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+// Add at the beginning of each module JS file:
+const urlParams = new URLSearchParams(window.location.search);
+let targetCode = urlParams.get("code");
+
+initAuthGuard({
+  allowedRoles: ["student", "faculty", "admin"],
+  onReady: async ({ user, userData, role }) => {
+    // If not supplied in URL, fallback to student's enrolled classroom
+    if (!targetCode && userData.classroomCode) {
+      targetCode = userData.classroomCode;
+    }
+
+    if (!targetCode) {
+      alert("No active classroom selected. Returning to dashboard.");
+      window.location.replace(role === "faculty" ? "faculty-dashboard.html" : "student-dashboard.html");
+      return;
+    }
+
+    // Set Scope Label & Breadcrumb Links
+    const scopeLabel = document.getElementById("scope-class-code");
+    const breadcrumbLink = document.getElementById("breadcrumb-classroom-link");
+    const sidebarClassLink = document.getElementById("sidebar-class-hub-link");
+
+    if (scopeLabel) scopeLabel.textContent = targetCode;
+    if (breadcrumbLink) breadcrumbLink.href = `classroom.html?code=${targetCode}`;
+    if (sidebarClassLink) sidebarClassLink.href = `classroom.html?code=${targetCode}`;
+
+    // Proceed to initialize module scoped to targetCode...
+  }
+});
+
 const uploadPanel = document.getElementById("upload-panel");
 const uploadPanelTitle = document.getElementById("upload-panel-title");
 const uploadCaseId = document.getElementById("upload-case-id");

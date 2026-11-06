@@ -6,15 +6,15 @@ import {
   query, 
   where, 
   getDocs, 
+  getDoc,
   addDoc, 
   doc, 
-  getDoc,
   deleteDoc, 
   updateDoc,
-  writeBatch,
   serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
+// DOM Elements
 const btnOpenCreateModal = document.getElementById("btn-open-create-modal");
 const btnCloseCreateModal = document.getElementById("btn-close-create-modal");
 const createModal = document.getElementById("create-class-modal");
@@ -27,17 +27,20 @@ const classesGrid = document.getElementById("classes-grid");
 const rosterPanel = document.getElementById("roster-panel");
 const rosterHeading = document.getElementById("roster-heading");
 const rosterSubheading = document.getElementById("roster-subheading");
-const rosterTbody = document.getElementById("roster-tbody");
-const pendingTbody = document.getElementById("pending-tbody");
-const pendingBadgeCount = document.getElementById("pending-badge-count");
+const btnEnterWorkspace = document.getElementById("btn-enter-workspace");
 const btnCopyCode = document.getElementById("btn-copy-class-code");
 const btnDeleteClass = document.getElementById("btn-delete-class");
+
+const pendingTbody = document.getElementById("pending-tbody");
+const pendingBadgeCount = document.getElementById("pending-badge-count");
+const rosterTbody = document.getElementById("roster-tbody");
 
 let currentUser = null;
 let selectedClassId = null;
 let selectedClassCode = "";
 let currentClassData = null;
 
+// Helper: Generate unique 4-character classroom code
 function generateClassCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let result = "AIM-";
@@ -47,6 +50,7 @@ function generateClassCode() {
   return result;
 }
 
+// Modal open/close controls
 btnOpenCreateModal?.addEventListener("click", () => {
   if (createModal) createModal.style.display = "block";
 });
@@ -55,6 +59,7 @@ btnCloseCreateModal?.addEventListener("click", () => {
   if (createModal) createModal.style.display = "none";
 });
 
+// Guard & Load
 initAuthGuard({
   allowedRoles: ["faculty", "admin"],
   onReady: async ({ user }) => {
@@ -63,6 +68,9 @@ initAuthGuard({
   }
 });
 
+/**
+ * Loads all classrooms owned by the currently authenticated faculty member
+ */
 async function loadFacultyClassrooms() {
   if (!classesGrid) return;
   classesGrid.innerHTML = `<div class="empty-state"><p>Loading your classrooms...</p></div>`;
@@ -123,6 +131,9 @@ async function loadFacultyClassrooms() {
   }
 }
 
+/**
+ * Select a classroom to display join requests, active roster, and direct entry link
+ */
 function selectClassroom(classId, classData) {
   selectedClassId = classId;
   selectedClassCode = classData.code;
@@ -132,12 +143,19 @@ function selectClassroom(classId, classData) {
   if (rosterHeading) rosterHeading.textContent = `${classData.name} (${classData.section})`;
   if (rosterSubheading) rosterSubheading.textContent = `Permanent Join Code: ${classData.code}`;
 
+  if (btnEnterWorkspace) {
+    btnEnterWorkspace.href = `classroom.html?code=${classData.code}`;
+  }
+
   renderPendingTable(classData.pendingRequests || []);
   renderRosterTable(classData.students || []);
 
   rosterPanel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
+/**
+ * Renders the pending join requests with Approve and Decline actions
+ */
 function renderPendingTable(pendingList) {
   if (!pendingTbody) return;
   pendingTbody.innerHTML = "";
@@ -187,6 +205,9 @@ function renderPendingTable(pendingList) {
   });
 }
 
+/**
+ * Handles instructor approval or decline of pending join requests
+ */
 async function handleRequestDecision(studentIndex, student, isApproved) {
   if (!selectedClassId) return;
 
@@ -226,8 +247,8 @@ async function handleRequestDecision(studentIndex, student, isApproved) {
       await addDoc(collection(db, "notifications"), {
         recipientUid: student.uid,
         category: "Enrollment",
-        message: `Your request to join ${data.name || selectedClassCode} (${selectedClassCode}) has been approved by the instructor!`,
-        link: "student-dashboard.html",
+        message: `Your request to join ${data.name || selectedClassCode} (${selectedClassCode}) has been approved!`,
+        link: `classroom.html?code=${selectedClassCode}`,
         read: false,
         createdAt: serverTimestamp()
       });
@@ -239,8 +260,7 @@ async function handleRequestDecision(studentIndex, student, isApproved) {
         userEmail: currentUser.email
       });
 
-      alert(`Approved ${student.name || student.email}! Notification sent to student.`);
-
+      alert(`Approved ${student.name || student.email}!`);
     } else {
       await updateDoc(classRef, {
         pendingRequests: pendingRequests
@@ -271,11 +291,14 @@ async function handleRequestDecision(studentIndex, student, isApproved) {
     await loadFacultyClassrooms();
 
   } catch (err) {
-    console.error("Failed to process decision:", err);
+    console.error("Decision error:", err);
     alert("Error processing decision: " + err.message);
   }
 }
 
+/**
+ * Renders the officially enrolled students table
+ */
 function renderRosterTable(students) {
   if (!rosterTbody) return;
   rosterTbody.innerHTML = "";
@@ -314,6 +337,9 @@ function renderRosterTable(students) {
   });
 }
 
+/**
+ * Create classroom form submission
+ */
 formCreateClass?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const name = inputClassName.value.trim();
@@ -360,6 +386,7 @@ formCreateClass?.addEventListener("submit", async (e) => {
   }
 });
 
+// Copy class join code button
 btnCopyCode?.addEventListener("click", () => {
   if (!selectedClassCode) return;
   navigator.clipboard.writeText(selectedClassCode).then(() => {
@@ -372,7 +399,7 @@ btnCopyCode?.addEventListener("click", () => {
 });
 
 /**
- * Deletes the classroom AND unlinks all enrolled and pending students cleanly
+ * Delete Classroom & Unlink all members
  */
 btnDeleteClass?.addEventListener("click", async () => {
   if (!selectedClassId) return;
@@ -388,7 +415,6 @@ btnDeleteClass?.addEventListener("click", async () => {
       const classData = snap.data();
       const allStudents = [...(classData.students || []), ...(classData.pendingRequests || [])];
 
-      // Unlink all students in this section
       for (const student of allStudents) {
         if (student.uid) {
           try {
@@ -400,28 +426,26 @@ btnDeleteClass?.addEventListener("click", async () => {
               updatedAt: serverTimestamp()
             });
 
-            // Notify student of dissolution
             await addDoc(collection(db, "notifications"), {
               recipientUid: student.uid,
               category: "Classroom",
-              message: `Classroom ${selectedClassCode} has been closed and removed by the instructor.`,
+              message: `Classroom ${selectedClassCode} has been closed by the instructor.`,
               link: "student-dashboard.html",
               read: false,
               createdAt: serverTimestamp()
             });
           } catch (e) {
-            console.warn("Could not notify student " + student.uid, e);
+            console.warn("Could not unlink student " + student.uid, e);
           }
         }
       }
     }
 
-    // Delete classroom document
     await deleteDoc(classRef);
 
     await logActivity({
       category: "Classroom",
-      details: `${currentUser.email} deleted classroom ${selectedClassCode} and unlinked all members`,
+      details: `${currentUser.email} deleted classroom ${selectedClassCode}`,
       classroomCode: selectedClassCode,
       userEmail: currentUser.email
     });
@@ -431,7 +455,7 @@ btnDeleteClass?.addEventListener("click", async () => {
     if (rosterPanel) rosterPanel.style.display = "none";
     await loadFacultyClassrooms();
 
-    alert("Classroom deleted and all enrolled students unlinked successfully.");
+    alert("Classroom deleted successfully.");
 
   } catch (err) {
     console.error("Error deleting classroom:", err);
@@ -439,6 +463,9 @@ btnDeleteClass?.addEventListener("click", async () => {
   }
 });
 
+/**
+ * Remove an enrolled student from the section
+ */
 async function removeStudent(studentIndex, studentData) {
   if (!selectedClassId) return;
 
@@ -460,8 +487,7 @@ async function removeStudent(studentIndex, studentData) {
     if (studentData.uid) {
       await updateDoc(doc(db, "users", studentData.uid), {
         classroomCode: null,
-        classroomId: null,
-        updatedAt: serverTimestamp()
+        classroomId: null
       });
 
       await addDoc(collection(db, "notifications"), {

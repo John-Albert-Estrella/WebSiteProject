@@ -20,15 +20,8 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
-      <a href="planner.html" class="nav-item active">📋 Project Planner</a>
-      <a href="feed.html" class="nav-item">💬 HR Feed</a>
-      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-      <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item">📈 Performance Management</a>
-      <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
-      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="student-dashboard.html" class="nav-item">📊 My Classrooms</a>
+      <a href="#" id="sidebar-class-hub-link" class="nav-item active">🏫 Classroom Hub</a>
       <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
@@ -61,17 +54,20 @@
     <main class="page-container">
       <div class="page-header">
         <div>
+          <div style="margin-bottom: 6px;">
+            <a href="#" id="breadcrumb-classroom-link" class="auth-link" style="font-size: 13px;">← Return to Classroom Hub</a>
+          </div>
           <h1 class="page-title">Project Planner</h1>
-          <p class="page-subtitle">Interactive Kanban board for milestone tracking and deliverable management.</p>
+          <p class="page-subtitle" id="planner-subheading">Kanban board milestone tracking for section: <strong id="scope-class-code">Loading...</strong></p>
         </div>
         <button type="button" class="btn btn-primary" id="btn-open-task-modal">+ Add Task</button>
       </div>
 
-      <section class="card" id="task-modal">
+      <section class="card" id="task-modal" style="display: none; margin-bottom: 20px;">
         <div class="card-header">
           <div>
             <h2 class="card-title">Create Planner Task</h2>
-            <p class="card-subtitle">Add a task item to your section board.</p>
+            <p class="card-subtitle">Task will be scoped to this classroom section.</p>
           </div>
           <button type="button" class="btn btn-secondary" id="btn-close-task-modal">Cancel</button>
         </div>
@@ -79,7 +75,7 @@
         <form id="form-create-task" class="auth-form">
           <div class="form-group">
             <label class="form-label" for="task-title">Task Title</label>
-            <input type="text" id="task-title" class="form-control" placeholder="e.g. Draft Recruitment Rubric" required>
+            <input type="text" id="task-title" class="form-control" placeholder="e.g. Draft Case Brief" required>
           </div>
 
           <div class="form-group">

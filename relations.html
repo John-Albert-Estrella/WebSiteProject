@@ -20,15 +20,8 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
-      <a href="planner.html" class="nav-item">📋 Project Planner</a>
-      <a href="feed.html" class="nav-item">💬 HR Feed</a>
-      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-      <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item">📈 Performance Management</a>
-      <a href="relations.html" class="nav-item active">🤝 Employee Relations</a>
-      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="student-dashboard.html" class="nav-item">📊 My Classrooms</a>
+      <a href="#" id="sidebar-class-hub-link" class="nav-item active">🏫 Classroom Hub</a>
       <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
@@ -61,8 +54,11 @@
     <main class="page-container">
       <div class="page-header">
         <div>
+          <div style="margin-bottom: 6px;">
+            <a href="#" id="breadcrumb-classroom-link" class="auth-link" style="font-size: 13px;">← Return to Classroom Hub</a>
+          </div>
           <h1 class="page-title">Employee Relations & Grievance Arbitration</h1>
-          <p class="page-subtitle">Investigate workplace labor disputes, enforce company policy, and submit arbitration determinations.</p>
+          <p class="page-subtitle" id="relations-subheading">Workplace dispute inquiries for section: <strong id="scope-class-code">Loading...</strong></p>
         </div>
       </div>
 
@@ -70,7 +66,7 @@
         <div class="card-header">
           <div>
             <h2 class="card-title">Workplace Grievance Inquiries</h2>
-            <p class="card-subtitle">Active conflict arbitration cases</p>
+            <p class="card-subtitle">Active arbitration dossiers</p>
           </div>
         </div>
 
@@ -88,7 +84,7 @@
             </thead>
             <tbody id="grievances-tbody">
               <tr>
-                <td colspan="6" class="empty-state">Loading grievance records...</td>
+                <td colspan="6" class="empty-state">Loading grievance records for this section...</td>
               </tr>
             </tbody>
           </table>

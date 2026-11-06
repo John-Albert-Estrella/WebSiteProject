@@ -17,7 +17,7 @@ export function synchronizeSidebar(role, currentPath) {
       firstNavItem.innerHTML = "📊 Faculty Dashboard";
     } else {
       firstNavItem.href = "student-dashboard.html";
-      firstNavItem.innerHTML = "📊 Dashboard";
+      firstNavItem.innerHTML = "📊 My Classrooms";
     }
   }
 
@@ -26,7 +26,7 @@ export function synchronizeSidebar(role, currentPath) {
 
   allNavLinks.forEach((link) => {
     const linkHref = link.getAttribute("href");
-    if (linkHref === fileName) {
+    if (linkHref && fileName.includes(linkHref.split("?")[0])) {
       link.classList.add("active");
     } else {
       link.classList.remove("active");

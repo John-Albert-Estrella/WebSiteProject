@@ -20,15 +20,7 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="faculty-dashboard.html" class="nav-item active">📊 Dashboard</a>
-      <a href="planner.html" class="nav-item">📋 Project Planner</a>
-      <a href="feed.html" class="nav-item">💬 HR Feed</a>
-      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-      <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item">📈 Performance Management</a>
-      <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
-      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="faculty-dashboard.html" class="nav-item active">📊 Faculty Dashboard</a>
       <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
@@ -61,13 +53,13 @@
     <main class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Classroom Management</h1>
-          <p class="page-subtitle">Create permanent classroom sections, review pending enrollment join requests, and manage student rosters.</p>
+          <h1 class="page-title">Classroom Hub</h1>
+          <p class="page-subtitle">Manage class sections, approve student enrollments, or enter a classroom space to oversee simulation activities.</p>
         </div>
         <button type="button" class="btn btn-primary" id="btn-open-create-modal">+ Create New Class</button>
       </div>
 
-      <!-- Create New Class Modal -->
+      <!-- Create Modal -->
       <section class="card" id="create-class-modal" style="display: none;">
         <div class="card-header">
           <div>
@@ -80,11 +72,11 @@
           <div class="form-row-duo">
             <div class="form-group">
               <label class="form-label" for="input-class-name">Class / Course Name</label>
-              <input type="text" id="input-class-name" class="form-control" placeholder="e.g. Human Resource Management 101" required>
+              <input type="text" id="input-class-name" class="form-control" placeholder="e.g. Strategic HR 201" required>
             </div>
             <div class="form-group">
               <label class="form-label" for="input-class-section">Section / Cohort</label>
-              <input type="text" id="input-class-section" class="form-control" placeholder="e.g. BSIT 3-A" required>
+              <input type="text" id="input-class-section" class="form-control" placeholder="e.g. BSIT 4-B" required>
             </div>
           </div>
           <div class="card-actions">
@@ -93,12 +85,12 @@
         </form>
       </section>
 
-      <!-- Active Classes Grid -->
+      <!-- Classrooms Grid -->
       <section class="card roster-card">
         <div class="card-header">
           <div>
             <h2 class="card-title">Your Classroom Spaces</h2>
-            <p class="card-subtitle">Select a class below to review pending enrollment requests and inspect roster.</p>
+            <p class="card-subtitle">Select a section to manage enrollment or launch its modules.</p>
           </div>
         </div>
         <div id="classes-grid" class="dashboard-grid">
@@ -106,17 +98,30 @@
         </div>
       </section>
 
-      <!-- Selected Class Management Container -->
+      <!-- Selected Class Details & Join Approvals -->
       <div id="roster-panel" style="display: none; display: flex; flex-direction: column; gap: 20px;">
-        
-        <!-- PENDING REQUESTS QUEUE -->
-        <section class="card roster-card" id="pending-requests-card">
+        <section class="card roster-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title" id="roster-heading">Class Workspace</h2>
+              <p class="card-subtitle" id="roster-subheading">Manage enrollment roster and launch simulation</p>
+            </div>
+            <div class="nav-actions">
+              <a href="#" id="btn-enter-workspace" class="btn btn-primary" style="text-decoration: none;">🚀 Enter Classroom Modules</a>
+              <button type="button" class="btn btn-secondary" id="btn-copy-class-code">📋 Copy Join Code</button>
+              <button type="button" class="btn btn-secondary danger-action" id="btn-delete-class">Delete Class</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- PENDING APPROVAL QUEUE -->
+        <section class="card roster-card">
           <div class="card-header">
             <div>
               <h2 class="card-title">Pending Join Requests</h2>
-              <p class="card-subtitle" id="pending-subheading">Students waiting for your approval to join.</p>
+              <p class="card-subtitle">Students waiting for enrollment approval</p>
             </div>
-            <span class="status-badge" id="pending-badge-count" style="background: rgba(234, 179, 8, 0.15); color: #eab308; border-color: rgba(234, 179, 8, 0.3);">0 Pending</span>
+            <span class="status-badge" id="pending-badge-count">0 Pending</span>
           </div>
 
           <div class="table-container">
@@ -130,26 +135,18 @@
                 </tr>
               </thead>
               <tbody id="pending-tbody">
-                <tr>
-                  <td colspan="4" class="empty-state">No pending join requests for this section.</td>
-                </tr>
+                <tr><td colspan="4" class="empty-state">No pending join requests.</td></tr>
               </tbody>
             </table>
           </div>
         </section>
 
-        <!-- ENROLLED ROSTER TABLE -->
+        <!-- ROSTER TABLE -->
         <section class="card roster-card">
           <div class="card-header">
             <div>
-              <h2 class="card-title" id="roster-heading">Enrolled Students</h2>
-              <p class="card-subtitle" id="roster-subheading">Official classroom roster</p>
-            </div>
-            <div class="nav-actions">
-              <button type="button" class="btn btn-secondary" id="btn-copy-class-code">📋 Copy Join Code</button>
-              <button type="button" class="btn btn-secondary danger-action" id="btn-delete-class">
-                Delete Classroom
-              </button>
+              <h2 class="card-title">Enrolled Students</h2>
+              <p class="card-subtitle">Active student members</p>
             </div>
           </div>
 
@@ -165,14 +162,11 @@
                 </tr>
               </thead>
               <tbody id="roster-tbody">
-                <tr>
-                  <td colspan="5" class="empty-state">No students enrolled yet. Share the code to invite students.</td>
-                </tr>
+                <tr><td colspan="5" class="empty-state">No students enrolled yet.</td></tr>
               </tbody>
             </table>
           </div>
         </section>
-
       </div>
 
     </main>

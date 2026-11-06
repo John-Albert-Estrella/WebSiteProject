@@ -15,21 +15,31 @@ import {
 
 const alertBox = document.getElementById("settings-alert-box");
 
+// Contextual Return Elements
+const returnContainer = document.getElementById("settings-classroom-return");
+const returnClassLink = document.getElementById("link-return-class");
+const returnClassCode = document.getElementById("return-class-code");
+const sidebarHomeLink = document.getElementById("sidebar-home-link");
+
+// Appearance Elements
 const themeDarkOpt = document.getElementById("theme-dark-opt");
 const themeLightOpt = document.getElementById("theme-light-opt");
 
+// Profile Elements
 const formProfile = document.getElementById("form-update-profile");
 const inputFirstName = document.getElementById("setting-first-name");
 const inputLastName = document.getElementById("setting-last-name");
 const inputEmail = document.getElementById("setting-email");
 const btnSaveProfile = document.getElementById("btn-save-profile");
 
+// Security Elements
 const formPassword = document.getElementById("form-update-password");
 const inputCurrentPass = document.getElementById("setting-current-pass");
 const inputNewPass = document.getElementById("setting-new-pass");
 const inputConfirmPass = document.getElementById("setting-confirm-pass");
 const btnSavePassword = document.getElementById("btn-save-password");
 
+// Sign Out Element
 const btnLogoutSettings = document.getElementById("btn-logout-settings");
 
 let currentUser = null;
@@ -42,6 +52,9 @@ function showAlert(message, isError = false) {
   alertBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
+// -------------------------------------------------------------------------
+// 1. THEME SWITCHER CONTROLS
+// -------------------------------------------------------------------------
 function syncThemeCards() {
   const currentTheme = document.documentElement.getAttribute("data-theme") || localStorage.getItem("aimser-theme") || "dark";
   
@@ -63,6 +76,9 @@ function applyTheme(themeName) {
 themeDarkOpt?.addEventListener("click", () => applyTheme("dark"));
 themeLightOpt?.addEventListener("click", () => applyTheme("light"));
 
+// -------------------------------------------------------------------------
+// 2. PASSWORD VISIBILITY TOGGLE HANDLERS
+// -------------------------------------------------------------------------
 document.querySelectorAll(".btn-toggle-password").forEach(btn => {
   btn.addEventListener("click", () => {
     const targetId = btn.dataset.target;
@@ -79,6 +95,9 @@ document.querySelectorAll(".btn-toggle-password").forEach(btn => {
   });
 });
 
+// -------------------------------------------------------------------------
+// 3. PROFILE DETAILS SUBMISSION
+// -------------------------------------------------------------------------
 formProfile?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -125,6 +144,9 @@ formProfile?.addEventListener("submit", async (e) => {
   }
 });
 
+// -------------------------------------------------------------------------
+// 4. IN-SESSION PASSWORD UPDATE VIA RE-AUTHENTICATION
+// -------------------------------------------------------------------------
 formPassword?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -173,7 +195,9 @@ formPassword?.addEventListener("submit", async (e) => {
   }
 });
 
-// Dedicated Sign Out Handler in Settings
+// -------------------------------------------------------------------------
+// 5. SIGN OUT HANDLER
+// -------------------------------------------------------------------------
 btnLogoutSettings?.addEventListener("click", async () => {
   const confirmed = confirm("Are you sure you want to end your simulator session and sign out?");
   if (!confirmed) return;
@@ -187,13 +211,40 @@ btnLogoutSettings?.addEventListener("click", async () => {
   }
 });
 
+// -------------------------------------------------------------------------
+// 6. INITIALIZATION & CLASS CONTEXT DETECTION
+// -------------------------------------------------------------------------
 initAuthGuard({
-  onReady: ({ user, userData }) => {
+  onReady: ({ user, userData, role }) => {
     currentUser = user;
 
     if (inputFirstName) inputFirstName.value = userData.firstName || "";
     if (inputLastName) inputLastName.value = userData.lastName || "";
     if (inputEmail) inputEmail.value = user.email || "";
+
+    // Adjust the primary sidebar link according to role
+    if (sidebarHomeLink) {
+      if (role === "faculty") {
+        sidebarHomeLink.href = "faculty-dashboard.html";
+        sidebarHomeLink.innerHTML = "📊 Faculty Dashboard";
+      } else if (role === "admin") {
+        sidebarHomeLink.href = "admin-dashboard.html";
+        sidebarHomeLink.innerHTML = "🛡️ Admin Console";
+      } else {
+        sidebarHomeLink.href = "student-dashboard.html";
+        sidebarHomeLink.innerHTML = "📊 My Classrooms";
+      }
+    }
+
+    // Check if the user arrived with a classroom code in URL or from profile
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeCode = urlParams.get("code") || userData.classroomCode;
+
+    if (activeCode && returnContainer && returnClassLink && returnClassCode) {
+      returnClassCode.textContent = activeCode;
+      returnClassLink.href = `classroom.html?code=${activeCode}`;
+      returnContainer.style.display = "block";
+    }
 
     syncThemeCards();
   }

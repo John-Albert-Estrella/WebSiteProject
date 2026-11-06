@@ -20,15 +20,8 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="student-dashboard.html" class="nav-item">📊 Dashboard</a>
-      <a href="planner.html" class="nav-item">📋 Project Planner</a>
-      <a href="feed.html" class="nav-item active">💬 HR Feed</a>
-      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-      <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item">📈 Performance Management</a>
-      <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
-      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="student-dashboard.html" class="nav-item">📊 My Classrooms</a>
+      <a href="#" id="sidebar-class-hub-link" class="nav-item active">🏫 Classroom Hub</a>
       <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
@@ -61,8 +54,11 @@
     <main class="page-container">
       <div class="page-header">
         <div>
+          <div style="margin-bottom: 6px;">
+            <a href="#" id="breadcrumb-classroom-link" class="auth-link" style="font-size: 13px;">← Return to Classroom Hub</a>
+          </div>
           <h1 class="page-title">HR Discussion Feed</h1>
-          <p class="page-subtitle">Engage with section peers on organizational policy, case solutions, and simulator scenarios.</p>
+          <p class="page-subtitle" id="feed-subheading">Deliberate organizational issues with section: <strong id="scope-class-code">Loading...</strong></p>
         </div>
       </div>
 
@@ -70,7 +66,7 @@
         <div class="card-header">
           <div>
             <h2 class="card-title">Start a Discussion</h2>
-            <p class="card-subtitle">Broadcast a topic to all peers in your active section.</p>
+            <p class="card-subtitle">Broadcast a topic to peers in this classroom.</p>
           </div>
         </div>
 
@@ -91,7 +87,7 @@
         </form>
       </section>
 
-      <div id="posts-container" class="dashboard-grid feed-stream-grid">
+      <div id="posts-container" class="dashboard-grid feed-stream-grid" style="margin-top: 20px;">
         <div class="empty-state"><p>Loading section discussions...</p></div>
       </div>
     </main>

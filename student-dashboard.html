@@ -20,15 +20,7 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="student-dashboard.html" class="nav-item active">📊 Dashboard</a>
-      <a href="planner.html" class="nav-item">📋 Project Planner</a>
-      <a href="feed.html" class="nav-item">💬 HR Feed</a>
-      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-      <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item">📈 Performance Management</a>
-      <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
-      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
+      <a href="student-dashboard.html" class="nav-item active">📊 My Classrooms</a>
       <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
@@ -61,11 +53,12 @@
     <main class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Student Simulation Workspace</h1>
-          <p class="page-subtitle">Track your classroom enrollment, monitor case study evaluation grades, and access simulator modules.</p>
+          <h1 class="page-title">My Classrooms</h1>
+          <p class="page-subtitle">Access your active simulation courses or join a new section.</p>
         </div>
       </div>
 
+      <!-- Join Classroom Card -->
       <section class="card" id="join-classroom-card">
         <div class="card-header">
           <div>
@@ -87,87 +80,13 @@
             >
           </div>
           <div class="card-actions">
-            <button type="submit" class="btn btn-primary" id="btn-join-class">Link Classroom</button>
+            <button type="submit" class="btn btn-primary" id="btn-join-class">Submit Join Request</button>
           </div>
         </form>
       </section>
 
-      <div class="dashboard-grid">
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Enrolled Section</h2>
-              <p class="card-subtitle" id="display-class-desc">Connecting to active classroom records...</p>
-            </div>
-            <span class="status-badge" id="badge-class-status">Unlinked</span>
-          </div>
-          <div class="enrolled-stat-number" id="display-enrolled-code">------</div>
-        </section>
-
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Completed Cases</h2>
-              <p class="card-subtitle">Deliverables submitted and evaluated</p>
-            </div>
-          </div>
-          <div class="enrolled-stat-number" id="stat-completed-count">0</div>
-        </section>
-      </div>
-
-      <section class="card roster-card">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">Core Simulator Modules</h2>
-            <p class="card-subtitle">Access your assigned HR tasks and departmental simulators.</p>
-          </div>
-        </div>
-
-        <div class="dashboard-grid">
-          <a href="planner.html" class="card module-card">
-            <div class="card-header">
-              <h3 class="card-title">📋 Project Planner</h3>
-            </div>
-            <p class="card-subtitle">Agile Kanban workflow for organizing student deliverables and milestone deadlines.</p>
-          </a>
-
-          <a href="feed.html" class="card module-card">
-            <div class="card-header">
-              <h3 class="card-title">💬 HR Feed</h3>
-            </div>
-            <p class="card-subtitle">Departmental discussions, policy debates, and peer deliberation threads.</p>
-          </a>
-
-          <a href="case-library.html" class="card module-card">
-            <div class="card-header">
-              <h3 class="card-title">📁 HR Case Library</h3>
-            </div>
-            <p class="card-subtitle">Analyze institutional case studies and submit deliverables for evaluation.</p>
-          </a>
-
-          <a href="recruitment.html" class="card module-card">
-            <div class="card-header">
-              <h3 class="card-title">🎯 Recruitment Simulator</h3>
-            </div>
-            <p class="card-subtitle">Screen resumes, short-list candidate profiles, and resolve hiring orders.</p>
-          </a>
-
-          <a href="performance.html" class="card module-card">
-            <div class="card-header">
-              <h3 class="card-title">📈 Performance Management</h3>
-            </div>
-            <p class="card-subtitle">Conduct employee appraisals, score KPIs, and generate performance cycles.</p>
-          </a>
-
-          <a href="relations.html" class="card module-card">
-            <div class="card-header">
-              <h3 class="card-title">🤝 Employee Relations</h3>
-            </div>
-            <p class="card-subtitle">Process workplace dispute reports, conduct investigations, and log determinations.</p>
-          </a>
-        </div>
-      </section>
-
+      <!-- Active Section / Pending Card Display -->
+      <div id="classroom-display-container" style="margin-top: 20px;"></div>
     </main>
   </div>
 
