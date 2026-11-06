@@ -16,17 +16,32 @@
         <p class="auth-subtitle">Join the institutional Human Resource Management Simulator.</p>
       </div>
 
+      <!-- Error / Feedback Banner -->
       <div id="register-error-box" class="settings-alert-banner danger"></div>
 
       <form id="form-register" class="auth-form">
         <div class="form-row-duo">
           <div class="form-group">
             <label class="form-label" for="reg-first-name">First Name</label>
-            <input type="text" id="reg-first-name" class="form-control" placeholder="e.g. John Albert" required>
+            <input 
+              type="text" 
+              id="reg-first-name" 
+              class="form-control" 
+              placeholder="e.g. Student1" 
+              autocomplete="given-name"
+              required
+            >
           </div>
           <div class="form-group">
             <label class="form-label" for="reg-last-name">Last Name</label>
-            <input type="text" id="reg-last-name" class="form-control" placeholder="e.g. Estrella" required>
+            <input 
+              type="text" 
+              id="reg-last-name" 
+              class="form-control" 
+              placeholder="e.g. Lastname" 
+              autocomplete="family-name"
+              required
+            >
           </div>
         </div>
 
@@ -55,9 +70,10 @@
                 minlength="6"
                 required
               >
-              <button type="button" class="btn-toggle-password" data-target="reg-password" title="Toggle password visibility">👁️</button>
+              <button type="button" class="btn-toggle-password" data-target="reg-password" title="Toggle password visibility" aria-label="Toggle password visibility">👁️</button>
             </div>
           </div>
+
           <div class="form-group">
             <label class="form-label" for="reg-confirm-password">Confirm Password</label>
             <div class="password-input-wrapper">
@@ -70,7 +86,7 @@
                 minlength="6"
                 required
               >
-              <button type="button" class="btn-toggle-password" data-target="reg-confirm-password" title="Toggle password visibility">👁️</button>
+              <button type="button" class="btn-toggle-password" data-target="reg-confirm-password" title="Toggle password visibility" aria-label="Toggle password visibility">👁️</button>
             </div>
           </div>
         </div>
