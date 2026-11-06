@@ -15,7 +15,7 @@
     </div>
 
     <div class="sidebar-user-card">
-      <span class="welcome-tag">WORKSPACE</span>
+      <span class="welcome-tag">PORTFOLIO</span>
       <h3 id="sidebar-greeting-name">Loading...</h3>
     </div>
 
@@ -32,23 +32,6 @@
         <span class="faculty-name-display" id="topbar-user-name">User</span>
         <span class="role-tag" id="topbar-role-badge">STUDENT</span>
       </div>
-      <div class="nav-actions">
-        <div class="notifications-wrapper">
-          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
-            <img src="assets/bell.png" alt="Bell" class="bell-icon">
-            <span class="notif-badge hidden" id="notif-badge">0</span>
-          </button>
-          <div class="notif-dropdown" id="notif-dropdown">
-            <div class="notif-header">
-              <h4 class="notif-title">Notifications</h4>
-              <button type="button" class="btn-mark-all-read" id="btn-mark-all-read">Mark all as read</button>
-            </div>
-            <div class="notif-list" id="notif-list">
-              <div class="notif-empty">No notifications yet.</div>
-            </div>
-          </div>
-        </div>
-      </div>
     </header>
 
     <main class="page-container">
@@ -58,15 +41,27 @@
             <a href="#" id="breadcrumb-classroom-link" class="auth-link" style="font-size: 13px;">← Return to Classroom Hub</a>
           </div>
           <h1 class="page-title">Portfolio & Assessment Evaluations</h1>
-          <p class="page-subtitle" id="portfolio-subheading">Evaluated student deliverables for section: <strong id="scope-class-code">Loading...</strong></p>
+          <p class="page-subtitle">Evaluated deliverables for section: <strong id="scope-class-code">Loading...</strong></p>
         </div>
+        <button type="button" class="btn btn-primary" id="btn-print-summary">📄 Download Evaluation Summary</button>
       </div>
 
-      <section class="card roster-card">
+      <div class="dashboard-grid" style="margin-bottom: 20px;">
+        <section class="card">
+          <div class="card-header"><h3 class="card-title">Cumulative Grade Average</h3></div>
+          <div class="enrolled-stat-number" id="portfolio-average-stat">0%</div>
+        </section>
+        <section class="card">
+          <div class="card-header"><h3 class="card-title">Completed Deliverables</h3></div>
+          <div class="enrolled-stat-number" id="portfolio-count-stat">0</div>
+        </section>
+      </div>
+
+      <section class="card roster-card" id="printable-eval-report">
         <div class="card-header">
           <div>
             <h2 class="card-title">Evaluated Deliverables</h2>
-            <p class="card-subtitle">Graded student work</p>
+            <p class="card-subtitle">Official academic assessment record</p>
           </div>
         </div>
 
@@ -82,9 +77,7 @@
               </tr>
             </thead>
             <tbody id="portfolio-tbody">
-              <tr>
-                <td colspan="5" class="empty-state">Loading evaluated submissions...</td>
-              </tr>
+              <tr><td colspan="5" class="empty-state">Loading evaluated submissions...</td></tr>
             </tbody>
           </table>
         </div>

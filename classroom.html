@@ -6,37 +6,22 @@
   <title>Aimser - Classroom Space</title>
   <link rel="stylesheet" href="css/style.css">
   <style>
-    .faculty-only-control {
-      display: none;
-    }
+    .faculty-only-control { display: none; }
     .modal-backdrop-custom {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-      padding: 16px;
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center;
+      z-index: 2000; padding: 16px;
     }
     .modal-box-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--surface-border);
-      border-radius: var(--radius-md);
-      max-width: 600px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      padding: 24px;
+      background: var(--bg-surface); border: 1px solid var(--surface-border);
+      border-radius: var(--radius-md); max-width: 600px; width: 100%; max-height: 90vh;
+      overflow-y: auto; padding: 24px;
     }
   </style>
 </head>
 <body>
 
-  <!-- Global Bento Rail Sidebar -->
+  <!-- Global Sidebar Shell -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
@@ -49,7 +34,7 @@
     </div>
 
     <nav class="sidebar-nav">
-      <a href="faculty-dashboard.html" class="nav-item" id="sidebar-home-link">📊 Faculty Dashboard</a>
+      <a href="student-dashboard.html" class="nav-item" id="sidebar-home-link">📊 My Classrooms</a>
       <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
@@ -58,11 +43,11 @@
     <header class="topbar">
       <div class="brand-group">
         <span class="faculty-name-display" id="topbar-user-name">User</span>
-        <span class="role-tag" id="topbar-role-badge">FACULTY</span>
+        <span class="role-tag" id="topbar-role-badge">STUDENT</span>
       </div>
       <div class="nav-actions">
         <div class="notifications-wrapper">
-          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
+          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications">
             <img src="assets/bell.png" alt="Bell" class="bell-icon">
             <span class="notif-badge hidden" id="notif-badge">0</span>
           </button>
@@ -81,11 +66,18 @@
 
     <main class="page-container">
       
-      <!-- Classroom Info Banner -->
+      <!-- Contextual Exit to Platform Dashboard -->
+      <div>
+        <a href="student-dashboard.html" class="btn-exit-classroom" id="link-exit-hub">
+          ← Exit to My Classrooms
+        </a>
+      </div>
+
+      <!-- Classroom Master Banner -->
       <div class="classroom-header-banner">
         <div>
           <h1 class="class-title-large" id="room-name">Classroom Space</h1>
-          <p class="class-meta-subtitle" id="room-details">Connecting to active section records...</p>
+          <p class="class-meta-subtitle" id="room-details">Loading active section...</p>
         </div>
         <div class="class-code-badge">
           <span>CODE:</span>
@@ -93,44 +85,135 @@
         </div>
       </div>
 
-      <!-- Navigation Tabs -->
-      <div class="class-nav-tabs">
-        <button type="button" class="class-tab-btn active" data-tab="tab-feed">💬 HR Feed</button>
-        <button type="button" class="class-tab-btn" data-tab="tab-planner">📋 Planner</button>
-        <button type="button" class="class-tab-btn" data-tab="tab-cases">📁 Case Library & Submissions</button>
-        <button type="button" class="class-tab-btn" data-tab="tab-recruitment">🎯 Recruitment</button>
-        <button type="button" class="class-tab-btn" data-tab="tab-performance">📈 Performance</button>
-        <button type="button" class="class-tab-btn" data-tab="tab-relations">🤝 Relations</button>
-        <button type="button" class="class-tab-btn" data-tab="tab-roster">👥 Roster & Requests</button>
-      </div>
+      <!-- THE 4 ENTERPRISE PILLARS NAVIGATION -->
+      <nav class="enterprise-pillar-nav">
+        <!-- Pillar 1 -->
+        <button type="button" class="pillar-tab-btn active" data-pillar="pillar-schedule">
+          <div class="pillar-tab-header">
+            <span class="pillar-tab-icon">📅</span>
+            <span class="pillar-tab-title">Schedule & Stream</span>
+          </div>
+          <span class="pillar-tab-desc">Canvas Calendar, upcoming agenda & class discussions</span>
+        </button>
 
-      <!-- TAB 1: HR FEED -->
-      <div class="tab-content-panel active" id="tab-feed">
-        <section class="card">
+        <!-- Pillar 2 -->
+        <button type="button" class="pillar-tab-btn" data-pillar="pillar-cases">
+          <div class="pillar-tab-header">
+            <span class="pillar-tab-icon">📁</span>
+            <span class="pillar-tab-title">Tasks & Cases</span>
+          </div>
+          <span class="pillar-tab-desc">Agile Kanban milestones, case briefs & deliverables</span>
+        </button>
+
+        <!-- Pillar 3 -->
+        <button type="button" class="pillar-tab-btn" data-pillar="pillar-sandboxes">
+          <div class="pillar-tab-header">
+            <span class="pillar-tab-icon">🎯</span>
+            <span class="pillar-tab-title">HR Sandboxes</span>
+          </div>
+          <span class="pillar-tab-desc">Recruitment, Performance KPIs & Employee Relations</span>
+        </button>
+
+        <!-- Pillar 4 -->
+        <button type="button" class="pillar-tab-btn" data-pillar="pillar-people">
+          <div class="pillar-tab-header">
+            <span class="pillar-tab-icon">👥</span>
+            <span class="pillar-tab-title">People & Roster</span>
+          </div>
+          <span class="pillar-tab-desc">Active cohort directory & enrollment approvals</span>
+        </button>
+      </nav>
+
+      <!-- ===================================================================
+           PILLAR 1 VIEWPORT: SCHEDULE & STREAM
+           =================================================================== -->
+      <div class="pillar-viewport-panel active" id="pillar-schedule">
+        
+        <!-- Canvas Calendar Controls -->
+        <div class="calendar-top-controls">
+          <div class="calendar-nav-duo">
+            <button type="button" class="btn-today" id="btn-cal-today">Today</button>
+            <button type="button" class="btn-arrow" id="btn-cal-prev">‹</button>
+            <button type="button" class="btn-arrow" id="btn-cal-next">›</button>
+            <h2 class="calendar-month-heading" id="cal-month-title">November 2026</h2>
+          </div>
+          <div class="calendar-view-toggles">
+            <button type="button" class="calendar-view-btn" data-view="week">Week</button>
+            <button type="button" class="calendar-view-btn active" data-view="month">Month</button>
+            <button type="button" class="calendar-view-btn" data-view="agenda">Agenda</button>
+          </div>
+        </div>
+
+        <div class="calendar-canvas-layout">
+          <div id="calendar-main-viewport">
+            <!-- Month Grid -->
+            <div class="card" id="cal-view-month" style="padding: 0; overflow: hidden;">
+              <div class="canvas-month-grid" id="canvas-month-body">
+                <div class="canvas-day-header">Sun</div>
+                <div class="canvas-day-header">Mon</div>
+                <div class="canvas-day-header">Tue</div>
+                <div class="canvas-day-header">Wed</div>
+                <div class="canvas-day-header">Thu</div>
+                <div class="canvas-day-header">Fri</div>
+                <div class="canvas-day-header">Sat</div>
+              </div>
+            </div>
+
+            <!-- Agenda Stream -->
+            <div id="cal-view-agenda" class="canvas-agenda-container" style="display: none;">
+              <div class="empty-state"><p>Loading chronological agenda items...</p></div>
+            </div>
+          </div>
+
+          <!-- Canvas Mini Sidebar -->
+          <div>
+            <div class="canvas-mini-calendar">
+              <div class="mini-cal-header">
+                <span id="mini-cal-title">November 2026</span>
+              </div>
+              <div class="mini-cal-grid" id="mini-cal-body"></div>
+            </div>
+
+            <div class="card">
+              <h4 style="font-size: 12.5px; font-weight: 800; margin-bottom: 8px;">CALENDARS</h4>
+              <div style="font-size: 12px; color: var(--text-secondary); line-height: 2;">
+                <div>🟦 <strong id="cal-filter-user">My Deadlines</strong></div>
+                <div>🟩 <span id="cal-filter-class">Active Classroom</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section Discussion Feed -->
+        <section class="card" style="margin-top: 24px;">
           <div class="card-header">
             <div>
-              <h2 class="card-title">Class Discussion Feed</h2>
-              <p class="card-subtitle">Post announcements or discuss HR cases with students.</p>
+              <h2 class="card-title">Class Discussion Stream</h2>
+              <p class="card-subtitle">Broadcast prompts, case inquiries, and debate with peers.</p>
             </div>
           </div>
           <form id="form-create-post" class="auth-form">
             <div class="form-group">
-              <textarea id="input-post-body" class="form-control" rows="3" placeholder="Post an update, case prompt, or topic..." required></textarea>
+              <textarea id="input-post-body" class="form-control" rows="3" placeholder="Share a deliberation topic..." required></textarea>
             </div>
             <div class="card-actions">
               <button type="submit" class="btn btn-primary" id="btn-submit-post">Publish Discussion</button>
             </div>
           </form>
         </section>
-        <div id="posts-container" class="dashboard-grid feed-stream-grid" style="margin-top: 20px;"></div>
+        <div id="posts-container" class="dashboard-grid feed-stream-grid" style="margin-top: 16px;"></div>
       </div>
 
-      <!-- TAB 2: PROJECT PLANNER -->
-      <div class="tab-content-panel" id="tab-planner">
+      <!-- ===================================================================
+           PILLAR 2 VIEWPORT: TASKS & CASES
+           =================================================================== -->
+      <div class="pillar-viewport-panel" id="pillar-cases">
+        
+        <!-- Agile Kanban Section -->
         <div class="page-header" style="margin-bottom: 16px;">
           <div>
-            <h2 class="card-title">Milestone Tasks</h2>
-            <p class="card-subtitle">Track project deliverables for this cohort.</p>
+            <h2 class="card-title">Kanban Milestone Planner</h2>
+            <p class="card-subtitle">Manage project tasks with automated deadline countdown warnings.</p>
           </div>
           <button type="button" class="btn btn-primary" id="btn-open-task-modal">+ Add Task</button>
         </div>
@@ -160,7 +243,7 @@
               </div>
               <div class="form-group">
                 <label class="form-label" for="task-due-date">Due Date</label>
-                <input type="date" id="task-due-date" class="form-control">
+                <input type="date" id="task-due-date" class="form-control" required>
               </div>
             </div>
             <div class="card-actions">
@@ -192,29 +275,25 @@
             <div class="kanban-tasks" id="tasks-done"></div>
           </div>
         </div>
-      </div>
 
-      <!-- TAB 3: CASE LIBRARY & STUDENT SUBMISSIONS -->
-      <div class="tab-content-panel" id="tab-cases">
-        <div class="page-header" style="margin-bottom: 16px;">
+        <!-- Case Studies Section -->
+        <div class="page-header" style="margin-top: 36px; margin-bottom: 16px;">
           <div>
             <h2 class="card-title">Case Library & Deliverable Briefs</h2>
-            <p class="card-subtitle">Manage cases and review student solutions.</p>
+            <p class="card-subtitle">Assigned scenarios, file uploads, and faculty evaluation rubrics.</p>
           </div>
           <button type="button" class="btn btn-primary faculty-only-control" id="btn-open-create-case">+ Post New Case Study</button>
         </div>
 
-        <!-- Case Cards List -->
         <div class="dashboard-grid" id="cases-grid">
           <div class="empty-state"><p>Loading case studies...</p></div>
         </div>
 
-        <!-- Student Submissions Grading Table (Faculty Priority) -->
         <section class="card roster-card" style="margin-top: 24px;">
           <div class="card-header">
             <div>
-              <h2 class="card-title">Student Submissions & Evaluation Queue</h2>
-              <p class="card-subtitle">Grade uploaded deliverable files and submit score rubrics.</p>
+              <h2 class="card-title">Deliverables & Grading Evaluation Queue</h2>
+              <p class="card-subtitle">Official grading records for this cohort.</p>
             </div>
           </div>
           <div class="table-container">
@@ -223,126 +302,131 @@
                 <tr>
                   <th>Student</th>
                   <th>Case Title</th>
-                  <th>Deliverable Link</th>
-                  <th>Submitted Date</th>
+                  <th>Asset Link</th>
+                  <th>Submitted</th>
                   <th>Score</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="submissions-tbody">
-                <tr><td colspan="6" class="empty-state">No submissions uploaded for this classroom yet.</td></tr>
+                <tr><td colspan="6" class="empty-state">No submissions uploaded yet.</td></tr>
               </tbody>
             </table>
           </div>
         </section>
       </div>
 
-      <!-- TAB 4: RECRUITMENT SIMULATOR -->
-      <div class="tab-content-panel" id="tab-recruitment">
-        <div class="page-header" style="margin-bottom: 16px;">
-          <div>
-            <h2 class="card-title">Recruitment & Hiring Pipeline</h2>
-            <p class="card-subtitle">Open job orders and review candidate applicants.</p>
-          </div>
-          <button type="button" class="btn btn-primary faculty-only-control" id="btn-open-job-modal">+ Post Job Order</button>
+      <!-- ===================================================================
+           PILLAR 3 VIEWPORT: HR SANDBOXES
+           =================================================================== -->
+      <div class="pillar-viewport-panel" id="pillar-sandboxes">
+        
+        <!-- Sub-Pillars Switcher -->
+        <div class="sandbox-subnav-pills">
+          <button type="button" class="sandbox-pill-btn active" data-sub="sub-recruitment">🎯 Recruitment & Selection</button>
+          <button type="button" class="sandbox-pill-btn" data-sub="sub-performance">📈 Performance Management</button>
+          <button type="button" class="sandbox-pill-btn" data-sub="sub-relations">🤝 Employee Relations</button>
         </div>
 
-        <div class="dashboard-grid">
-          <section class="card">
-            <div class="card-header"><h3 class="card-title">Active Job Orders</h3></div>
-            <div id="job-orders-container" class="dashboard-grid feed-stream-grid">
-              <div class="empty-state"><p>No requisitions posted yet.</p></div>
+        <!-- 3A. RECRUITMENT -->
+        <div class="sandbox-subpanel active" id="sub-recruitment">
+          <div class="page-header" style="margin-bottom: 16px;">
+            <div>
+              <h2 class="card-title">Recruitment & Resume Screening Sandbox</h2>
+              <p class="card-subtitle">Screen applicant competencies, issue advance/reject decisions, and submit justifications.</p>
             </div>
-          </section>
+            <button type="button" class="btn btn-primary faculty-only-control" id="btn-open-job-modal">+ Post Job Order</button>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="card">
+              <div class="card-header"><h3 class="card-title">Job Requisitions</h3></div>
+              <div id="job-orders-container" class="dashboard-grid feed-stream-grid">
+                <div class="empty-state"><p>No requisitions posted yet.</p></div>
+              </div>
+            </section>
+
+            <section class="card roster-card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Candidate Screening Pool</h3>
+                  <p class="card-subtitle" id="selected-job-header">Select a job requisition to evaluate candidate qualifications</p>
+                </div>
+              </div>
+              <div id="candidate-sandbox-container">
+                <div class="empty-state"><p>Select a job order on the left to screen applicants.</p></div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- 3B. PERFORMANCE MANAGEMENT -->
+        <div class="sandbox-subpanel" id="sub-performance">
+          <div class="page-header" style="margin-bottom: 16px;">
+            <div>
+              <h2 class="card-title">Performance Appraisal Cycles</h2>
+              <p class="card-subtitle">Quarterly scorecard reviews and department metric scoring.</p>
+            </div>
+            <button type="button" class="btn btn-primary faculty-only-control" id="btn-open-kpi-modal">+ Start Review Cycle</button>
+          </div>
+
           <section class="card roster-card">
-            <div class="card-header"><h3 class="card-title">Applicant Screening Pool</h3></div>
-            <div id="candidates-pipeline-container" class="dashboard-grid feed-stream-grid">
-              <div class="empty-state"><p>Select a job order to view candidate pool.</p></div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Cycle Name</th><th>Department</th><th>Metric Focus</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="kpi-cycles-tbody">
+                  <tr><td colspan="5" class="empty-state">No active review cycles logged.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- 3C. EMPLOYEE RELATIONS -->
+        <div class="sandbox-subpanel" id="sub-relations">
+          <div class="page-header" style="margin-bottom: 16px;">
+            <div>
+              <h2 class="card-title">Employee Relations Dossiers</h2>
+              <p class="card-subtitle">Workplace conflicts, incident evidence, and formal arbitration determinations.</p>
+            </div>
+            <button type="button" class="btn btn-primary faculty-only-control" id="btn-open-grievance-modal">+ File Grievance Case</button>
+          </div>
+
+          <section class="card roster-card">
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Case Ref</th><th>Classification</th><th>Parties</th><th>Status</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="grievances-tbody">
+                  <tr><td colspan="5" class="empty-state">No grievance records filed.</td></tr>
+                </tbody>
+              </table>
             </div>
           </section>
         </div>
       </div>
 
-      <!-- TAB 5: PERFORMANCE MANAGEMENT -->
-      <div class="tab-content-panel" id="tab-performance">
-        <div class="page-header" style="margin-bottom: 16px;">
-          <div>
-            <h2 class="card-title">Performance Appraisal Cycles</h2>
-            <p class="card-subtitle">Quarterly scorecard reviews and department evaluations.</p>
-          </div>
-          <button type="button" class="btn btn-primary faculty-only-control" id="btn-open-kpi-modal">+ Start Review Cycle</button>
-        </div>
-
-        <section class="card roster-card">
-          <div class="table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Cycle Name</th>
-                  <th>Department</th>
-                  <th>Metric Focus</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="kpi-cycles-tbody">
-                <tr><td colspan="5" class="empty-state">No active review cycles logged.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      <!-- TAB 6: EMPLOYEE RELATIONS -->
-      <div class="tab-content-panel" id="tab-relations">
-        <div class="page-header" style="margin-bottom: 16px;">
-          <div>
-            <h2 class="card-title">Employee Relations Dossiers</h2>
-            <p class="card-subtitle">Workplace conflicts and grievance inquiries.</p>
-          </div>
-          <button type="button" class="btn btn-primary faculty-only-control" id="btn-open-grievance-modal">+ File Grievance Case</button>
-        </div>
-
-        <section class="card roster-card">
-          <div class="table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Case Ref</th>
-                  <th>Classification</th>
-                  <th>Parties Involved</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="grievances-tbody">
-                <tr><td colspan="5" class="empty-state">No grievance records filed.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      <!-- TAB 7: ROSTER & REQUESTS -->
-      <div class="tab-content-panel" id="tab-roster">
-        <!-- Faculty-Only Pending Join Requests Queue -->
+      <!-- ===================================================================
+           PILLAR 4 VIEWPORT: PEOPLE & ROSTER
+           =================================================================== -->
+      <div class="pillar-viewport-panel" id="pillar-people">
+        
+        <!-- Faculty Pending Requests Section -->
         <section class="card roster-card faculty-only-control" id="faculty-pending-section" style="margin-bottom: 24px;">
           <div class="card-header">
             <div>
               <h2 class="card-title">Pending Enrollment Requests</h2>
-              <p class="card-subtitle">Students waiting to join this class</p>
+              <p class="card-subtitle">Students waiting to join this class section</p>
             </div>
             <span class="status-badge" id="pending-badge-count">0 Pending</span>
           </div>
           <div class="table-container">
             <table class="data-table">
               <thead>
-                <tr>
-                  <th>Student Name</th>
-                  <th>Email</th>
-                  <th>Requested Date</th>
-                  <th>Decision</th>
-                </tr>
+                <tr><th>Student Name</th><th>Email</th><th>Requested Date</th><th>Decision</th></tr>
               </thead>
               <tbody id="pending-tbody">
                 <tr><td colspan="4" class="empty-state">No pending join requests.</td></tr>
@@ -351,23 +435,18 @@
           </div>
         </section>
 
-        <!-- Official Enrolled Roster Table -->
+        <!-- Official Cohort Roster Section -->
         <section class="card roster-card">
           <div class="card-header">
             <div>
               <h2 class="card-title">Enrolled Students</h2>
-              <p class="card-subtitle">Members currently enrolled in this section</p>
+              <p class="card-subtitle">Active student members in this section</p>
             </div>
           </div>
           <div class="table-container">
             <table class="data-table">
               <thead>
-                <tr>
-                  <th>Student Name</th>
-                  <th>Email</th>
-                  <th>Joined Date</th>
-                  <th class="faculty-only-control">Actions</th>
-                </tr>
+                <tr><th>Student Name</th><th>Email</th><th>Joined Date</th><th class="faculty-only-control">Actions</th></tr>
               </thead>
               <tbody id="room-roster-tbody">
                 <tr><td colspan="4" class="empty-state">Loading enrolled roster...</td></tr>
@@ -380,11 +459,10 @@
     </main>
   </div>
 
-  <!-- =========================================================================
+  <!-- ===================================================================
        MODALS
-       ========================================================================= -->
-
-  <!-- Modal 1: Create Case Study (Faculty Only) -->
+       =================================================================== -->
+  <!-- Create Case Modal -->
   <div class="modal-backdrop-custom" id="modal-create-case" style="display: none;">
     <div class="modal-box-card">
       <div class="card-header">
@@ -396,27 +474,32 @@
           <label class="form-label" for="case-title">Case Title</label>
           <input type="text" id="case-title" class="form-control" placeholder="e.g. Restructuring TechCorp HR" required>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="case-category">Category</label>
-          <select id="case-category" class="form-control">
-            <option value="Recruitment">Talent Acquisition & Staffing</option>
-            <option value="Performance">Performance Appraisal</option>
-            <option value="Relations">Labor & Employee Relations</option>
-            <option value="Compensation">Compensation & Benefits</option>
-          </select>
+        <div class="form-row-duo">
+          <div class="form-group">
+            <label class="form-label" for="case-category">Category</label>
+            <select id="case-category" class="form-control">
+              <option value="Recruitment">Talent Acquisition & Staffing</option>
+              <option value="Performance">Performance Appraisal</option>
+              <option value="Relations">Labor & Employee Relations</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="case-due-date">Submission Deadline</label>
+            <input type="date" id="case-due-date" class="form-control" required>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label" for="case-scenario">Scenario Overview</label>
-          <textarea id="case-scenario" class="form-control" rows="4" placeholder="Detail the business crisis or organizational challenge..." required></textarea>
+          <textarea id="case-scenario" class="form-control" rows="4" placeholder="Detail the business crisis..." required></textarea>
         </div>
         <div class="card-actions">
-          <button type="submit" class="btn btn-primary" id="btn-submit-case">Publish Case</button>
+          <button type="submit" class="btn btn-primary">Publish Case</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Modal 2: Grade Submission (Faculty Only) -->
+  <!-- Grade Modal -->
   <div class="modal-backdrop-custom" id="modal-grade-submission" style="display: none;">
     <div class="modal-box-card">
       <div class="card-header">
@@ -433,7 +516,7 @@
         <div class="form-group">
           <label class="form-label">Attached Asset</label>
           <div style="margin-bottom: 8px;">
-            <a href="#" target="_blank" id="grade-file-link" class="btn btn-secondary" style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+            <a href="#" target="_blank" id="grade-file-link" class="btn btn-secondary" style="font-size: 12px;">
               📄 Open Submitted File in New Tab
             </a>
           </div>
@@ -445,8 +528,8 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="grade-notes-input">Instructor Feedback & Evaluation Notes</label>
-          <textarea id="grade-notes-input" class="form-control" rows="3" placeholder="Provide strategic critique and strengths..." required></textarea>
+          <label class="form-label" for="grade-notes-input">Instructor Feedback</label>
+          <textarea id="grade-notes-input" class="form-control" rows="3" required></textarea>
         </div>
 
         <div class="card-actions">
@@ -456,46 +539,13 @@
     </div>
   </div>
 
-  <!-- Modal 3: Create Job Order (Faculty Only) -->
-  <div class="modal-backdrop-custom" id="modal-create-job" style="display: none;">
-    <div class="modal-box-card">
-      <div class="card-header">
-        <h3 class="card-title">Post New Job Order</h3>
-        <button type="button" class="btn btn-secondary close-modal-btn">✕</button>
-      </div>
-      <form id="form-create-job" class="auth-form">
-        <div class="form-group">
-          <label class="form-label" for="job-title-inp">Position Title</label>
-          <input type="text" id="job-title-inp" class="form-control" placeholder="e.g. Senior Talent Acquisition Specialist" required>
-        </div>
-        <div class="form-row-duo">
-          <div class="form-group">
-            <label class="form-label" for="job-dept-inp">Department</label>
-            <input type="text" id="job-dept-inp" class="form-control" placeholder="e.g. Human Resources" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="job-openings-inp">Open Positions</label>
-            <input type="number" id="job-openings-inp" class="form-control" min="1" value="1" required>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="job-desc-inp">Job Description & Qualifications</label>
-          <textarea id="job-desc-inp" class="form-control" rows="3" placeholder="Core competencies, responsibilities, and qualifications" required></textarea>
-        </div>
-        <div class="card-actions">
-          <button type="submit" class="btn btn-primary" id="btn-submit-job">Post Requisition</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Modal 4: Student Submit Deliverable (Student Only) -->
+  <!-- Submit Solution Modal -->
   <div class="modal-backdrop-custom" id="modal-student-submit" style="display: none;">
     <div class="modal-box-card">
       <div class="card-header">
         <div>
           <h3 class="card-title" id="submit-modal-title">Submit Deliverable</h3>
-          <p class="card-subtitle">Upload your strategic brief to the instructor.</p>
+          <p class="card-subtitle">Upload your strategic brief.</p>
         </div>
         <button type="button" class="btn btn-secondary close-modal-btn">✕</button>
       </div>
@@ -510,7 +560,7 @@
 
         <div class="form-group">
           <label class="form-label" for="inp-deliverable-notes">Executive Summary / Student Notes</label>
-          <textarea id="inp-deliverable-notes" class="form-control" rows="3" placeholder="Summarize your key strategic recommendations..." required></textarea>
+          <textarea id="inp-deliverable-notes" class="form-control" rows="3" required></textarea>
         </div>
 
         <div class="card-actions">
@@ -520,9 +570,34 @@
     </div>
   </div>
 
-  <script type="module" src="js/classroom.js"></script>
-  <script type="module" src="js/theme.js"></script>
-  <!-- Modal 5: Start KPI Review Cycle (Faculty Only) -->
+  <!-- Candidate Justification Modal -->
+  <div class="modal-backdrop-custom" id="modal-screen-candidate" style="display: none;">
+    <div class="modal-box-card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Candidate Screening Decision</h3>
+          <p class="card-subtitle" id="screen-candidate-name">Applicant</p>
+        </div>
+        <button type="button" class="btn btn-secondary close-modal-btn">✕</button>
+      </div>
+      <form id="form-screen-candidate" class="auth-form">
+        <input type="hidden" id="screen-candidate-decision">
+        <div class="form-group">
+          <label class="form-label">Decision Action</label>
+          <div id="screen-decision-label" style="font-weight: 700; color: var(--accent); margin-bottom: 8px;"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="screen-justification">Hiring Justification (Min 2 Sentences)</label>
+          <textarea id="screen-justification" class="form-control" rows="3" placeholder="Explain your staffing reasoning based on competencies..." required minlength="25"></textarea>
+        </div>
+        <div class="card-actions">
+          <button type="submit" class="btn btn-primary">Submit Screening Assessment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- KPI Cycle Modal -->
   <div class="modal-backdrop-custom" id="modal-create-kpi" style="display: none;">
     <div class="modal-box-card">
       <div class="card-header">
@@ -555,7 +630,40 @@
     </div>
   </div>
 
-  <!-- Modal 6: File Workplace Grievance (Faculty Only) -->
+  <!-- Create Job Modal -->
+  <div class="modal-backdrop-custom" id="modal-create-job" style="display: none;">
+    <div class="modal-box-card">
+      <div class="card-header">
+        <h3 class="card-title">Post New Job Order</h3>
+        <button type="button" class="btn btn-secondary close-modal-btn">✕</button>
+      </div>
+      <form id="form-create-job" class="auth-form">
+        <div class="form-group">
+          <label class="form-label" for="job-title-inp">Position Title</label>
+          <input type="text" id="job-title-inp" class="form-control" placeholder="e.g. Senior Talent Acquisition Specialist" required>
+        </div>
+        <div class="form-row-duo">
+          <div class="form-group">
+            <label class="form-label" for="job-dept-inp">Department</label>
+            <input type="text" id="job-dept-inp" class="form-control" placeholder="e.g. Human Resources" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="job-openings-inp">Open Positions</label>
+            <input type="number" id="job-openings-inp" class="form-control" min="1" value="1" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="job-desc-inp">Job Description & Qualifications</label>
+          <textarea id="job-desc-inp" class="form-control" rows="3" placeholder="Core competencies, responsibilities, and qualifications" required></textarea>
+        </div>
+        <div class="card-actions">
+          <button type="submit" class="btn btn-primary" id="btn-submit-job">Post Requisition</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Grievance Modal -->
   <div class="modal-backdrop-custom" id="modal-create-grievance" style="display: none;">
     <div class="modal-box-card">
       <div class="card-header">
@@ -580,11 +688,11 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="grv-parties-inp">Parties Involved</label>
-          <input type="text" id="grv-parties-inp" class="form-control" placeholder="e.g. Employee A (Sales) vs Manager B (Dept Head)" required>
+          <input type="text" id="grv-parties-inp" class="form-control" placeholder="e.g. Employee A vs Manager B" required>
         </div>
         <div class="form-group">
           <label class="form-label" for="grv-facts-inp">Incident Summary & Evidence Brief</label>
-          <textarea id="grv-facts-inp" class="form-control" rows="4" placeholder="Detail the background facts that students must arbitrate..." required></textarea>
+          <textarea id="grv-facts-inp" class="form-control" rows="4" placeholder="Detail the background facts..." required></textarea>
         </div>
         <div class="card-actions">
           <button type="submit" class="btn btn-primary" id="btn-submit-grievance">File Dossier</button>
@@ -593,7 +701,7 @@
     </div>
   </div>
 
-  <!-- Modal 7: Student Grievance Arbitration Determination -->
+  <!-- Resolve Grievance Modal -->
   <div class="modal-backdrop-custom" id="modal-resolve-grievance" style="display: none;">
     <div class="modal-box-card">
       <div class="card-header">
@@ -617,7 +725,7 @@
         </div>
         <div class="form-group">
           <label class="form-label" for="grv-rationale-inp">Legal / Organizational HR Rationale</label>
-          <textarea id="grv-rationale-inp" class="form-control" rows="3" placeholder="Explain the HR reasoning and policy justification for this ruling..." required></textarea>
+          <textarea id="grv-rationale-inp" class="form-control" rows="3" placeholder="Explain the HR reasoning..." required></textarea>
         </div>
         <div class="card-actions">
           <button type="submit" class="btn btn-primary" id="btn-submit-ruling">Submit Determination</button>
@@ -625,5 +733,8 @@
       </form>
     </div>
   </div>
+
+  <script type="module" src="js/classroom.js"></script>
+  <script type="module" src="js/theme.js"></script>
 </body>
 </html>

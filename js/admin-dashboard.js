@@ -1,249 +1,329 @@
-// js/admin-dashboard.js
-import { db } from "./firebase-init.js";
+import { auth, db } from "./firebase-init.js";
 import { initAuthGuard } from "./auth-guard.js";
 import { logActivity } from "./audit-logger.js";
 import { 
   collection, 
-  getDocs, 
+  query, 
+  onSnapshot, 
   doc, 
+  getDoc,
   updateDoc, 
   deleteDoc, 
-  query, 
-  where 
+  serverTimestamp 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-const statUsers = document.getElementById("admin-stat-users");
-const statFaculty = document.getElementById("admin-stat-faculty");
-const statClassrooms = document.getElementById("admin-stat-classrooms");
-const statSubmissions = document.getElementById("admin-stat-submissions");
+// Metric DOM
+const statStudents = document.getElementById("stat-total-students");
+const statFaculty = document.getElementById("stat-total-faculty");
+const statClasses = document.getElementById("stat-total-classes");
+const statLogs = document.getElementById("stat-total-logs");
 
-const usersTbody = document.getElementById("admin-users-tbody");
-const classroomsTbody = document.getElementById("admin-classrooms-tbody");
-const btnRefreshUsers = document.getElementById("btn-refresh-users");
+// User Table DOM
+const usersTbody = document.getElementById("users-tbody");
+const userSearchInput = document.getElementById("user-search-input");
+const userRoleFilter = document.getElementById("user-role-filter");
 
-let currentAdminUser = null;
+// Classrooms & Logs DOM
+const adminClassesTbody = document.getElementById("admin-classes-tbody");
+const adminAuditTbody = document.getElementById("admin-audit-tbody");
 
-// Refresh Directory
-btnRefreshUsers?.addEventListener("click", () => {
-  loadAdminDirectory();
-  loadClassroomSessions();
+let currentUser = null;
+let cachedUsers = [];
+let cachedClassrooms = [];
+
+initAuthGuard({
+  allowedRoles: ["admin"],
+  onReady: ({ user }) => {
+    currentUser = user;
+    initUsersStream();
+    initClassroomsStream();
+    initTelemetryStream();
+  }
 });
 
-// Load System Metrics
-async function loadMetrics() {
-  try {
-    const usersSnap = await getDocs(collection(db, "users"));
-    if (statUsers) statUsers.textContent = usersSnap.size;
+// =========================================================================
+// 1. USERS DIRECTORY & ROLE MANAGEMENT
+// =========================================================================
+function initUsersStream() {
+  const usersQ = query(collection(db, "users"));
 
+  onSnapshot(usersQ, (snapshot) => {
+    cachedUsers = [];
+    let studentCount = 0;
     let facultyCount = 0;
-    usersSnap.forEach(d => {
-      if (d.data().role === "faculty") facultyCount++;
+
+    snapshot.forEach((docSnap) => {
+      const u = { id: docSnap.id, ...docSnap.data() };
+      cachedUsers.push(u);
+
+      if (u.role === "student") studentCount++;
+      else if (u.role === "faculty") facultyCount++;
     });
+
+    if (statStudents) statStudents.textContent = studentCount;
     if (statFaculty) statFaculty.textContent = facultyCount;
 
-    const classSnap = await getDocs(query(collection(db, "classrooms"), where("active", "==", true)));
-    if (statClassrooms) statClassrooms.textContent = classSnap.size;
+    renderUsersTable();
+  }, (err) => {
+    console.error("Users listener error:", err);
+  });
 
-    const subSnap = await getDocs(collection(db, "submissions"));
-    if (statSubmissions) statSubmissions.textContent = subSnap.size;
-  } catch (err) {
-    console.error("Failed to load admin metrics:", err);
-  }
+  userSearchInput?.addEventListener("input", renderUsersTable);
+  userRoleFilter?.addEventListener("change", renderUsersTable);
 }
 
-// Load All Registered Users
-async function loadAdminDirectory() {
+function renderUsersTable() {
   if (!usersTbody) return;
+  usersTbody.innerHTML = "";
 
+  const searchTerm = userSearchInput?.value.toLowerCase().trim() || "";
+  const roleFilter = userRoleFilter?.value || "all";
+
+  const filtered = cachedUsers.filter((u) => {
+    const fullName = `${u.firstName || ""} ${u.lastName || ""}`.toLowerCase();
+    const email = (u.email || "").toLowerCase();
+    const matchesSearch = fullName.includes(searchTerm) || email.includes(searchTerm);
+    const matchesRole = roleFilter === "all" || u.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  if (filtered.length === 0) {
+    usersTbody.innerHTML = `<tr><td colspan="6" class="empty-state">No matching user accounts found.</td></tr>`;
+    return;
+  }
+
+  filtered.forEach((u) => {
+    const tr = document.createElement("tr");
+    const nameDisplay = `${u.firstName || ""} ${u.lastName || ""}`.trim() || "Institutional User";
+    const isSelf = u.id === currentUser.uid;
+
+    tr.innerHTML = `
+      <td><strong>${nameDisplay}</strong></td>
+      <td>${u.email || "No Email"}</td>
+      <td>
+        <span class="role-tag ${u.role || "student"}">${(u.role || "student").toUpperCase()}</span>
+      </td>
+      <td>
+        ${u.classroomCode 
+          ? `<span class="status-badge active">${u.classroomCode}</span>` 
+          : `<span style="font-size: 11.5px; color: var(--text-tertiary);">Unlinked</span>`}
+      </td>
+      <td>
+        <select class="role-select-inline" data-uid="${u.id}" ${isSelf ? "disabled" : ""}>
+          <option value="student" ${u.role === "student" ? "selected" : ""}>Student</option>
+          <option value="faculty" ${u.role === "faculty" ? "selected" : ""}>Faculty</option>
+          <option value="admin" ${u.role === "admin" ? "selected" : ""}>Admin</option>
+        </select>
+      </td>
+      <td>
+        <button type="button" class="btn btn-secondary danger-action btn-del-user" data-uid="${u.id}" ${isSelf ? "disabled" : ""} style="padding: 3px 8px; font-size: 11px;">
+          Delete Record
+        </button>
+      </td>
+    `;
+
+    // Role elevation handler
+    tr.querySelector(".role-select-inline")?.addEventListener("change", async (e) => {
+      const newRole = e.target.value;
+      if (confirm(`Change ${u.email}'s role to ${newRole.toUpperCase()}?`)) {
+        await updateUserRole(u.id, u.email, newRole);
+      } else {
+        e.target.value = u.role || "student";
+      }
+    });
+
+    // Account document delete handler
+    tr.querySelector(".btn-del-user")?.addEventListener("click", async () => {
+      if (confirm(`Permanently remove Firestore profile for ${u.email}? Note: Remember to remove from Firebase Authentication if purging completely.`)) {
+        await deleteUserRecord(u.id, u.email);
+      }
+    });
+
+    usersTbody.appendChild(tr);
+  });
+}
+
+async function updateUserRole(userId, userEmail, newRole) {
   try {
-    const snap = await getDocs(collection(db, "users"));
+    await updateDoc(doc(db, "users", userId), {
+      role: newRole,
+      updatedAt: serverTimestamp()
+    });
 
-    if (snap.empty) {
-      usersTbody.innerHTML = `<tr><td colspan="5" class="empty-state">No users registered in the system.</td></tr>`;
+    await logActivity({
+      category: "Administration",
+      details: `Admin ${currentUser.email} updated role of ${userEmail} to [${newRole}]`,
+      classroomCode: "GLOBAL",
+      userEmail: currentUser.email
+    });
+
+    alert(`Role updated to ${newRole.toUpperCase()}.`);
+  } catch (err) {
+    console.error("Role update error:", err);
+    alert("Failed to update role: " + err.message);
+  }
+}
+
+async function deleteUserRecord(userId, userEmail) {
+  try {
+    await deleteDoc(doc(db, "users", userId));
+
+    await logActivity({
+      category: "Administration",
+      details: `Admin ${currentUser.email} deleted user document for ${userEmail}`,
+      classroomCode: "GLOBAL",
+      userEmail: currentUser.email
+    });
+
+    alert("User document removed from Firestore.");
+  } catch (err) {
+    console.error("User deletion error:", err);
+    alert("Failed to delete user: " + err.message);
+  }
+}
+
+// =========================================================================
+// 2. INSTITUTIONAL CLASSROOM DIRECTORY & PURGE
+// =========================================================================
+function initClassroomsStream() {
+  const classQ = query(collection(db, "classrooms"));
+
+  onSnapshot(classQ, (snapshot) => {
+    cachedClassrooms = [];
+    if (statClasses) statClasses.textContent = snapshot.size;
+
+    if (!adminClassesTbody) return;
+    adminClassesTbody.innerHTML = "";
+
+    if (snapshot.empty) {
+      adminClassesTbody.innerHTML = `<tr><td colspan="7" class="empty-state">No classroom spaces created yet.</td></tr>`;
       return;
     }
 
-    let rowsHtml = "";
-    snap.forEach(docSnap => {
-      const data = docSnap.data();
-      const uid = docSnap.id;
-      const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim() || "No Name Provided";
-      const email = data.email || "No Email";
-      const role = data.role || "student";
-      const classCode = data.classroomCode || "—";
+    snapshot.forEach((docSnap) => {
+      const c = { id: docSnap.id, ...docSnap.data() };
+      cachedClassrooms.push(c);
 
-      let badgeClass = "badge-admin-student";
-      if (role === "faculty") badgeClass = "badge-admin-faculty";
-      if (role === "admin") badgeClass = "badge-admin-admin";
+      const enrolledCount = Array.isArray(c.students) ? c.students.length : 0;
+      const pendingCount = Array.isArray(c.pendingRequests) ? c.pendingRequests.length : 0;
 
-      rowsHtml += `
-        <tr>
-          <td style="font-weight: 600;">${escapeHtml(fullName)}</td>
-          <td style="color: var(--text-secondary);">${escapeHtml(email)}</td>
-          <td><span class="badge-admin-pill ${badgeClass}">${escapeHtml(role.toUpperCase())}</span></td>
-          <td style="font-family: var(--font-mono);">${escapeHtml(classCode)}</td>
-          <td>
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <button type="button" class="btn btn-secondary btn-set-role" data-uid="${uid}" data-role="student" style="padding: 4px 8px; font-size: 11px;">
-                Make Student
-              </button>
-              <button type="button" class="btn btn-secondary btn-set-role" data-uid="${uid}" data-role="faculty" style="padding: 4px 8px; font-size: 11px; color: var(--faculty-accent);">
-                Make Faculty
-              </button>
-              <button type="button" class="btn btn-secondary btn-set-role" data-uid="${uid}" data-role="admin" style="padding: 4px 8px; font-size: 11px; color: var(--danger);">
-                Make Admin
-              </button>
-              <button type="button" class="btn btn-secondary btn-delete-user" data-uid="${uid}" data-name="${escapeHtml(fullName)}" style="padding: 4px 8px; font-size: 11px; color: var(--danger); border-color: rgba(239, 68, 68, 0.3);">
-                Delete
-              </button>
-            </div>
-          </td>
-        </tr>
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${c.name || "Untitled Class"}</strong></td>
+        <td>${c.section || "N/A"}</td>
+        <td><span class="status-badge active" style="letter-spacing: 1px;">${c.code}</span></td>
+        <td>${c.facultyEmail || "Instructor"}</td>
+        <td>${enrolledCount} enrolled</td>
+        <td>
+          ${pendingCount > 0 
+            ? `<span style="color: #ef4444; font-weight: 700;">${pendingCount} pending</span>` 
+            : `<span style="color: var(--text-tertiary);">0</span>`}
+        </td>
+        <td style="display: flex; gap: 6px;">
+          <a href="classroom.html?code=${c.code}" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px; text-decoration: none;">Inspect</a>
+          <button type="button" class="btn btn-secondary danger-action btn-purge-class" data-id="${c.id}" data-code="${c.code}" style="padding: 3px 8px; font-size: 11px;">
+            Purge
+          </button>
+        </td>
       `;
+
+      tr.querySelector(".btn-purge-class")?.addEventListener("click", async () => {
+        if (confirm(`Purge classroom ${c.name} (${c.code})? All enrolled students will be unlinked automatically.`)) {
+          await purgeClassroom(c.id, c.code, c);
+        }
+      });
+
+      adminClassesTbody.appendChild(tr);
     });
+  }, (err) => {
+    console.error("Classrooms listener error:", err);
+  });
+}
 
-    usersTbody.innerHTML = rowsHtml;
+async function purgeClassroom(classId, classCode, classData) {
+  try {
+    const allMembers = [...(classData.students || []), ...(classData.pendingRequests || [])];
 
-    // Attach Role Modification Handlers
-    document.querySelectorAll(".btn-set-role").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const targetUid = btn.dataset.uid;
-        const targetRole = btn.dataset.role;
-
+    // Unlink every enrolled or pending student
+    for (const member of allMembers) {
+      if (member.uid) {
         try {
-          await updateDoc(doc(db, "users", targetUid), {
-            role: targetRole
+          await updateDoc(doc(db, "users", member.uid), {
+            classroomCode: null,
+            classroomId: null,
+            pendingClassroomCode: null,
+            pendingClassroomId: null,
+            updatedAt: serverTimestamp()
           });
-
-          await logActivity({
-            category: "System",
-            details: `Admin changed role of user ${targetUid} to ${targetRole}`,
-            classroomCode: "GLOBAL",
-            userEmail: currentAdminUser.email
-          });
-
-          alert(`Updated user role to ${targetRole.toUpperCase()}.`);
-          loadAdminDirectory();
-          loadMetrics();
-        } catch (err) {
-          console.error("Role update error:", err);
-          alert("Could not update role: " + err.message);
+        } catch (e) {
+          console.warn("Could not unlink user " + member.uid, e);
         }
-      });
+      }
+    }
+
+    await deleteDoc(doc(db, "classrooms", classId));
+
+    await logActivity({
+      category: "Administration",
+      details: `Admin ${currentUser.email} purged classroom ${classCode}`,
+      classroomCode: classCode,
+      userEmail: currentUser.email
     });
 
-    // Attach User Deletion Handler
-    document.querySelectorAll(".btn-delete-user").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const targetUid = btn.dataset.uid;
-        const targetName = btn.dataset.name;
-
-        if (confirm(`Permanently remove ${targetName} (${targetUid}) from Aimser?`)) {
-          try {
-            await deleteDoc(doc(db, "users", targetUid));
-            alert("User profile record deleted from database.");
-            loadAdminDirectory();
-            loadMetrics();
-          } catch (err) {
-            console.error("User deletion error:", err);
-            alert("Could not delete user: " + err.message);
-          }
-        }
-      });
-    });
-
+    alert(`Classroom ${classCode} deleted and all member linkages cleared.`);
   } catch (err) {
-    console.error("Error reading users directory:", err);
+    console.error("Classroom purge error:", err);
+    alert("Failed to purge classroom: " + err.message);
   }
 }
 
-// Load Active Classroom Sessions
-async function loadClassroomSessions() {
-  if (!classroomsTbody) return;
+// =========================================================================
+// 3. REAL-TIME AUDIT TELEMETRY STREAM
+// =========================================================================
+function initTelemetryStream() {
+  const auditQ = query(collection(db, "activity_logs"));
 
-  try {
-    const snap = await getDocs(collection(db, "classrooms"));
+  onSnapshot(auditQ, (snapshot) => {
+    if (statLogs) statLogs.textContent = snapshot.size;
 
-    if (snap.empty) {
-      classroomsTbody.innerHTML = `<tr><td colspan="5" class="empty-state">No classroom sessions logged in system.</td></tr>`;
+    if (!adminAuditTbody) return;
+    adminAuditTbody.innerHTML = "";
+
+    if (snapshot.empty) {
+      adminAuditTbody.innerHTML = `<tr><td colspan="5" class="empty-state">No audit logs logged in Firestore.</td></tr>`;
       return;
     }
 
-    let rowsHtml = "";
-    snap.forEach(docSnap => {
-      const data = docSnap.data();
-      const facultyUid = docSnap.id;
-      const code = data.code || "------";
-      const isActive = data.active === true;
-      const expiresAt = data.expiresAt?.toDate ? data.expiresAt.toDate().toLocaleString([], { dateStyle: "short", timeStyle: "short" }) : "Indefinite";
+    const logs = [];
+    snapshot.forEach(d => logs.push({ id: d.id, ...d.data() }));
 
-      rowsHtml += `
-        <tr>
-          <td style="font-weight: 700; font-family: var(--font-mono); color: var(--accent);">${escapeHtml(code)}</td>
-          <td style="font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary);">${escapeHtml(facultyUid)}</td>
-          <td>
-            <span class="status-badge ${isActive ? 'active' : ''}">
-              ${isActive ? "Active" : "Deactivated"}
-            </span>
-          </td>
-          <td style="font-size: 13px; color: var(--text-secondary);">${expiresAt}</td>
-          <td>
-            ${isActive ? `
-              <button type="button" class="btn btn-secondary btn-kill-session" data-uid="${facultyUid}" data-code="${code}" style="padding: 4px 10px; font-size: 11px; color: var(--danger);">
-                Force Close Session
-              </button>
-            ` : `<span style="font-size: 12px; color: var(--text-tertiary);">Session Closed</span>`}
-          </td>
-        </tr>
+    // Client-side sort (newest first) to bypass composite index requirement
+    logs.sort((a, b) => {
+      const timeA = a.timestamp?.toMillis ? a.timestamp.toMillis() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
+      const timeB = b.timestamp?.toMillis ? b.timestamp.toMillis() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
+      return timeB - timeA;
+    });
+
+    // Show most recent 50 events
+    logs.slice(0, 50).forEach((l) => {
+      const tr = document.createElement("tr");
+      let timeStr = "Recently";
+      if (l.timestamp?.toDate) {
+        timeStr = l.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } else if (l.timestamp) {
+        timeStr = new Date(l.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+
+      tr.innerHTML = `
+        <td style="font-size: 11px; color: var(--text-tertiary);">${timeStr}</td>
+        <td><span class="status-badge" style="font-size: 10px;">${l.category || "Action"}</span></td>
+        <td>${l.userEmail || "System"}</td>
+        <td><strong style="color: var(--accent);">${l.classroomCode || "GLOBAL"}</strong></td>
+        <td style="font-size: 12.5px;">${l.details || ""}</td>
       `;
+      adminAuditTbody.appendChild(tr);
     });
-
-    classroomsTbody.innerHTML = rowsHtml;
-
-    // Attach Session Termination Handlers
-    document.querySelectorAll(".btn-kill-session").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const targetFacultyUid = btn.dataset.uid;
-        const targetCode = btn.dataset.code;
-
-        if (confirm(`Force deactivate session ${targetCode}?`)) {
-          try {
-            await updateDoc(doc(db, "classrooms", targetFacultyUid), {
-              active: false
-            });
-            alert(`Classroom session ${targetCode} deactivated.`);
-            loadClassroomSessions();
-            loadMetrics();
-          } catch (err) {
-            console.error("Force close failed:", err);
-            alert("Could not close session: " + err.message);
-          }
-        }
-      });
-    });
-
-  } catch (err) {
-    console.error("Error loading classroom sessions:", err);
-  }
+  }, (err) => {
+    console.error("Audit listener error:", err);
+  });
 }
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, s => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[s]));
-}
-
-// Strict Admin Gate
-initAuthGuard({
-  requiredRole: "admin",
-  onReady: ({ user }) => {
-    currentAdminUser = user;
-    loadMetrics();
-    loadAdminDirectory();
-    loadClassroomSessions();
-  }
-});

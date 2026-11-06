@@ -3,11 +3,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Aimser - System Administration</title>
+  <title>Aimser - Institutional Admin Console</title>
   <link rel="stylesheet" href="css/style.css">
+  <style>
+    .admin-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .admin-stat-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .admin-stat-label {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .admin-stat-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    .role-select-inline {
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .search-filter-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .search-filter-bar input {
+      flex: 1;
+      min-width: 200px;
+    }
+  </style>
 </head>
 <body>
 
+  <!-- Global Bento Rail Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
@@ -15,20 +64,12 @@
     </div>
 
     <div class="sidebar-user-card">
-      <span class="welcome-tag">SYSTEM ADMIN</span>
-      <h3 id="sidebar-greeting-name">Administrator</h3>
+      <span class="welcome-tag">ADMIN CONSOLE</span>
+      <h3 id="sidebar-greeting-name">Loading...</h3>
     </div>
 
     <nav class="sidebar-nav">
       <a href="admin-dashboard.html" class="nav-item active">🛡️ Admin Console</a>
-      <a href="planner.html" class="nav-item">📋 Project Planner</a>
-      <a href="feed.html" class="nav-item">💬 HR Feed</a>
-      <a href="case-library.html" class="nav-item">📁 HR Case Library</a>
-      <a href="recruitment.html" class="nav-item">🎯 Recruitment Simulator</a>
-      <a href="performance.html" class="nav-item">📈 Performance Management</a>
-      <a href="relations.html" class="nav-item">🤝 Employee Relations</a>
-      <a href="analytics.html" class="nav-item">📊 HR Analytics</a>
-      <a href="portfolio.html" class="nav-item">💼 Portfolio & Assessment</a>
       <a href="settings.html" class="nav-item">⚙️ Settings</a>
     </nav>
   </aside>
@@ -36,7 +77,7 @@
   <div class="main-content">
     <header class="topbar">
       <div class="brand-group">
-        <span class="faculty-name-display" id="topbar-user-name">Root Administrator</span>
+        <span class="faculty-name-display" id="topbar-user-name">Administrator</span>
         <span class="role-tag admin" id="topbar-role-badge">ADMIN</span>
       </div>
       <div class="nav-actions">
@@ -61,87 +102,75 @@
     <main class="page-container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">Aimser Administration Console</h1>
-          <p class="page-subtitle">Global user directory, institutional role elevation, active section monitors, and simulator audit records.</p>
+          <h1 class="page-title">Institutional Administration</h1>
+          <p class="page-subtitle">Platform-wide governance: role management, classroom oversight, and telemetry telemetry audit stream.</p>
         </div>
       </div>
 
-      <div class="dashboard-grid">
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Total Users</h2>
-              <p class="card-subtitle">All registered accounts</p>
-            </div>
-          </div>
-          <div class="enrolled-stat-number" id="admin-stat-users">0</div>
-        </section>
-
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Faculty Instructors</h2>
-              <p class="card-subtitle">Elevated academic accounts</p>
-            </div>
-          </div>
-          <div class="enrolled-stat-number" id="admin-stat-faculty">0</div>
-        </section>
-
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Active Classrooms</h2>
-              <p class="card-subtitle">Live section spaces</p>
-            </div>
-          </div>
-          <div class="enrolled-stat-number" id="admin-stat-classrooms">0</div>
-        </section>
-
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Total Submissions</h2>
-              <p class="card-subtitle">Cloudinary deliverable assets</p>
-            </div>
-          </div>
-          <div class="enrolled-stat-number" id="admin-stat-submissions">0</div>
-        </section>
+      <!-- Institutional Metrics -->
+      <div class="admin-stats-grid">
+        <div class="admin-stat-card">
+          <span class="admin-stat-label">Total Students</span>
+          <span class="admin-stat-value" id="stat-total-students">0</span>
+        </div>
+        <div class="admin-stat-card">
+          <span class="admin-stat-label">Faculty Accounts</span>
+          <span class="admin-stat-value" id="stat-total-faculty">0</span>
+        </div>
+        <div class="admin-stat-card">
+          <span class="admin-stat-label">Active Classrooms</span>
+          <span class="admin-stat-value" id="stat-total-classes">0</span>
+        </div>
+        <div class="admin-stat-card">
+          <span class="admin-stat-label">Audit Log Events</span>
+          <span class="admin-stat-value" id="stat-total-logs">0</span>
+        </div>
       </div>
 
-      <section class="card roster-card">
+      <!-- SECTION 1: USER DIRECTORY & ROLE MANAGEMENT -->
+      <section class="card roster-card" style="margin-bottom: 24px;">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Global User Directory & Role Assignment</h2>
-            <p class="card-subtitle">Promote or demote user roles, inspect classroom allocations, and purge unauthorized records.</p>
+            <h2 class="card-title">User Accounts Directory</h2>
+            <p class="card-subtitle">Manage institutional roles and enrollment linkages.</p>
           </div>
-          <button type="button" class="btn btn-secondary" id="btn-refresh-users">🔄 Refresh Directory</button>
+        </div>
+
+        <div class="search-filter-bar">
+          <input type="text" id="user-search-input" class="form-control" placeholder="Search by name or email address...">
+          <select id="user-role-filter" class="form-control" style="max-width: 180px;">
+            <option value="all">All Roles</option>
+            <option value="student">Students</option>
+            <option value="faculty">Faculty</option>
+            <option value="admin">Administrators</option>
+          </select>
         </div>
 
         <div class="table-container">
           <table class="data-table">
             <thead>
               <tr>
-                <th>User Full Name</th>
+                <th>Account Name</th>
                 <th>Institutional Email</th>
                 <th>Current Role</th>
-                <th>Classroom Code</th>
-                <th>Role Elevation Actions</th>
+                <th>Enrolled Section</th>
+                <th>Role Elevation</th>
+                <th>Actions</th>
               </tr>
             </thead>
-            <tbody id="admin-users-tbody">
-              <tr>
-                <td colspan="5" class="empty-state">Loading user directory from Firestore...</td>
-              </tr>
+            <tbody id="users-tbody">
+              <tr><td colspan="6" class="empty-state">Loading user records...</td></tr>
             </tbody>
           </table>
         </div>
       </section>
 
-      <section class="card roster-card">
+      <!-- SECTION 2: GLOBAL CLASSROOM DIRECTORY -->
+      <section class="card roster-card" style="margin-bottom: 24px;">
         <div class="card-header">
           <div>
-            <h2 class="card-title">Active Simulation Classrooms</h2>
-            <p class="card-subtitle">Instructor codes currently live on the network.</p>
+            <h2 class="card-title">Institutional Classrooms</h2>
+            <p class="card-subtitle">Active simulation cohorts across all faculty instructors.</p>
           </div>
         </div>
 
@@ -149,17 +178,44 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th>Classroom Code</th>
-                <th>Faculty UID</th>
-                <th>Status</th>
-                <th>Type</th>
-                <th>Administrative Force Actions</th>
+                <th>Classroom Name</th>
+                <th>Section Cohort</th>
+                <th>Join Code</th>
+                <th>Instructor Email</th>
+                <th>Enrolled Count</th>
+                <th>Pending Requests</th>
+                <th>Actions</th>
               </tr>
             </thead>
-            <tbody id="admin-classrooms-tbody">
+            <tbody id="admin-classes-tbody">
+              <tr><td colspan="7" class="empty-state">Loading classrooms directory...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 3: SYSTEM AUDIT & TELEMETRY STREAM -->
+      <section class="card roster-card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Global Activity Telemetry</h2>
+            <p class="card-subtitle">Real-time audit log stream across all operations.</p>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
               <tr>
-                <td colspan="5" class="empty-state">Loading active classroom sessions...</td>
+                <th>Timestamp</th>
+                <th>Category</th>
+                <th>Account</th>
+                <th>Scope</th>
+                <th>Details</th>
               </tr>
+            </thead>
+            <tbody id="admin-audit-tbody">
+              <tr><td colspan="5" class="empty-state">Streaming audit logs...</td></tr>
             </tbody>
           </table>
         </div>
