@@ -4,7 +4,7 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.1/firebase
 
 // Your new Aimser-Simulator Web App credentials
 const firebaseConfig = {
-  apiKey: "AIzaSyBY3qdJXyrwQJtYIddGyt1Z8-M9IPA9ZH8",
+  apiKey: "AIzaSyBY3qdJXyrwQJtYIddGYt1Z8-M9IPA9ZH8",
   authDomain: "aimser-simulator.firebaseapp.com",
   projectId: "aimser-simulator",
   storageBucket: "aimser-simulator.firebasestorage.app",
