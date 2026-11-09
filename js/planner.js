@@ -1,214 +1,259 @@
-import { db } from "./firebase-init.js";
+import { auth, db } from "./firebase-init.js";
 import { initAuthGuard } from "./auth-guard.js";
 import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  serverTimestamp 
+  collection, query, where, getDocs, addDoc, doc, updateDoc, 
+  arrayUnion, serverTimestamp, onSnapshot 
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// Add at the beginning of each module JS file:
 const urlParams = new URLSearchParams(window.location.search);
-let targetCode = urlParams.get("code");
+let activeTeamCode = urlParams.get("team") || localStorage.getItem("aimser_active_team_code");
+
+let currentUser = null;
+let currentRole = "student";
+let activeTeamDocId = null;
+let activeTeamData = null;
+
+// DOM
+const gatewayCard = document.getElementById("team-gateway-card");
+const workspace = document.getElementById("team-workspace");
+const formJoinTeam = document.getElementById("form-join-team");
+const inpTeamCode = document.getElementById("inp-team-code");
+const btnOpenCreateTeam = document.getElementById("btn-open-create-team");
+const modalCreateTeam = document.getElementById("modal-create-team");
+const formCreateTeam = document.getElementById("form-create-team");
+
+const activeTeamName = document.getElementById("active-team-name");
+const activeTeamMeta = document.getElementById("active-team-meta");
+const activeTeamCodeTag = document.getElementById("active-team-code");
+const btnSwitchTeam = document.getElementById("btn-switch-team");
+
+const hierarchyContainer = document.getElementById("team-hierarchy-container");
+const btnOpenAssignRole = document.getElementById("btn-open-assign-role");
+const modalAssignRole = document.getElementById("modal-assign-role");
+const formAssignRole = document.getElementById("form-assign-role");
+
+const btnOpenAddCard = document.getElementById("btn-open-add-card");
+const modalAddCard = document.getElementById("modal-add-card");
+const formCreateCard = document.getElementById("form-create-card");
+
+const colTodo = document.getElementById("column-todo");
+const colProg = document.getElementById("column-in_progress");
+const colDone = document.getElementById("column-done");
+
+document.querySelectorAll(".close-modal-btn").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".modal-backdrop-custom").forEach(m => m.style.display = "none");
+  });
+});
 
 initAuthGuard({
   allowedRoles: ["student", "faculty", "admin"],
   onReady: async ({ user, userData, role }) => {
-    // If not supplied in URL, fallback to student's enrolled classroom
-    if (!targetCode && userData.classroomCode) {
-      targetCode = userData.classroomCode;
+    currentUser = user;
+    currentRole = role;
+
+    const topbarRole = document.getElementById("topbar-role-badge");
+    const topbarName = document.getElementById("topbar-user-name");
+    const sidebarRole = document.getElementById("sidebar-role-tag");
+    const sidebarName = document.getElementById("sidebar-greeting-name");
+
+    const displayName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || user.email;
+    if (topbarName) topbarName.textContent = displayName;
+    if (sidebarName) sidebarName.textContent = displayName;
+    if (topbarRole) {
+      topbarRole.className = `role-badge ${role}`;
+      topbarRole.textContent = role.toUpperCase();
     }
+    if (sidebarRole) sidebarRole.textContent = role.toUpperCase();
 
-    if (!targetCode) {
-      alert("No active classroom selected. Returning to dashboard.");
-      window.location.replace(role === "faculty" ? "faculty-dashboard.html" : "student-dashboard.html");
-      return;
+    if (activeTeamCode) {
+      await loadTeam(activeTeamCode);
     }
-
-    // Set Scope Label & Breadcrumb Links
-    const scopeLabel = document.getElementById("scope-class-code");
-    const breadcrumbLink = document.getElementById("breadcrumb-classroom-link");
-    const sidebarClassLink = document.getElementById("sidebar-class-hub-link");
-
-    if (scopeLabel) scopeLabel.textContent = targetCode;
-    if (breadcrumbLink) breadcrumbLink.href = `classroom.html?code=${targetCode}`;
-    if (sidebarClassLink) sidebarClassLink.href = `classroom.html?code=${targetCode}`;
-
-    // Proceed to initialize module scoped to targetCode...
   }
 });
 
-const todoContainer = document.getElementById("todo-tasks");
-const inProgressContainer = document.getElementById("inprogress-tasks");
-const doneContainer = document.getElementById("done-tasks");
-
-const countTodo = document.getElementById("count-todo");
-const countInProgress = document.getElementById("count-inprogress");
-const countDone = document.getElementById("count-done");
-
-const btnAddTask = document.getElementById("btn-add-task");
-const taskModal = document.getElementById("task-modal");
-const formTask = document.getElementById("form-create-task");
-const btnCancelTask = document.getElementById("btn-cancel-task");
-
-let currentUser = null;
-let currentRole = "student";
-let userClassCode = "";
-let tasksUnsubscribe = null;
-
-// Modal Controls
-btnAddTask?.addEventListener("click", () => {
-  if (taskModal) taskModal.style.display = "block";
-});
-
-btnCancelTask?.addEventListener("click", () => {
-  if (taskModal) taskModal.style.display = "none";
-  if (formTask) formTask.reset();
-});
-
-// Create New Kanban Task
-formTask?.addEventListener("submit", async (e) => {
+// Join Team
+formJoinTeam?.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const title = document.getElementById("task-title-input")?.value.trim();
-  const desc = document.getElementById("task-desc-input")?.value.trim();
-  const phase = document.getElementById("task-phase-input")?.value || "todo";
-
-  if (!title) return;
-
-  try {
-    await addDoc(collection(db, "tasks"), {
-      title,
-      description: desc,
-      status: phase,
-      classroomCode: userClassCode || "GLOBAL",
-      creatorUid: currentUser.uid,
-      creatorName: currentUser.displayName || currentUser.email,
-      createdAt: serverTimestamp()
-    });
-
-    if (taskModal) taskModal.style.display = "none";
-    if (formTask) formTask.reset();
-  } catch (err) {
-    console.error("Failed to add task:", err);
-    alert("Could not create task: " + err.message);
-  }
+  const code = inpTeamCode.value.trim().toUpperCase();
+  if (!code) return;
+  await loadTeam(code);
 });
 
-// Real-Time Scoped Listener
-function listenToClassroomTasks() {
-  if (tasksUnsubscribe) tasksUnsubscribe();
+btnSwitchTeam?.addEventListener("click", () => {
+  localStorage.removeItem("aimser_active_team_code");
+  activeTeamCode = null;
+  gatewayCard.style.display = "block";
+  workspace.style.display = "none";
+});
 
-  let q;
-  if (userClassCode) {
-    // Scoped strictly to the active section
-    q = query(collection(db, "tasks"), where("classroomCode", "==", userClassCode));
-  } else {
-    // Fallback for unlinked workspaces
-    q = query(collection(db, "tasks"), where("creatorUid", "==", currentUser.uid));
-  }
+// Create Team Room (Max 15 members: 1 leader + 14 members)
+btnOpenCreateTeam?.addEventListener("click", () => {
+  if (modalCreateTeam) modalCreateTeam.style.display = "flex";
+});
 
-  tasksUnsubscribe = onSnapshot(q, (snapshot) => {
-    let todos = [];
-    let inProgress = [];
-    let done = [];
+formCreateTeam?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const teamName = document.getElementById("inp-new-team-name").value.trim();
+  const linkedOfficeCode = document.getElementById("inp-link-office-code").value.trim().toUpperCase() || null;
+  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+  const teamCode = `TEAM-${randomSuffix}`;
 
-    snapshot.forEach((docSnap) => {
-      const task = { id: docSnap.id, ...docSnap.data() };
-      if (task.status === "inprogress") {
-        inProgress.push(task);
-      } else if (task.status === "done") {
-        done.push(task);
-      } else {
-        todos.push(task);
-      }
-    });
-
-    renderColumn(todoContainer, todos, "todo");
-    renderColumn(inProgressContainer, inProgress, "inprogress");
-    renderColumn(doneContainer, done, "done");
-
-    if (countTodo) countTodo.textContent = todos.length;
-    if (countInProgress) countInProgress.textContent = inProgress.length;
-    if (countDone) countDone.textContent = done.length;
+  await addDoc(collection(db, "planner_teams"), {
+    teamName,
+    teamCode,
+    linkedOfficeCode,
+    leaderUid: currentUser.uid,
+    leaderEmail: currentUser.email,
+    maxMembers: 15,
+    members: [{ uid: currentUser.uid, email: currentUser.email, role: "Team Leader" }],
+    hierarchy: [{ name: currentUser.email.split("@")[0], position: "Project Manager (Leader)" }],
+    createdAt: serverTimestamp()
   });
-}
 
-function renderColumn(container, tasks, columnType) {
-  if (!container) return;
-  if (tasks.length === 0) {
-    container.innerHTML = `<div class="empty-state" style="padding: 24px 12px; font-size: 13px;">No tasks in this stage.</div>`;
+  alert(`Team created! Share code: ${teamCode}`);
+  modalCreateTeam.style.display = "none";
+  await loadTeam(teamCode);
+});
+
+async function loadTeam(code) {
+  const q = query(collection(db, "planner_teams"), where("teamCode", "==", code));
+  const snap = await getDocs(q);
+
+  if (snap.empty) {
+    alert("Team board not found.");
     return;
   }
 
-  container.innerHTML = tasks.map(task => `
-    <div class="kanban-task" data-id="${task.id}">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
-        <h4 style="font-size: 14px; font-weight: 700; color: var(--text-primary);">${escapeHtml(task.title)}</h4>
-        <button type="button" class="btn-delete-task" data-id="${task.id}" style="background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 12px;" title="Delete Task">✕</button>
-      </div>
-      ${task.description ? `<p style="font-size: 13px; color: var(--text-secondary); line-height: 1.4;">${escapeHtml(task.description)}</p>` : ""}
-      
-      <!-- Quick Stage Switcher Controls -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--surface-border);">
-        <span style="font-size: 11px; color: var(--text-tertiary);">${escapeHtml(task.creatorName || "Peer")}</span>
-        <select class="select-task-status" data-id="${task.id}" style="padding: 3px 6px; font-size: 11px; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--surface-border); border-radius: 4px;">
-          <option value="todo" ${task.status === "todo" ? "selected" : ""}>To Do</option>
-          <option value="inprogress" ${task.status === "inprogress" ? "selected" : ""}>In Progress</option>
-          <option value="done" ${task.status === "done" ? "selected" : ""}>Done</option>
-        </select>
-      </div>
-    </div>
-  `).join("");
+  const tDoc = snap.docs[0];
+  activeTeamDocId = tDoc.id;
+  activeTeamData = tDoc.data();
+  activeTeamCode = code;
+  localStorage.setItem("aimser_active_team_code", code);
 
-  // Attach Stage Change Event
-  container.querySelectorAll(".select-task-status").forEach(select => {
-    select.addEventListener("change", async (e) => {
-      const taskId = e.target.dataset.id;
-      const newStatus = e.target.value;
-      try {
-        await updateDoc(doc(db, "tasks", taskId), { status: newStatus });
-      } catch (err) {
-        console.error("Status update failed:", err);
-      }
+  const memberList = activeTeamData.members || [];
+  if (!memberList.some(m => m.uid === currentUser.uid)) {
+    if (memberList.length >= 15) {
+      alert("This team has reached the maximum of 15 members.");
+      return;
+    }
+    const newMember = { uid: currentUser.uid, email: currentUser.email, role: "Member" };
+    await updateDoc(doc(db, "planner_teams", activeTeamDocId), { 
+      members: arrayUnion(newMember) 
     });
-  });
-
-  // Attach Delete Event
-  container.querySelectorAll(".btn-delete-task").forEach(btn => {
-    btn.addEventListener("click", async (e) => {
-      const taskId = e.target.dataset.id;
-      if (confirm("Delete this task deliverable?")) {
-        try {
-          await deleteDoc(doc(db, "tasks", taskId));
-        } catch (err) {
-          console.error("Delete failed:", err);
-        }
-      }
-    });
-  });
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, s => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[s]));
-}
-
-// Bootstrapping
-initAuthGuard({
-  onReady: ({ user, userData, role }) => {
-    currentUser = user;
-    currentRole = role;
-    userClassCode = userData.classroomCode || "";
-    listenToClassroomTasks();
+    memberList.push(newMember);
   }
+
+  gatewayCard.style.display = "none";
+  workspace.style.display = "block";
+
+  if (activeTeamName) activeTeamName.textContent = activeTeamData.teamName;
+  if (activeTeamMeta) activeTeamMeta.textContent = `Members: ${memberList.length}/15 • Leader: ${activeTeamData.leaderEmail}`;
+  if (activeTeamCodeTag) activeTeamCodeTag.textContent = code;
+
+  renderHierarchy(activeTeamData.hierarchy || []);
+  initCardsStream();
+}
+
+function renderHierarchy(hierarchy) {
+  if (!hierarchyContainer) return;
+  hierarchyContainer.innerHTML = "";
+  hierarchy.forEach(h => {
+    const pill = document.createElement("span");
+    pill.className = "hierarchy-pill";
+    pill.innerHTML = `👤 <strong>${h.name}</strong>: ${h.position}`;
+    hierarchyContainer.appendChild(pill);
+  });
+}
+
+// Assign Position
+btnOpenAssignRole?.addEventListener("click", () => {
+  if (modalAssignRole) modalAssignRole.style.display = "flex";
 });
+
+formAssignRole?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const name = document.getElementById("role-member-name").value.trim();
+  const position = document.getElementById("role-title").value;
+
+  const newEntry = { name, position };
+  await updateDoc(doc(db, "planner_teams", activeTeamDocId), { 
+    hierarchy: arrayUnion(newEntry) 
+  });
+  
+  if (!activeTeamData.hierarchy) activeTeamData.hierarchy = [];
+  activeTeamData.hierarchy.push(newEntry);
+  renderHierarchy(activeTeamData.hierarchy);
+
+  modalAssignRole.style.display = "none";
+  formAssignRole.reset();
+});
+
+// Cards / Kanban
+btnOpenAddCard?.addEventListener("click", () => {
+  if (modalAddCard) modalAddCard.style.display = "flex";
+});
+
+formCreateCard?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const title = document.getElementById("card-title").value.trim();
+  const assignee = document.getElementById("card-assignee").value.trim();
+  const dueDate = document.getElementById("card-due").value;
+  const description = document.getElementById("card-desc").value.trim();
+
+  await addDoc(collection(db, "planner_cards"), {
+    teamCode: activeTeamCode,
+    title,
+    assignee: assignee || "Unassigned",
+    dueDate,
+    description,
+    status: "todo",
+    createdAt: serverTimestamp()
+  });
+
+  formCreateCard.reset();
+  modalAddCard.style.display = "none";
+});
+
+function initCardsStream() {
+  const q = query(collection(db, "planner_cards"), where("teamCode", "==", activeTeamCode));
+  onSnapshot(q, (snap) => {
+    if (!colTodo || !colProg || !colDone) return;
+    colTodo.innerHTML = ""; colProg.innerHTML = ""; colDone.innerHTML = "";
+
+    let cTodo = 0, cProg = 0, cDone = 0;
+
+    snap.forEach((cd) => {
+      const card = cd.data();
+      const el = document.createElement("div");
+      el.className = "trello-card";
+      el.innerHTML = `
+        <h4 class="trello-card-title">${card.title}</h4>
+        <div style="font-size: 11.5px; color: var(--text-secondary);">${card.description || ""}</div>
+        <div class="trello-card-meta">
+          <span>👤 ${card.assignee}</span>
+          <span>📅 ${card.dueDate}</span>
+        </div>
+        <div style="display: flex; gap: 4px; margin-top: 6px;">
+          <select class="change-status" data-id="${cd.id}" style="background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--surface-border); font-size: 11px; padding: 2px 4px; border-radius: 4px;">
+            <option value="todo" ${card.status === "todo" ? "selected" : ""}>To Do</option>
+            <option value="in_progress" ${card.status === "in_progress" ? "selected" : ""}>In Progress</option>
+            <option value="done" ${card.status === "done" ? "selected" : ""}>Done</option>
+          </select>
+        </div>
+      `;
+
+      el.querySelector(".change-status")?.addEventListener("change", async (e) => {
+        await updateDoc(doc(db, "planner_cards", cd.id), { status: e.target.value });
+      });
+
+      if (card.status === "in_progress") { colProg.appendChild(el); cProg++; }
+      else if (card.status === "done") { colDone.appendChild(el); cDone++; }
+      else { colTodo.appendChild(el); cTodo++; }
+    });
+
+    document.getElementById("count-todo").textContent = cTodo;
+    document.getElementById("count-in_progress").textContent = cProg;
+    document.getElementById("count-done").textContent = cDone;
+  });
+}

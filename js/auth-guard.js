@@ -7,20 +7,6 @@ export function synchronizeSidebar(role, currentPath) {
   const sidebarNav = document.querySelector(".sidebar-nav");
   if (!sidebarNav) return;
 
-  const firstNavItem = sidebarNav.querySelector(".nav-item:first-child");
-  if (firstNavItem) {
-    if (role === "admin") {
-      firstNavItem.href = "admin-dashboard.html";
-      firstNavItem.innerHTML = "🛡️ Admin Console";
-    } else if (role === "faculty") {
-      firstNavItem.href = "faculty-dashboard.html";
-      firstNavItem.innerHTML = "📊 Faculty Dashboard";
-    } else {
-      firstNavItem.href = "student-dashboard.html";
-      firstNavItem.innerHTML = "📊 My Classrooms";
-    }
-  }
-
   const allNavLinks = sidebarNav.querySelectorAll(".nav-item");
   const fileName = currentPath.substring(currentPath.lastIndexOf("/") + 1) || "index.html";
 
@@ -59,10 +45,8 @@ export function initAuthGuard({ allowedRoles = [], onReady = null } = {}) {
       if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
         if (role === "admin") {
           window.location.replace("admin-dashboard.html");
-        } else if (role === "faculty") {
-          window.location.replace("faculty-dashboard.html");
         } else {
-          window.location.replace("student-dashboard.html");
+          window.location.replace("office.html");
         }
         return;
       }
@@ -78,7 +62,7 @@ export function initAuthGuard({ allowedRoles = [], onReady = null } = {}) {
       
       if (topbarBadge) {
         topbarBadge.textContent = role.toUpperCase();
-        topbarBadge.className = `role-tag ${role}`;
+        topbarBadge.className = `role-badge ${role}`;
       }
 
       synchronizeSidebar(role, currentPath);

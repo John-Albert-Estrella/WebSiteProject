@@ -2,13 +2,13 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aimser - Platform Settings</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- Global Bento Rail Sidebar -->
+  <!-- Unified Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
@@ -16,12 +16,14 @@
     </div>
 
     <div class="sidebar-user-card">
-      <span class="welcome-tag">WORKSPACE</span>
+      <span class="welcome-tag" id="sidebar-role-tag">SETTINGS</span>
       <h3 id="sidebar-greeting-name">Loading...</h3>
     </div>
 
     <nav class="sidebar-nav">
-      <a href="student-dashboard.html" class="nav-item" id="sidebar-home-link">📊 My Classrooms</a>
+      <a href="office.html" class="nav-item">🏢 Office</a>
+      <a href="planner.html" class="nav-item">📋 Project Planner</a>
+      <a href="hr-library.html" class="nav-item">📚 HR Library</a>
       <a href="settings.html" class="nav-item active">⚙️ Settings</a>
     </nav>
   </aside>
@@ -29,170 +31,79 @@
   <div class="main-content">
     <header class="topbar">
       <div class="brand-group">
-        <span class="faculty-name-display" id="topbar-user-name">User Profile</span>
-        <span class="role-tag" id="topbar-role-badge">STUDENT</span>
-      </div>
-      <div class="nav-actions">
-        <div class="notifications-wrapper">
-          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
-            <img src="assets/bell.png" alt="Bell" class="bell-icon">
-            <span class="notif-badge hidden" id="notif-badge">0</span>
-          </button>
-          <div class="notif-dropdown" id="notif-dropdown">
-            <div class="notif-header">
-              <h4 class="notif-title">Notifications</h4>
-              <button type="button" class="btn-mark-all-read" id="btn-mark-all-read">Mark all as read</button>
-            </div>
-            <div class="notif-list" id="notif-list">
-              <div class="notif-empty">No notifications yet.</div>
-            </div>
-          </div>
-        </div>
+        <span class="faculty-name-display" id="topbar-user-name">User</span>
+        <span class="role-badge" id="topbar-role-badge">STUDENT</span>
       </div>
     </header>
 
     <main class="page-container">
       <div class="page-header">
         <div>
-          <!-- Contextual return to class hub if opened from inside a class -->
-          <div id="settings-classroom-return" style="display: none; margin-bottom: 8px;">
-            <a href="#" id="link-return-class" class="auth-link" style="font-size: 13px;">← Return to Classroom Hub (<span id="return-class-code"></span>)</a>
-          </div>
-          <h1 class="page-title">Platform Settings</h1>
-          <p class="page-subtitle">Personalize your simulator interface, update security credentials, and manage profile records.</p>
+          <h1 class="page-title">Platform Preferences</h1>
+          <p class="page-subtitle">Manage appearance, profile metadata, and security credentials.</p>
         </div>
       </div>
 
-      <div id="settings-alert-box" class="settings-alert-banner"></div>
-
-      <div class="settings-grid">
-        
-        <!-- Appearance & Theme Selector -->
+      <div class="dashboard-grid">
+        <!-- Theme Setting -->
         <section class="card">
           <div class="card-header">
-            <div>
-              <h2 class="card-title">Appearance & Display</h2>
-              <p class="card-subtitle">Choose how the simulator looks across your devices.</p>
-            </div>
-            <span class="status-badge active">Active</span>
+            <h3 class="card-title">Theme & Interface</h3>
           </div>
-
-          <label class="form-label">Color Theme</label>
-          <div class="theme-picker-group">
-            <div class="theme-card-option" id="theme-dark-opt" data-theme="dark">
-              <div class="theme-icon-circle">🌙</div>
-              <div class="theme-label-block">
-                <strong>Dark Theme</strong>
-                <span>Obsidian & Oceanic Glass</span>
-              </div>
-            </div>
-
-            <div class="theme-card-option" id="theme-light-opt" data-theme="light">
-              <div class="theme-icon-circle">☀️</div>
-              <div class="theme-label-block">
-                <strong>Light Theme</strong>
-                <span>Clean High-Contrast Studio</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Profile Details -->
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Profile Information</h2>
-              <p class="card-subtitle">Personal information stored on your academic simulator profile.</p>
-            </div>
-          </div>
-
-          <form id="form-update-profile" class="auth-form">
-            <div class="form-row-duo">
-              <div class="form-group">
-                <label class="form-label" for="setting-first-name">First Name</label>
-                <input type="text" id="setting-first-name" class="form-control" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="setting-last-name">Last Name</label>
-                <input type="text" id="setting-last-name" class="form-control" required>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="setting-email">Institutional Email</label>
-              <input type="email" id="setting-email" class="form-control" disabled>
-              <small class="input-hint-note">Email is linked to institutional authorization records and cannot be altered directly.</small>
-            </div>
-
-            <div class="card-actions">
-              <button type="submit" class="btn btn-primary" id="btn-save-profile">Save Profile Changes</button>
-            </div>
-          </form>
-        </section>
-
-        <!-- Password & Security -->
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Password & Security</h2>
-              <p class="card-subtitle">Change your password directly from within your active session.</p>
-            </div>
-          </div>
-
-          <form id="form-update-password" class="auth-form">
-            <div class="form-group">
-              <label class="form-label" for="setting-current-pass">Current Password</label>
-              <div class="password-input-wrapper">
-                <input type="password" id="setting-current-pass" class="form-control" placeholder="Enter current password" required autocomplete="current-password">
-                <button type="button" class="btn-toggle-password" data-target="setting-current-pass" title="Toggle visibility" aria-label="Toggle password visibility">👁️</button>
-              </div>
-            </div>
-
-            <div class="form-row-duo">
-              <div class="form-group">
-                <label class="form-label" for="setting-new-pass">New Password</label>
-                <div class="password-input-wrapper">
-                  <input type="password" id="setting-new-pass" class="form-control" placeholder="Min. 6 characters" minlength="6" required autocomplete="new-password">
-                  <button type="button" class="btn-toggle-password" data-target="setting-new-pass" title="Toggle visibility" aria-label="Toggle password visibility">👁️</button>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="setting-confirm-pass">Confirm New Password</label>
-                <div class="password-input-wrapper">
-                  <input type="password" id="setting-confirm-pass" class="form-control" placeholder="Confirm new password" minlength="6" required autocomplete="new-password">
-                  <button type="button" class="btn-toggle-password" data-target="setting-confirm-pass" title="Toggle visibility" aria-label="Toggle password visibility">👁️</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="card-actions">
-              <button type="submit" class="btn btn-primary" id="btn-save-password">Update Password</button>
-            </div>
-          </form>
-        </section>
-
-        <!-- Dedicated Session Termination -->
-        <section class="card danger-zone">
-          <div class="card-header">
-            <div>
-              <h2 class="card-title">Session Management</h2>
-              <p class="card-subtitle">Safely terminate your authenticated credentials on this device.</p>
-            </div>
-          </div>
-          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
-            Signing out will disconnect your active simulation session and return you to the login screen.
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+            Switch between obsidian Dark Mode and high-contrast Light Mode.
           </p>
-          <div class="card-actions">
-            <button type="button" class="btn btn-logout-danger" id="btn-logout-settings">Sign Out of Aimser</button>
-          </div>
+          <button type="button" class="btn btn-secondary" id="theme-toggle-btn">🌓 Toggle Theme</button>
         </section>
 
+        <!-- Account Security -->
+        <section class="card">
+          <div class="card-header">
+            <h3 class="card-title">Session & Credentials</h3>
+          </div>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+            Safely terminate your authenticated session on this browser.
+          </p>
+          <div style="display: flex; gap: 8px;">
+            <a href="reset-password.html" class="btn btn-secondary" style="text-decoration: none;">Change Password</a>
+            <button type="button" class="btn btn-secondary danger-action" id="btn-sign-out">Sign Out</button>
+          </div>
+        </section>
       </div>
     </main>
   </div>
 
-  <script type="module" src="js/settings.js"></script>
+  <script type="module">
+    import { auth } from "./js/firebase-init.js";
+    import { initAuthGuard } from "./js/auth-guard.js";
+    import { signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+
+    initAuthGuard({
+      allowedRoles: ["student", "faculty", "admin"],
+      onReady: ({ user, userData, role }) => {
+        const topbarRole = document.getElementById("topbar-role-badge");
+        const topbarName = document.getElementById("topbar-user-name");
+        const sidebarRole = document.getElementById("sidebar-role-tag");
+        const sidebarName = document.getElementById("sidebar-greeting-name");
+
+        const displayName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || user.email;
+        if (topbarName) topbarName.textContent = displayName;
+        if (sidebarName) sidebarName.textContent = displayName;
+        if (topbarRole) {
+          topbarRole.className = `role-badge ${role}`;
+          topbarRole.textContent = role.toUpperCase();
+        }
+        if (sidebarRole) sidebarRole.textContent = role.toUpperCase();
+      }
+    });
+
+    document.getElementById("btn-sign-out")?.addEventListener("click", async () => {
+      if (confirm("Sign out of Aimser?")) {
+        await signOut(auth);
+        window.location.replace("login.html");
+      }
+    });
+  </script>
   <script type="module" src="js/theme.js"></script>
 </body>
 </html>

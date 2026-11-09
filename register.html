@@ -16,11 +16,9 @@
         <p class="auth-subtitle">Join the institutional Human Resource Management Simulator.</p>
       </div>
 
-      <!-- Feedback / Error Banner -->
       <div id="register-error-box" class="settings-alert-banner danger"></div>
 
       <form id="form-register" class="auth-form">
-        <!-- Name Duo -->
         <div class="form-row-duo">
           <div class="form-group">
             <label class="form-label" for="reg-first-name">First Name</label>
@@ -46,7 +44,6 @@
           </div>
         </div>
 
-        <!-- Institutional Email -->
         <div class="form-group">
           <label class="form-label" for="reg-email">Institutional Email</label>
           <input 
@@ -59,7 +56,6 @@
           >
         </div>
 
-        <!-- Role Selection Dropdown -->
         <div class="form-group">
           <label class="form-label" for="reg-role">Account Role</label>
           <select id="reg-role" class="form-control" required>
@@ -69,7 +65,6 @@
           </select>
         </div>
 
-        <!-- Password Duo with Censor / Uncensor Toggles -->
         <div class="form-row-duo">
           <div class="form-group">
             <label class="form-label" for="reg-password">Password</label>
@@ -83,7 +78,7 @@
                 minlength="6"
                 required
               >
-              <button type="button" class="btn-toggle-password" data-target="reg-password" title="Toggle password visibility" aria-label="Toggle password visibility">👁️</button>
+              <button type="button" class="btn-toggle-password" data-target="reg-password" title="Toggle password visibility">👁️</button>
             </div>
           </div>
 
@@ -99,12 +94,12 @@
                 minlength="6"
                 required
               >
-              <button type="button" class="btn-toggle-password" data-target="reg-confirm-password" title="Toggle password visibility" aria-label="Toggle password visibility">👁️</button>
+              <button type="button" class="btn-toggle-password" data-target="reg-confirm-password" title="Toggle password visibility">👁️</button>
             </div>
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary auth-submit-btn" id="btn-submit-register">
+        <button type="submit" class="btn btn-primary auth-submit-btn" id="btn-register-submit">
           Complete Registration
         </button>
       </form>
@@ -115,7 +110,7 @@
     </div>
   </div>
 
-  <script type="module" src="js/register.js"></script>
   <script type="module" src="js/theme.js"></script>
+  <script type="module" src="js/auth.js"></script>
 </body>
 </html>

@@ -2,101 +2,25 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Aimser Management Simulator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aimser - Management Simulator</title>
   <link rel="stylesheet" href="css/style.css">
-  <style>
-    body {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background-color: var(--bg-app);
-      color: var(--text-primary);
-      text-align: center;
-      padding: 24px;
-    }
-    .splash-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-    .splash-title {
-      font-size: 24px;
-      font-weight: 800;
-      color: var(--accent);
-      letter-spacing: -0.5px;
-    }
-    .splash-subtitle {
-      font-size: 14px;
-      color: var(--text-secondary);
-    }
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid rgba(56, 189, 248, 0.2);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-top: 8px;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
 </head>
-<body>
-
-  <div class="splash-container">
-    <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-badge">
-    <div class="splash-title">Aimser Management Simulator</div>
-    <div class="splash-subtitle" id="splash-status">Authenticating session...</div>
-    <div class="spinner"></div>
+<body style="display: flex; align-items: center; justify-content: center; height: 100vh; background: var(--bg-body);">
+  <div style="text-align: center;">
+    <img src="assets/aimser-logo.png" alt="Aimser Logo" style="height: 48px; margin-bottom: 16px;">
+    <p style="color: var(--text-secondary); font-size: 14px;">Initializing Aimser Workspace...</p>
   </div>
 
   <script type="module">
-    import { auth, db } from "./js/firebase-init.js";
+    import { auth } from "./js/firebase-init.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-    function redirectTo(page) {
-      const currentPath = window.location.pathname;
-      const basePath = currentPath.substring(0, currentPath.lastIndexOf("/") + 1);
-      window.location.replace(basePath + page);
-    }
-
-    const timeoutFallback = setTimeout(() => {
-      redirectTo("login.html");
-    }, 4000);
-
-    onAuthStateChanged(auth, async (user) => {
-      clearTimeout(timeoutFallback);
-
-      if (!user) {
-        redirectTo("login.html");
-        return;
-      }
-
-      try {
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          if (userData.role === "admin") {
-            redirectTo("admin-dashboard.html");
-          } else if (userData.role === "faculty") {
-            redirectTo("faculty-dashboard.html");
-          } else {
-            redirectTo("student-dashboard.html");
-          }
-        } else {
-          redirectTo("student-dashboard.html");
-        }
-      } catch (err) {
-        console.error("Router error loading profile:", err);
-        redirectTo("login.html");
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        window.location.replace("office.html");
+      } else {
+        window.location.replace("login.html");
       }
     });
   </script>

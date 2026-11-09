@@ -2178,3 +2178,175 @@ body.auth-body {
   border-color: var(--accent);
   background: var(--bg-surface-elevated);
 }
+
+/* ==========================================================================
+   AIMSER REVISION: 3-MODULE SUITE & TRELLO STYLES
+   ========================================================================== */
+
+/* Role Badges */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.role-badge.faculty {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+.role-badge.student {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+.role-badge.admin {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+/* Module Sub-Tabs (Dashboard, Analytics, Portfolio) */
+.module-subnav {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  margin-bottom: 20px;
+}
+.module-tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.module-tab-btn:hover {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+}
+.module-tab-btn.active {
+  background: var(--accent);
+  color: #0b1120;
+}
+.module-tab-panel {
+  display: none;
+}
+.module-tab-panel.active {
+  display: block;
+}
+
+/* Trello-Style Kanban Board */
+.trello-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(280px, 1fr));
+  gap: 16px;
+  align-items: start;
+  overflow-x: auto;
+  padding-bottom: 12px;
+}
+.trello-column {
+  background: #111827;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 400px;
+}
+.trello-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--surface-border);
+  padding-bottom: 8px;
+}
+.trello-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trello-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.trello-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.trello-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.trello-checklist-bar {
+  background: rgba(255,255,255,0.08);
+  height: 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.trello-checklist-fill {
+  background: #10b981;
+  height: 100%;
+  width: 0%;
+  transition: width 0.3s;
+}
+
+/* Team Hierarchy List */
+.hierarchy-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+}
+
+/* Practice Case Answer Key UI */
+.practice-question-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.answer-key-box {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+  display: none;
+}
+.answer-key-box.revealed {
+  display: block;
+}

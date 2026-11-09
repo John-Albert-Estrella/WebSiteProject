@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aimser - Office Workspace</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .faculty-only-control { display: none; }
+    .student-only-control { display: none; }
+    .modal-backdrop-custom {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center;
+      z-index: 2000; padding: 16px;
+    }
+    .modal-box-card {
+      background: var(--bg-surface); border: 1px solid var(--surface-border);
+      border-radius: var(--radius-md); max-width: 600px; width: 100%; max-height: 90vh;
+      overflow-y: auto; padding: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Global Sidebar Shell -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
+      <p>Management Simulator</p>
+    </div>
+
+    <div class="sidebar-user-card">
+      <span class="welcome-tag" id="sidebar-role-tag">OFFICE</span>
+      <h3 id="sidebar-greeting-name">Loading...</h3>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="office.html" class="nav-item active">🏢 Office</a>
+      <a href="planner.html" class="nav-item">📋 Project Planner</a>
+      <a href="hr-library.html" class="nav-item">📚 HR Library</a>
+      <a href="settings.html" class="nav-item">⚙️ Settings</a>
+    </nav>
+  </aside>
+
+  <div class="main-content">
+    <header class="topbar">
+      <div class="brand-group">
+        <span class="faculty-name-display" id="topbar-user-name">User</span>
+        <span class="role-badge student" id="topbar-role-badge">STUDENT</span>
+      </div>
+    </header>
+
+    <main class="page-container">
+
+      <!-- Room Gateway Card (Shown if not inside a class) -->
+      <section class="card" id="office-gateway-card" style="margin-bottom: 24px;">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">Classroom Gateway (Office)</h2>
+            <p class="card-subtitle">Access your section with a room code (Max: 100 students per class)</p>
+          </div>
+          <button type="button" class="btn btn-primary faculty-only-control" id="btn-open-create-office">+ Create Class Room</button>
+        </div>
+        <div style="margin-top: 14px;">
+          <form id="form-join-office" style="display: flex; gap: 10px; max-width: 450px;">
+            <input type="text" id="inp-office-code" class="form-control" placeholder="Enter Class Code (e.g. AIM-1234)" required>
+            <button type="submit" class="btn btn-primary">Enter Office</button>
+          </form>
+        </div>
+      </section>
+
+      <!-- Active Office Workspace -->
+      <div id="office-workspace" style="display: none;">
+        
+        <!-- Header Banner -->
+        <div class="classroom-header-banner">
+          <div>
+            <h1 class="class-title-large" id="office-class-name">Strategic HR 101</h1>
+            <p class="class-meta-subtitle" id="office-class-meta">Cohort • Instructor: Faculty</p>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <div class="class-code-badge">
+              <span>ROOM CODE:</span>
+              <span id="office-active-code">AIM-XXXX</span>
+            </div>
+            <button type="button" class="btn btn-secondary" id="btn-switch-office" style="font-size: 11px;">Switch Room</button>
+          </div>
+        </div>
+
+        <!-- 3 Sub-Navigation Tabs: Dashboard, Analytics, Portfolio -->
+        <div class="module-subnav">
+          <button type="button" class="module-tab-btn active" data-tab="tab-dashboard">📊 Dashboard</button>
+          <button type="button" class="module-tab-btn" data-tab="tab-analytics">📈 Analytics</button>
+          <button type="button" class="module-tab-btn" data-tab="tab-portfolio">📁 Portfolio</button>
+          <button type="button" class="module-tab-btn faculty-only-control" data-tab="tab-teamboards">👥 Team Trello Boards</button>
+        </div>
+
+        <!-- TAB 1: DASHBOARD -->
+        <div class="module-tab-panel active" id="tab-dashboard">
+          <div class="page-header" style="margin-bottom: 16px;">
+            <div>
+              <h3 class="card-title">Class Activities & Deadlines</h3>
+              <p class="card-subtitle">Assigned coursework, submissions, and evaluation scores.</p>
+            </div>
+            <button type="button" class="btn btn-primary faculty-only-control" id="btn-post-office-activity">+ Post New Activity</button>
+          </div>
+
+          <div class="dashboard-grid" id="office-activities-grid">
+            <div class="empty-state"><p>Loading activities...</p></div>
+          </div>
+
+          <!-- Evaluation Queue (Faculty) & My Grades (Student) -->
+          <section class="card roster-card" style="margin-top: 24px;">
+            <div class="card-header">
+              <h3 class="card-title">Submissions & Activity Reports</h3>
+            </div>
+            <div class="table-container">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Student</th><th>Activity</th><th>Asset</th><th>Date</th><th>Score</th><th>Action</th></tr>
+                </thead>
+                <tbody id="office-submissions-tbody">
+                  <tr><td colspan="6" class="empty-state">No submissions yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <!-- TAB 2: ANALYTICS -->
+        <div class="module-tab-panel" id="tab-analytics">
+          <div class="dashboard-grid">
+            <section class="card">
+              <div class="card-header"><h3 class="card-title">Class Performance & Completion</h3></div>
+              <div style="margin-top: 10px; font-size: 13px; line-height: 1.8;">
+                <div>Active Enrollment: <strong id="metric-enrollment-count">0 / 100 students</strong></div>
+                <div>Assignment Completion Rate: <strong id="metric-completion-rate">0%</strong></div>
+                <div>Average Class Mark: <strong id="metric-class-avg">0.0 / 100</strong></div>
+              </div>
+            </section>
+
+            <section class="card">
+              <div class="card-header"><h3 class="card-title">HR Organizational Metrics (Student Data)</h3></div>
+              <div style="margin-top: 10px; font-size: 13px; line-height: 1.8;">
+                <div>Simulated Turnover Rate: <strong>8.4% (Industry Avg: 12%)</strong></div>
+                <div>Absenteeism Index: <strong>2.1 days / month</strong></div>
+                <div>Training Investment per Head: <strong>₱14,500</strong></div>
+                <div>Recruitment Cost per Hire: <strong>₱28,000</strong></div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- TAB 3: PORTFOLIO -->
+        <div class="module-tab-panel" id="tab-portfolio">
+          <div class="page-header" style="margin-bottom: 16px;">
+            <div>
+              <h3 class="card-title">Digital HR Portfolio & Appraisals</h3>
+              <p class="card-subtitle">KPIs, development plans, and cumulative deliverables.</p>
+            </div>
+            <button type="button" class="btn btn-primary faculty-only-control" id="btn-set-kpis">+ Set KPI Period</button>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="card">
+              <div class="card-header"><h4 class="card-title">Development Goals & Plans</h4></div>
+              <form id="form-save-goal">
+                <textarea id="inp-portfolio-goal" class="form-control" rows="3" placeholder="Document career development objectives and HR learning plans..."></textarea>
+                <div style="margin-top: 8px;"><button type="submit" class="btn btn-secondary">Save Plan</button></div>
+              </form>
+            </section>
+
+            <section class="card roster-card">
+              <div class="card-header"><h4 class="card-title">Graded Portfolio Deliverables</h4></div>
+              <div id="portfolio-items-list" style="margin-top: 10px; font-size: 13px;">
+                <p class="empty-state">No graded deliverables stored yet.</p>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- TAB 4: FACULTY TEAM BOARDS MONITORING -->
+        <div class="module-tab-panel faculty-only-control" id="tab-teamboards">
+          <div class="page-header" style="margin-bottom: 16px;">
+            <div>
+              <h3 class="card-title">Linked Student Trello Teams</h3>
+              <p class="card-subtitle">Inspect progress across team Kanban boards in under 5 clicks.</p>
+            </div>
+          </div>
+          <div id="faculty-teamboards-container" class="dashboard-grid">
+            <div class="empty-state"><p>No student teams have linked to this office class code yet.</p></div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Create Office Modal -->
+  <div class="modal-backdrop-custom" id="modal-create-office" style="display: none;">
+    <div class="modal-box-card">
+      <div class="card-header">
+        <h3 class="card-title">Create Class Room</h3>
+        <button type="button" class="btn btn-secondary close-modal-btn">✕</button>
+      </div>
+      <form id="form-create-office-room" class="auth-form">
+        <div class="form-group">
+          <label class="form-label" for="inp-new-room-name">Class Name</label>
+          <input type="text" id="inp-new-room-name" class="form-control" placeholder="e.g. Strategic HR 101" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="inp-new-room-section">Section / Cohort</label>
+          <input type="text" id="inp-new-room-section" class="form-control" placeholder="e.g. BSIT 4-B" required>
+        </div>
+        <div class="card-actions">
+          <button type="submit" class="btn btn-primary">Create Room (Max 100)</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Create Activity Modal -->
+  <div class="modal-backdrop-custom" id="modal-create-activity" style="display: none;">
+    <div class="modal-box-card">
+      <div class="card-header">
+        <h3 class="card-title">Post New Assignment / Activity</h3>
+        <button type="button" class="btn btn-secondary close-modal-btn">✕</button>
+      </div>
+      <form id="form-create-activity" class="auth-form">
+        <div class="form-group">
+          <label class="form-label" for="inp-act-title">Activity Title</label>
+          <input type="text" id="inp-act-title" class="form-control" placeholder="e.g. Case Study 1: Turnover Analysis" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="inp-act-due">Deadline</label>
+          <input type="date" id="inp-act-due" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="inp-act-desc">Description & Instructions</label>
+          <textarea id="inp-act-desc" class="form-control" rows="4" required></textarea>
+        </div>
+        <div class="card-actions">
+          <button type="submit" class="btn btn-primary">Post Activity</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/office.js"></script>
+  <script type="module" src="js/theme.js"></script>
+</body>
+</html>
