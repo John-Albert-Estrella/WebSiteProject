@@ -1,28 +1,45 @@
-export const CLOUDINARY_CLOUD_NAME = "dzx0v4g5n";
-export const CLOUDINARY_UPLOAD_PRESET = "aimser_uploads";
+// js/cloudinary-config.js - Cloudinary Client-Side Upload Engine
 
-export async function uploadToCloudinary(file) {
-  if (!file) throw new Error("No file selected.");
+const CLOUDINARY_CLOUD_NAME = "zcoo0jvg";
+const CLOUDINARY_UPLOAD_PRESET = "Aimser_Avatars";
 
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)}MB). Max upload size is 10MB.`);
+/**
+ * Uploads a file to Cloudinary using an unsigned preset.
+ * @param {File} file - The file binary to upload.
+ * @param {string} customFolder - Target folder in Cloudinary.
+ * @returns {Promise<string>} The secure HTTPS URL returned by Cloudinary.
+ */
+export async function uploadToCloudinary(file, customFolder = "aimser/avatars") {
+  if (!file) {
+    throw new Error("No file selected.");
   }
 
+  // Client-side guard: 5MB limit
+  const maxBytes = 5 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    throw new Error("File size exceeds 5MB limit.");
+  }
+
+  const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`;
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  formData.append("folder", customFolder);
 
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+  console.log(`[Cloudinary] Uploading ${file.name} to ${endpoint}...`);
+
+  const response = await fetch(endpoint, {
     method: "POST",
     body: formData
   });
 
+  const data = await response.json();
+
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || "Cloudinary upload failed.");
+    console.error("[Cloudinary Error Payload]", data);
+    throw new Error(data.error?.message || "Failed to upload image to Cloudinary.");
   }
 
-  const result = await response.json();
-  return result.secure_url;
+  console.log("[Cloudinary Success] Asset URL:", data.secure_url);
+  return data.secure_url;
 }

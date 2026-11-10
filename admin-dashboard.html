@@ -1,44 +1,44 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" class="dark-theme">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Command Center | AIMSER HR Simulator</title>
+  <title>Admin Console | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
   <div class="dashboard-layout">
-    <!-- Dedicated Admin Sidebar (No Core Workspace Links) -->
+    <!-- Admin Sidebar -->
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">
-          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" />
+          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
           <div class="brand-text">
             <h2>AIMSER</h2>
-            <span style="color: #ef4444; font-weight: 700;">Admin Control</span>
+            <span>Admin Control</span>
           </div>
         </div>
 
         <nav class="sidebar-nav">
           <div class="nav-section-label">Administration</div>
-          <a href="admin-dashboard.html" class="nav-item active" id="nav-admin-dashboard">
+          <button type="button" class="nav-item subnav-link active" data-target="panel-telemetry" style="width: 100%; border: none; text-align: left; cursor: pointer;">
             <i class="fas fa-chart-line"></i>
             <span>Overview &amp; Telemetry</span>
-          </a>
-          <a href="#tab-users" class="nav-item admin-tab-link" data-tab="users">
+          </button>
+          <button type="button" class="nav-item subnav-link" data-target="panel-users" style="width: 100%; border: none; text-align: left; cursor: pointer;">
             <i class="fas fa-users-cog"></i>
             <span>Accounts &amp; Roles</span>
-          </a>
-          <a href="#tab-sections" class="nav-item admin-tab-link" data-tab="sections">
+          </button>
+          <button type="button" class="nav-item subnav-link" data-target="panel-sections" style="width: 100%; border: none; text-align: left; cursor: pointer;">
             <i class="fas fa-chalkboard-teacher"></i>
             <span>Classroom Sections</span>
-          </a>
-          <a href="#tab-telemetry" class="nav-item admin-tab-link" data-tab="telemetry">
-            <i class="fas fa-shield-virus"></i>
+          </button>
+          <button type="button" class="nav-item subnav-link" data-target="panel-telemetry" style="width: 100%; border: none; text-align: left; cursor: pointer;">
+            <i class="fas fa-shield-alt"></i>
             <span>Audit Trail</span>
-          </a>
+          </button>
 
           <div class="nav-section-label">Admin System</div>
           <a href="admin-settings.html" class="nav-item" id="nav-admin-settings">
@@ -60,128 +60,139 @@
       </div>
     </aside>
 
-    <!-- Main Admin Workspace -->
+    <!-- Main Workspace -->
     <main class="main-workspace">
       <header class="workspace-header">
         <div class="header-left">
-          <h1 class="page-title">Admin Command Center</h1>
-          <span class="badge-pill" style="border-color: #ef4444; color: #ef4444; background-color: rgba(239, 68, 68, 0.1);">
-            Root Administrator
-          </span>
+          <h1 class="page-title">Executive Management</h1>
+          <span class="badge-pill">Platform Oversight</span>
         </div>
 
         <div class="header-right">
-          <a href="admin-settings.html" class="btn-secondary" style="font-size: 0.85rem;">
-            <i class="fas fa-cog"></i> System Settings
-          </a>
           <div class="user-profile-chip">
-            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=dc2626&color=fff" alt="Avatar" class="avatar-sm" />
+            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=1b5375&color=faf2dd" alt="Admin Avatar" class="avatar-sm" />
             <div class="user-meta">
               <span id="header-user-name" class="user-name">Administrator</span>
-              <span id="header-user-role" class="user-role" style="color: #ef4444; font-weight: 700;">Super Admin</span>
+              <span id="header-user-role" class="user-role">System Admin</span>
             </div>
           </div>
         </div>
       </header>
 
-      <!-- KPI Summary Cards -->
-      <div class="stats-row" style="margin-bottom: 1.5rem;">
-        <div class="stat-card glass-panel">
+      <!-- KPI Summary Row -->
+      <section class="stats-row">
+        <div class="glass-panel stat-card">
           <span class="stat-label">Total Users</span>
-          <h3 id="stat-admin-users">0</h3>
+          <h3 id="stat-total-users">--</h3>
         </div>
-        <div class="stat-card glass-panel">
+        <div class="glass-panel stat-card">
           <span class="stat-label">Active Classrooms</span>
-          <h3 id="stat-admin-classes">0</h3>
+          <h3 id="stat-total-sections">--</h3>
         </div>
-        <div class="stat-card glass-panel">
+        <div class="glass-panel stat-card">
           <span class="stat-label">Project Teams</span>
-          <h3 id="stat-admin-teams">0</h3>
+          <h3 id="stat-total-teams">--</h3>
         </div>
-        <div class="stat-card glass-panel">
+        <div class="glass-panel stat-card">
           <span class="stat-label">Audit Logs</span>
-          <h3 id="stat-admin-logs">0</h3>
-        </div>
-      </div>
-
-      <!-- Admin Functional Tab Switcher -->
-      <div class="office-subnav" id="admin-tabs">
-        <button type="button" class="subnav-tab active" data-tab="users">
-          <i class="fas fa-users-cog"></i> Account Roster &amp; Roles
-        </button>
-        <button type="button" class="subnav-tab" data-tab="sections">
-          <i class="fas fa-chalkboard-teacher"></i> Classroom Sections
-        </button>
-        <button type="button" class="subnav-tab" data-tab="telemetry">
-          <i class="fas fa-shield-virus"></i> Security &amp; Activity Telemetry
-        </button>
-      </div>
-
-      <!-- Tab 1: User Directory & Role Assignment -->
-      <section id="tab-users" class="tab-panel active">
-        <div class="panel-toolbar">
-          <div>
-            <h2>Global Account Directory</h2>
-            <p class="text-muted">Modify platform roles, verify identity records, or purge inactive accounts.</p>
-          </div>
-          <div style="min-width: 280px;">
-            <input type="text" id="admin-user-search" class="form-control" placeholder="Search by name, email, or role..." />
-          </div>
-        </div>
-
-        <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem 1rem;">
-          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
-            <thead>
-              <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase;">
-                <th style="padding: 1rem 0.75rem;">Account User</th>
-                <th style="padding: 1rem 0.75rem;">Department</th>
-                <th style="padding: 1rem 0.75rem;">System Role</th>
-                <th style="padding: 1rem 0.75rem;">Action</th>
-              </tr>
-            </thead>
-            <tbody id="admin-user-table-body">
-              <tr>
-                <td colspan="4" style="text-align: center; padding: 2.5rem;" class="text-muted">Loading account records...</td>
-              </tr>
-            </tbody>
-          </table>
+          <h3 id="stat-total-logs">--</h3>
         </div>
       </section>
 
-      <!-- Tab 2: Section Overview & Management -->
-      <section id="tab-sections" class="tab-panel" style="display: none;">
-        <div class="panel-toolbar">
-          <div>
-            <h2>Classroom Section Overseer</h2>
-            <p class="text-muted">Inspect course section rosters, join codes, and purge obsolete cohorts.</p>
-          </div>
-        </div>
+      <!-- Subnavigation Tabs -->
+      <nav class="office-subnav" aria-label="Admin Subnavigation">
+        <button type="button" class="subnav-tab" data-tab="panel-users">
+          <i class="fas fa-users"></i>
+          <span>Account Roster &amp; Roles</span>
+        </button>
+        <button type="button" class="subnav-tab" data-tab="panel-sections">
+          <i class="fas fa-chalkboard"></i>
+          <span>Classroom Sections</span>
+        </button>
+        <button type="button" class="subnav-tab active" data-tab="panel-telemetry">
+          <i class="fas fa-shield-alt"></i>
+          <span>Security &amp; Activity Telemetry</span>
+        </button>
+      </nav>
 
-        <div id="admin-sections-grid" class="cards-grid">
-          <div class="empty-state">
-            <i class="fas fa-chalkboard"></i>
-            <p>Loading active classroom sections...</p>
+      <!-- Panel 1: User Directory & Role Assignment -->
+      <section id="panel-users" class="tab-panel">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div>
+              <h2>User Registry</h2>
+              <p class="text-muted">Inspect registered accounts, verify roles, and promote or restrict platform access.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+              <input type="text" id="admin-user-search" class="form-control" placeholder="Search by name, email, or role..." style="max-width: 280px;" />
+              <button type="button" id="btn-refresh-users" class="btn-secondary" title="Refresh Users">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+          </div>
+
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem;">
+              <thead>
+                <tr style="border-bottom: 1px solid var(--border-medium); color: var(--text-tertiary);">
+                  <th style="padding: 0.75rem 1rem;">User</th>
+                  <th style="padding: 0.75rem 1rem;">Institutional Email</th>
+                  <th style="padding: 0.75rem 1rem;">Department</th>
+                  <th style="padding: 0.75rem 1rem;">Role</th>
+                  <th style="padding: 0.75rem 1rem; text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-table-body">
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
+                    <i class="fas fa-spinner fa-spin" style="margin-right: 0.5rem;"></i> Loading user directory...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
 
-      <!-- Tab 3: Security & Activity Telemetry -->
-      <section id="tab-telemetry" class="tab-panel" style="display: none;">
-        <div class="panel-toolbar">
-          <div>
-            <h2>Platform Activity &amp; Audit Trail</h2>
-            <p class="text-muted">Real-time log of user registrations, role adjustments, and classroom activities.</p>
+      <!-- Panel 2: Classroom Sections Audit -->
+      <section id="panel-sections" class="tab-panel">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div>
+              <h2>Classroom Sections</h2>
+              <p class="text-muted">High-level inspection of all active sections managed by faculty accounts.</p>
+            </div>
+            <button type="button" id="btn-refresh-sections" class="btn-secondary" title="Refresh Sections">
+              <i class="fas fa-sync-alt"></i>
+            </button>
           </div>
-          <button type="button" id="btn-refresh-logs" class="btn-secondary">
-            <i class="fas fa-sync-alt"></i> Refresh Logs
-          </button>
-        </div>
 
-        <div class="glass-panel" style="padding: 1rem 1.25rem;">
-          <div id="admin-audit-stream">
+          <div id="admin-sections-grid" class="cards-grid">
             <div class="empty-state">
-              <i class="fas fa-stream"></i>
-              <p>Loading security audit stream...</p>
+              <i class="fas fa-spinner fa-spin"></i>
+              <h3>Scanning classroom instances...</h3>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel 3: Security & Activity Telemetry (Audit Trail) -->
+      <section id="panel-telemetry" class="tab-panel active">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div>
+              <h2>Platform Activity &amp; Audit Trail</h2>
+              <p class="text-muted">Real-time log of user registrations, role adjustments, and classroom activities.</p>
+            </div>
+            <button type="button" id="btn-refresh-logs" class="btn-secondary" title="Refresh Logs">
+              <i class="fas fa-sync-alt"></i> Refresh Logs
+            </button>
+          </div>
+
+          <div id="admin-logs-container" style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 540px; overflow-y: auto; padding-right: 0.5rem;">
+            <div class="empty-state">
+              <i class="fas fa-spinner fa-spin"></i>
+              <h3>Loading telemetry trail...</h3>
             </div>
           </div>
         </div>
@@ -189,9 +200,44 @@
     </main>
   </div>
 
+  <!-- Role Edit Modal -->
+  <div class="modal-backdrop" id="modal-role-editor" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Modify Account Clearance</h3>
+        <button type="button" class="btn-close-modal" id="btn-close-role-modal" aria-label="Close modal">&times;</button>
+      </div>
+
+      <form id="form-update-role">
+        <input type="hidden" id="edit-user-uid" />
+        
+        <div class="form-group">
+          <label class="form-label">User Identifier</label>
+          <input type="text" id="edit-user-display" class="form-control" disabled />
+        </div>
+
+        <div class="form-group">
+          <label for="edit-user-role-select" class="form-label">System Role Clearance</label>
+          <select id="edit-user-role-select" class="form-select" required>
+            <option value="student">Student (Participant in assigned classrooms and teams)</option>
+            <option value="faculty">Faculty (Creates and grades classrooms, activities, cases)</option>
+            <option value="admin">Administrator (Complete platform authority and configuration)</option>
+          </select>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="btn-cancel-role-modal">Cancel</button>
+          <button type="submit" class="btn-primary" id="btn-submit-role">
+            <i class="fas fa-save"></i> Save Clearance
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script type="module" src="js/theme.js"></script>
   <script type="module" src="js/ui-bridge.js"></script>
   <script type="module" src="js/auth-guard.js"></script>
   <script type="module" src="js/admin-dashboard.js"></script>
 </body>
-</html>
+</html> 

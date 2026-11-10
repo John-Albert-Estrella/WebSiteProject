@@ -1,49 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" class="dark-theme">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin System Settings | AIMSER HR Simulator</title>
+  <title>Admin System Settings | AIMSER</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
   <div class="dashboard-layout">
-    <!-- Dedicated Admin Sidebar (No Core Workspace Links) -->
+    <!-- Admin Sidebar (Identical Isolation) -->
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">
-          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" />
+          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
           <div class="brand-text">
             <h2>AIMSER</h2>
-            <span style="color: #ef4444; font-weight: 700;">Admin Control</span>
+            <span>Admin Console</span>
           </div>
         </div>
 
         <nav class="sidebar-nav">
-          <div class="nav-section-label">Administration</div>
+          <div class="nav-section-label">Management Console</div>
           <a href="admin-dashboard.html" class="nav-item" id="nav-admin-dashboard">
-            <i class="fas fa-chart-line"></i>
-            <span>Overview &amp; Telemetry</span>
+            <i class="fas fa-chart-pie"></i>
+            <span>Overview &amp; Metrics</span>
           </a>
-          <a href="admin-dashboard.html#tab-users" class="nav-item">
+          <a href="admin-dashboard.html#users" class="nav-item" id="nav-admin-users">
             <i class="fas fa-users-cog"></i>
-            <span>Accounts &amp; Roles</span>
+            <span>User Directory</span>
           </a>
-          <a href="admin-dashboard.html#tab-sections" class="nav-item">
+          <a href="admin-dashboard.html#sections" class="nav-item" id="nav-admin-sections">
             <i class="fas fa-chalkboard-teacher"></i>
-            <span>Classroom Sections</span>
-          </a>
-          <a href="admin-dashboard.html#tab-telemetry" class="nav-item">
-            <i class="fas fa-shield-virus"></i>
-            <span>Audit Trail</span>
+            <span>Classroom Audit</span>
           </a>
 
-          <div class="nav-section-label">Admin System</div>
+          <div class="nav-section-label">System Control</div>
           <a href="admin-settings.html" class="nav-item active" id="nav-admin-settings">
             <i class="fas fa-sliders-h"></i>
-            <span>Admin Settings</span>
+            <span>System Settings</span>
           </a>
         </nav>
       </div>
@@ -60,141 +56,157 @@
       </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main Workspace -->
     <main class="main-workspace">
       <header class="workspace-header">
         <div class="header-left">
-          <h1 class="page-title">Admin Configuration &amp; Security</h1>
-          <span class="badge-pill" style="border-color: #ef4444; color: #ef4444; background-color: rgba(239, 68, 68, 0.1);">
-            Isolated Settings
-          </span>
+          <h1 class="page-title">Admin System Settings</h1>
+          <span class="badge-pill">Master Administration Hub</span>
         </div>
 
         <div class="header-right">
-          <a href="admin-dashboard.html" class="btn-secondary" style="font-size: 0.85rem;">
-            <i class="fas fa-arrow-left"></i> Back to Dashboard
-          </a>
           <div class="user-profile-chip">
-            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=dc2626&color=fff" alt="Avatar" class="avatar-sm" />
+            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=1b5375&color=faf2dd" alt="Admin Avatar" class="avatar-sm" />
             <div class="user-meta">
-              <span id="header-user-name" class="user-name">Administrator</span>
-              <span id="header-user-role" class="user-role" style="color: #ef4444; font-weight: 700;">Super Admin</span>
+              <span id="header-user-name" class="user-name">Loading...</span>
+              <span id="header-user-role" class="user-role">Administrator</span>
             </div>
           </div>
         </div>
       </header>
 
-      <div class="settings-grid" style="display: grid; gap: 1.5rem; max-width: 900px;">
-        <!-- Card 1: Platform Global Config & Controls -->
+      <div class="settings-grid">
+        <!-- Administrator Profile Card -->
         <section class="settings-card glass-panel">
-          <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1.25rem;">
-            <i class="fas fa-server fa-lg" style="color: #ef4444;"></i>
+          <div class="card-header">
+            <i class="fas fa-user-shield"></i>
             <div>
-              <h3 style="margin: 0;">Platform System Controls</h3>
-              <p class="text-muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Configure global settings, maintenance toggles, and enrollment defaults.</p>
+              <h3>Administrator Identity</h3>
+              <p class="text-muted">Manage your admin display profile and avatar uploaded via Cloudinary.</p>
             </div>
           </div>
 
-          <form id="admin-platform-settings-form">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem;">
-              <div class="form-group">
-                <label for="setting-maintenance-mode" class="form-label">System Status</label>
-                <select id="setting-maintenance-mode" class="form-control">
-                  <option value="operational">Operational (Normal)</option>
-                  <option value="maintenance">Maintenance Mode (ReadOnly)</option>
-                </select>
-              </div>
+          <div id="admin-profile-status" class="status-msg" aria-live="polite"></div>
 
-              <div class="form-group">
-                <label for="setting-allow-reg" class="form-label">Public Self-Registration</label>
-                <select id="setting-allow-reg" class="form-control">
-                  <option value="enabled">Enabled (Open to All)</option>
-                  <option value="invite_only">Invite Only / Disabled</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label for="setting-max-team-size" class="form-label">Default Max Team Size</label>
-                <input type="number" id="setting-max-team-size" class="form-control" value="5" min="2" max="25" />
-              </div>
-
-              <div class="form-group">
-                <label for="setting-storage-provider" class="form-label">Media Storage Provider</label>
-                <input type="text" id="setting-storage-provider" class="form-control" value="Cloudinary REST API" disabled />
+          <form id="admin-profile-form">
+            <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.75rem;">
+              <img id="admin-avatar-preview" src="https://ui-avatars.com/api/?name=Admin&background=1b5375&color=faf2dd" alt="Admin Preview" class="avatar-preview" />
+              <div>
+                <label for="admin-avatar-input" class="form-label" style="margin-bottom: 0.35rem;">Admin Profile Picture</label>
+                <input type="file" id="admin-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" style="max-width: 320px;" />
+                <span class="text-muted" style="font-size: 0.75rem; display: block; margin-top: 0.25rem;">Uploaded directly to Cloudinary (Aimser_Avatars).</span>
               </div>
             </div>
 
-            <button type="submit" id="btn-save-platform-settings" class="btn-primary" style="margin-top: 0.5rem; background-color: #ef4444;">
-              <i class="fas fa-save"></i> Save Platform Controls
+            <div class="form-group">
+              <label for="admin-fullname" class="form-label">Full Name</label>
+              <input type="text" id="admin-fullname" class="form-control" placeholder="e.g., Administrator Name" required />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="admin-email" class="form-label">Admin Email</label>
+                <input type="email" id="admin-email" class="form-control" disabled />
+              </div>
+              <div class="form-group">
+                <label for="admin-role-badge" class="form-label">Authorization Clearance</label>
+                <input type="text" id="admin-role-badge" class="form-control" value="SYSTEM ADMINISTRATOR" disabled />
+              </div>
+            </div>
+
+            <button type="submit" id="btn-save-admin-profile" class="btn-primary" style="margin-top: 0.5rem;">
+              <i class="fas fa-save"></i> Save Admin Profile
             </button>
-            <div id="platform-status-message" class="status-msg" aria-live="polite"></div>
           </form>
         </section>
 
-        <!-- Card 2: Isolated Admin Password Management -->
+        <!-- Global Simulator Policies -->
         <section class="settings-card glass-panel">
-          <div style="display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1.25rem;">
-            <i class="fas fa-user-lock fa-lg" style="color: #ef4444;"></i>
+          <div class="card-header">
+            <i class="fas fa-cogs"></i>
             <div>
-              <h3 style="margin: 0;">Admin Credentials &amp; Password</h3>
-              <p class="text-muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Update the administrator master credentials.</p>
+              <h3>Global Simulation Policies</h3>
+              <p class="text-muted">Control institutional constraints, max student team capacity, and active academic terms.</p>
             </div>
           </div>
 
+          <div id="system-config-status" class="status-msg" aria-live="polite"></div>
+
+          <form id="system-config-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="config-max-teamsize" class="form-label">Max Members per Team</label>
+                <input type="number" id="config-max-teamsize" class="form-control" min="1" max="25" value="6" required />
+              </div>
+              <div class="form-group">
+                <label for="config-academic-term" class="form-label">Active Academic Term</label>
+                <input type="text" id="config-academic-term" class="form-control" placeholder="e.g., 1st Sem A.Y. 2026-2027" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="config-registration-mode" class="form-label">Registration Access Mode</label>
+              <select id="config-registration-mode" class="form-select">
+                <option value="open">Open (Anyone with an institutional email can register)</option>
+                <option value="faculty-only">Restricted (Only Faculty can add student rosters)</option>
+                <option value="locked">Locked (System Closed to New Accounts)</option>
+              </select>
+            </div>
+
+            <button type="submit" id="btn-save-system-config" class="btn-primary" style="margin-top: 0.5rem;">
+              <i class="fas fa-sliders-h"></i> Update Global Policies
+            </button>
+          </form>
+        </section>
+
+        <!-- Admin Master Password -->
+        <section class="settings-card glass-panel">
+          <div class="card-header">
+            <i class="fas fa-key"></i>
+            <div>
+              <h3>Admin Security Credentials</h3>
+              <p class="text-muted">Update your root administrator password.</p>
+            </div>
+          </div>
+
+          <div id="admin-password-status" class="status-msg" aria-live="polite"></div>
+
           <form id="admin-password-form">
             <div class="form-group">
-              <label for="admin-current-password" class="form-label">Current Admin Password</label>
+              <label for="admin-current-pw" class="form-label">Current Admin Password</label>
               <div class="input-password-wrapper">
-                <input type="password" id="admin-current-password" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
-                <button type="button" class="btn-toggle-pw" data-target="admin-current-password" aria-label="Show password">
+                <input type="password" id="admin-current-pw" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
+                <button type="button" class="btn-toggle-pw" data-target="admin-current-pw" aria-label="Toggle password visibility">
                   <i class="far fa-eye"></i>
                 </button>
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+            <div class="form-row">
               <div class="form-group">
-                <label for="admin-new-password" class="form-label">New Admin Password</label>
+                <label for="admin-new-pw" class="form-label">New Password</label>
                 <div class="input-password-wrapper">
-                  <input type="password" id="admin-new-password" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-pw" data-target="admin-new-password" aria-label="Show password">
+                  <input type="password" id="admin-new-pw" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
+                  <button type="button" class="btn-toggle-pw" data-target="admin-new-pw" aria-label="Toggle password visibility">
                     <i class="far fa-eye"></i>
                   </button>
                 </div>
               </div>
-
               <div class="form-group">
-                <label for="admin-confirm-password" class="form-label">Confirm New Password</label>
+                <label for="admin-confirm-pw" class="form-label">Confirm New Password</label>
                 <div class="input-password-wrapper">
-                  <input type="password" id="admin-confirm-password" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-pw" data-target="admin-confirm-password" aria-label="Show password">
+                  <input type="password" id="admin-confirm-pw" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
+                  <button type="button" class="btn-toggle-pw" data-target="admin-confirm-pw" aria-label="Toggle password visibility">
                     <i class="far fa-eye"></i>
                   </button>
                 </div>
               </div>
             </div>
 
-            <button type="submit" id="btn-update-admin-password" class="btn-primary" style="margin-top: 0.5rem; background-color: #ef4444;">
-              <i class="fas fa-key"></i> Update Admin Password
+            <button type="submit" id="btn-save-admin-pw" class="btn-primary" style="margin-top: 0.5rem;">
+              <i class="fas fa-lock"></i> Update Master Password
             </button>
-            <div id="admin-password-status" class="status-msg" aria-live="polite"></div>
           </form>
-        </section>
-
-        <!-- Card 3: Theme Appearance Preference -->
-        <section class="settings-card glass-panel">
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-            <div style="display: flex; align-items: center; gap: 0.85rem;">
-              <i class="fas fa-palette fa-lg" style="color: #38bdf8;"></i>
-              <div>
-                <h3 style="margin: 0;">Admin Console Appearance</h3>
-                <p class="text-muted" style="margin: 0.2rem 0 0; font-size: 0.85rem;">Toggle between Dark and Light mode for the admin dashboard.</p>
-              </div>
-            </div>
-            <button type="button" class="btn-secondary theme-toggle">
-              <i class="fas fa-adjust"></i> Switch Theme
-            </button>
-          </div>
         </section>
       </div>
     </main>

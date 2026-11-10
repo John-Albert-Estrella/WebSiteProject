@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" class="dark-theme">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,10 +10,11 @@
 </head>
 <body>
   <div class="dashboard-layout">
+    <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">
-          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" />
+          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
           <div class="brand-text">
             <h2>AIMSER</h2>
             <span>HR Simulator</span>
@@ -55,17 +56,19 @@
       </div>
     </aside>
 
+    <!-- Main Content -->
     <main class="main-workspace">
       <header class="workspace-header">
         <div class="header-left">
           <h1 class="page-title">Settings</h1>
+          <span class="badge-pill">Account &amp; System Preferences</span>
         </div>
 
         <div class="header-right">
           <div class="user-profile-chip">
-            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar" class="avatar-sm" />
+            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Avatar" class="avatar-sm" />
             <div class="user-meta">
-              <span id="header-user-name" class="user-name">Authenticated User</span>
+              <span id="header-user-name" class="user-name">Loading...</span>
               <span id="header-user-role" class="user-role">Member</span>
             </div>
           </div>
@@ -73,115 +76,104 @@
       </header>
 
       <div class="settings-grid">
-        <section class="settings-card glass-panel" id="profile-settings">
-          <div>
-            <i class="fas fa-id-badge fa-lg"></i>
+        <!-- Personal Profile Card -->
+        <section class="settings-card glass-panel">
+          <div class="card-header">
+            <i class="fas fa-id-card"></i>
             <div>
               <h3>Personal Profile</h3>
-              <p class="text-muted">Update your display name, department, and profile avatar.</p>
+              <p class="text-muted">Update your display photo, official name, and department affiliation.</p>
             </div>
           </div>
 
+          <div id="profile-status-message" class="status-msg" aria-live="polite"></div>
+
           <form id="profile-settings-form">
-            <div>
-              <img id="settings-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar Preview" class="avatar-preview" />
+            <!-- Profile Avatar Row -->
+            <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.75rem;">
+              <img id="settings-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Profile Preview" class="avatar-preview" />
               <div>
-                <label for="avatar-file-input" class="form-label">Profile Picture (Cloudinary)</label>
-                <input type="file" id="avatar-file-input" class="form-control" accept="image/*" />
+                <label for="avatar-file-input" class="form-label" style="margin-bottom: 0.35rem;">Profile Picture</label>
+                <input type="file" id="avatar-file-input" class="form-control" accept="image/png,image/jpeg,image/webp" style="max-width: 320px;" />
+                <span class="text-muted" style="font-size: 0.75rem; display: block; margin-top: 0.25rem;">Supports JPG, PNG, or WebP up to 5MB.</span>
               </div>
             </div>
 
-            <div>
-              <div class="form-group">
-                <label for="settings-fullname" class="form-label">Full Name</label>
-                <input type="text" id="settings-fullname" class="form-control" placeholder="Your Full Name" required />
-              </div>
+            <div class="form-group">
+              <label for="settings-fullname" class="form-label">Full Name</label>
+              <input type="text" id="settings-fullname" class="form-control" placeholder="e.g., Juan Dela Cruz" required />
+            </div>
 
+            <div class="form-row">
               <div class="form-group">
                 <label for="settings-email" class="form-label">Institutional Email</label>
                 <input type="email" id="settings-email" class="form-control" disabled />
               </div>
-
               <div class="form-group">
                 <label for="settings-role" class="form-label">System Role</label>
                 <input type="text" id="settings-role" class="form-control" disabled />
               </div>
-
-              <div class="form-group">
-                <label for="settings-department" class="form-label">Department / Section</label>
-                <input type="text" id="settings-department" class="form-control" placeholder="e.g., CCMS - BSIT" />
-              </div>
             </div>
 
-            <button type="submit" id="btn-save-profile" class="btn-primary">
+            <div class="form-group">
+              <label for="settings-department" class="form-label">Department / Cohort</label>
+              <input type="text" id="settings-department" class="form-control" placeholder="e.g., CCMS - BSIT 3A" />
+            </div>
+
+            <button type="submit" id="btn-save-profile" class="btn-primary" style="margin-top: 0.5rem;">
               <i class="fas fa-save"></i> Save Profile Changes
             </button>
-            <div id="profile-status-message" class="status-msg" aria-live="polite"></div>
           </form>
         </section>
 
-        <section class="settings-card glass-panel" id="security-settings">
-          <div>
-            <i class="fas fa-shield-alt fa-lg"></i>
+        <!-- Security / Password Card -->
+        <section class="settings-card glass-panel">
+          <div class="card-header">
+            <i class="fas fa-lock"></i>
             <div>
-              <h3>Security &amp; Change Password</h3>
-              <p class="text-muted">Verify your current password to set a new account password.</p>
+              <h3>Account Security</h3>
+              <p class="text-muted">Update your account login password.</p>
             </div>
           </div>
 
-          <form id="change-password-form">
+          <div id="password-status-message" class="status-msg" aria-live="polite"></div>
+
+          <form id="password-settings-form">
             <div class="form-group">
-              <label for="current-password" class="form-label">Current Password</label>
+              <label for="settings-current-password" class="form-label">Current Password</label>
               <div class="input-password-wrapper">
-                <input type="password" id="current-password" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
-                <button type="button" class="btn-toggle-pw" data-target="current-password" aria-label="Show password">
+                <input type="password" id="settings-current-password" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
+                <button type="button" class="btn-toggle-pw" data-target="settings-current-password" aria-label="Toggle password visibility">
                   <i class="far fa-eye"></i>
                 </button>
               </div>
             </div>
 
-            <div>
+            <div class="form-row">
               <div class="form-group">
-                <label for="new-password" class="form-label">New Password</label>
+                <label for="settings-new-password" class="form-label">New Password</label>
                 <div class="input-password-wrapper">
-                  <input type="password" id="new-password" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-pw" data-target="new-password" aria-label="Show password">
+                  <input type="password" id="settings-new-password" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
+                  <button type="button" class="btn-toggle-pw" data-target="settings-new-password" aria-label="Toggle password visibility">
                     <i class="far fa-eye"></i>
                   </button>
                 </div>
               </div>
-
               <div class="form-group">
-                <label for="confirm-new-password" class="form-label">Confirm New Password</label>
+                <label for="settings-confirm-password" class="form-label">Confirm New Password</label>
                 <div class="input-password-wrapper">
-                  <input type="password" id="confirm-new-password" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-pw" data-target="confirm-new-password" aria-label="Show password">
+                  <input type="password" id="settings-confirm-password" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
+                  <button type="button" class="btn-toggle-pw" data-target="settings-confirm-password" aria-label="Toggle password visibility">
                     <i class="far fa-eye"></i>
                   </button>
                 </div>
               </div>
             </div>
 
-            <button type="submit" id="btn-update-password" class="btn-primary">
+            <button type="submit" id="btn-save-password" class="btn-primary" style="margin-top: 0.5rem;">
               <i class="fas fa-key"></i> Update Password
             </button>
-            <div id="password-status-message" class="status-msg" aria-live="polite"></div>
           </form>
-        </section>
-
-        <section class="settings-card glass-panel" id="appearance-settings">
-          <div>
-            <div>
-              <i class="fas fa-palette fa-lg"></i>
-              <div>
-                <h3>Workspace Appearance</h3>
-                <p class="text-muted">Toggle between Dark Mode and Light Mode across all simulator modules.</p>
-              </div>
-            </div>
-            <button type="button" class="btn-secondary theme-toggle">
-              <i class="fas fa-adjust"></i> Switch Theme
-            </button>
-          </div>
         </section>
       </div>
     </main>
