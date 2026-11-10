@@ -1,4 +1,4 @@
-// js/admin-dashboard.js - Super Administrator Command Engine
+// js/admin-dashboard.js - Admin Command Center Functionality Engine
 import { db, auth } from "./firebase-init.js";
 import {
   collection,
@@ -7,6 +7,7 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  addDoc,
   query,
   orderBy,
   limit,
@@ -17,73 +18,60 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/fi
 let currentAdminUser = null;
 let allUsersCache = [];
 
-// 1. Auth & Admin Security Guard
+// Initialize once user is verified as admin
 onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.replace("login.html");
-    return;
-  }
+  if (!user) return;
   currentAdminUser = user;
 
   try {
-    const profileSnap = await getDoc(doc(db, "users", user.uid));
-    const role = profileSnap.exists() ? (profileSnap.data().role || "student") : "student";
+    const snap = await getDoc(doc(db, "users", user.uid));
+    const role = snap.exists() ? snap.data().role : "student";
 
     if (role !== "admin") {
-      alert("Access Denied: Super Administrator privileges required.");
-      window.location.replace("office.html");
-      return;
+      return; // auth-guard handles the redirect
     }
 
-    // Populate header details
-    const nameEl = document.getElementById("header-user-name");
-    const roleEl = document.getElementById("header-user-role");
-    const avatarEl = document.getElementById("header-user-avatar");
-    if (nameEl) nameEl.textContent = profileSnap.data().fullName || user.email;
-    if (roleEl) roleEl.textContent = "Super Administrator";
-    if (avatarEl && profileSnap.data().avatarUrl) avatarEl.src = profileSnap.data().avatarUrl;
-
-    // Load admin panels
+    // Run core data sync
     await Promise.all([
-      loadKpiTelemetry(),
-      loadUsersTable(),
-      loadSectionsOverseer(),
-      loadAuditLogs()
+      loadAdminKpis(),
+      loadGlobalUsers(),
+      loadAllClassrooms(),
+      loadAuditTelemetry()
     ]);
 
-    setupAdminListeners();
+    setupAdminTabSwitching();
+    setupAdminSearch();
   } catch (err) {
-    console.error("Admin verification error:", err);
-    window.location.replace("office.html");
+    console.error("Error bootstrapping Admin Console:", err);
   }
 });
 
-// 2. Load Metric Counters
-async function loadKpiTelemetry() {
+// 1. KPI Telemetry Counters
+async function loadAdminKpis() {
   try {
-    const [usersSnap, classesSnap, teamsSnap, logsSnap] = await Promise.all([
+    const [uSnap, cSnap, tSnap, lSnap] = await Promise.all([
       getDocs(collection(db, "users")),
       getDocs(collection(db, "classrooms")),
       getDocs(collection(db, "planner_teams")),
       getDocs(collection(db, "activity_logs"))
     ]);
 
-    const usersEl = document.getElementById("stat-admin-users");
-    const classesEl = document.getElementById("stat-admin-classes");
-    const teamsEl = document.getElementById("stat-admin-teams");
-    const logsEl = document.getElementById("stat-admin-logs");
+    const uEl = document.getElementById("stat-admin-users");
+    const cEl = document.getElementById("stat-admin-classes");
+    const tEl = document.getElementById("stat-admin-teams");
+    const lEl = document.getElementById("stat-admin-logs");
 
-    if (usersEl) usersEl.textContent = usersSnap.size;
-    if (classesEl) classesEl.textContent = classesSnap.size;
-    if (teamsEl) teamsEl.textContent = teamsSnap.size;
-    if (logsEl) logsEl.textContent = logsSnap.size;
+    if (uEl) uEl.textContent = uSnap.size;
+    if (cEl) cEl.textContent = cSnap.size;
+    if (tEl) tEl.textContent = tSnap.size;
+    if (lEl) lEl.textContent = lSnap.size;
   } catch (err) {
-    console.warn("Telemetry loading warning:", err);
+    console.warn("KPI error:", err);
   }
 }
 
-// 3. User Directory Table & Live Search
-async function loadUsersTable() {
+// 2. Global Account Directory Table
+async function loadGlobalUsers() {
   const tbody = document.getElementById("admin-user-table-body");
   if (!tbody) return;
 
@@ -95,24 +83,24 @@ async function loadUsersTable() {
       allUsersCache.push({ id: d.id, ...d.data() });
     });
 
-    renderUsersTable(allUsersCache);
+    renderUsers(allUsersCache);
   } catch (err) {
-    console.error("Error reading users:", err);
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger-color); padding: 2rem;">Failed to load accounts: ${escapeHtml(err.message)}</td></tr>`;
+    console.error("Failed to load users:", err);
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger-color); padding: 2rem;">Error fetching user database: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
-function renderUsersTable(users) {
+function renderUsers(usersList) {
   const tbody = document.getElementById("admin-user-table-body");
   if (!tbody) return;
 
-  if (users.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem;" class="text-muted">No registered accounts found.</td></tr>`;
+  if (usersList.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem;" class="text-muted">No accounts match the search criteria.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = "";
-  users.forEach((u) => {
+  usersList.forEach((u) => {
     const tr = document.createElement("tr");
     tr.style.borderBottom = "1px solid var(--border-color)";
 
@@ -135,7 +123,7 @@ function renderUsersTable(users) {
       </td>
       <td style="padding: 0.85rem 0.75rem;">
         ${isSelf ? `
-          <span style="font-size: 0.78rem; color: var(--text-muted); font-style: italic;">Active Session</span>
+          <span style="font-size: 0.78rem; color: var(--text-muted); font-style: italic;">Current Session</span>
         ` : `
           <button type="button" class="btn-secondary btn-purge-user" data-uid="${u.id}" style="padding: 0.35rem 0.7rem; font-size: 0.78rem; color: var(--danger-color); border-color: rgba(239, 68, 68, 0.3);">
             <i class="fas fa-trash-alt"></i> Purge
@@ -144,40 +132,43 @@ function renderUsersTable(users) {
       </td>
     `;
 
-    // Role Change Listener
-    const roleSelect = tr.querySelector(".user-role-select");
-    if (roleSelect) {
-      roleSelect.addEventListener("change", async (e) => {
-        const newRole = e.target.value;
-        if (confirm(`Change role of ${u.fullName || u.email} to ${newRole.toUpperCase()}?`)) {
+    // Role modifier listener
+    const select = tr.querySelector(".user-role-select");
+    if (select) {
+      select.addEventListener("change", async (e) => {
+        const nextRole = e.target.value;
+        if (confirm(`Change role of ${u.fullName || u.email} to ${nextRole.toUpperCase()}?`)) {
           try {
             await updateDoc(doc(db, "users", u.id), {
-              role: newRole,
+              role: nextRole,
               updatedAt: serverTimestamp()
             });
-            alert("Role updated successfully.");
-            loadKpiTelemetry();
+
+            // Log action to audit stream
+            await logAdminAction("ROLE_CHANGE", `Changed ${u.email} to ${nextRole}`);
+            loadAdminKpis();
           } catch (err) {
-            alert("Failed to update role: " + err.message);
-            roleSelect.value = u.role || "student";
+            alert("Could not update role: " + err.message);
+            select.value = u.role || "student";
           }
         } else {
-          roleSelect.value = u.role || "student";
+          select.value = u.role || "student";
         }
       });
     }
 
-    // Purge Account Listener
+    // Account purge listener
     const purgeBtn = tr.querySelector(".btn-purge-user");
     if (purgeBtn) {
       purgeBtn.addEventListener("click", async () => {
-        if (confirm(`Are you sure you want to purge profile data for ${u.fullName || u.email}? This cannot be undone.`)) {
+        if (confirm(`Permanently remove profile data for ${u.fullName || u.email}? This cannot be undone.`)) {
           try {
             await deleteDoc(doc(db, "users", u.id));
+            await logAdminAction("USER_PURGE", `Purged profile data for ${u.email}`);
             tr.remove();
-            loadKpiTelemetry();
+            loadAdminKpis();
           } catch (err) {
-            alert("Failed to purge account record: " + err.message);
+            alert("Could not purge user: " + err.message);
           }
         }
       });
@@ -187,8 +178,8 @@ function renderUsersTable(users) {
   });
 }
 
-// 4. Section Overseer Grid
-async function loadSectionsOverseer() {
+// 3. Global Classroom Section Overseer
+async function loadAllClassrooms() {
   const container = document.getElementById("admin-sections-grid");
   if (!container) return;
 
@@ -219,7 +210,7 @@ async function loadSectionsOverseer() {
           <p class="text-muted" style="font-size: 0.85rem; margin: 0 0 1rem 0;">${escapeHtml(cls.description || "No course description provided.")}</p>
         </div>
         <div style="border-top: 1px solid var(--border-color); padding-top: 0.75rem; margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 0.75rem; color: var(--text-muted);">Instructor UID: ${cls.facultyUid ? cls.facultyUid.substring(0, 8) + '...' : 'Unknown'}</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Faculty: ${cls.facultyUid ? cls.facultyUid.substring(0, 8) + '...' : 'Unknown'}</span>
           <button type="button" class="btn-secondary btn-delete-classroom" style="color: var(--danger-color); border-color: rgba(239, 68, 68, 0.3); padding: 0.35rem 0.65rem; font-size: 0.78rem;">
             <i class="fas fa-trash"></i> Purge Section
           </button>
@@ -227,11 +218,12 @@ async function loadSectionsOverseer() {
       `;
 
       div.querySelector(".btn-delete-classroom").addEventListener("click", async () => {
-        if (confirm(`Permanently purge section "${cls.name}" and delete its roster linkage?`)) {
+        if (confirm(`Purge classroom section "${cls.name}"? All enrolled student associations will be severed.`)) {
           try {
             await deleteDoc(doc(db, "classrooms", docSnap.id));
+            await logAdminAction("SECTION_PURGE", `Deleted section ${cls.name} (${cls.code})`);
             div.remove();
-            loadKpiTelemetry();
+            loadAdminKpis();
           } catch (err) {
             alert("Failed to delete section: " + err.message);
           }
@@ -242,12 +234,12 @@ async function loadSectionsOverseer() {
     });
   } catch (err) {
     console.error("Error reading sections:", err);
-    container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Failed to load classroom sections.</p></div>';
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Could not load sections.</p></div>';
   }
 }
 
-// 5. Activity & Audit Trail Stream
-async function loadAuditLogs() {
+// 4. Audit Trail Logger & Viewer
+async function loadAuditTelemetry() {
   const stream = document.getElementById("admin-audit-stream");
   if (!stream) return;
 
@@ -271,12 +263,12 @@ async function loadAuditLogs() {
       div.style.alignItems = "center";
       div.style.fontSize = "0.85rem";
 
-      const time = log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString() : "Recent";
+      const time = log.timestamp?.toDate ? log.timestamp.toDate().toLocaleString() : "Recent";
 
       div.innerHTML = `
         <div>
-          <span style="font-weight: 600; color: #38bdf8; margin-right: 0.5rem;">[${escapeHtml(log.action || "EVENT")}]</span>
-          <span>${escapeHtml(log.details || log.message || "Telemetry event")}</span>
+          <span style="font-weight: 700; color: #ef4444; margin-right: 0.5rem;">[${escapeHtml(log.action || "EVENT")}]</span>
+          <span>${escapeHtml(log.details || log.message || "Admin event")}</span>
         </div>
         <span class="text-muted" style="font-size: 0.78rem;">${time}</span>
       `;
@@ -284,38 +276,81 @@ async function loadAuditLogs() {
     });
   } catch (err) {
     console.warn("Audit logs error:", err);
-    stream.innerHTML = '<div class="empty-state"><i class="fas fa-stream"></i><p>System activity telemetry stream ready.</p></div>';
   }
 }
 
-// 6. Event Listeners & Search
-function setupAdminListeners() {
-  // Live user search filter
+async function logAdminAction(action, details) {
+  try {
+    await addDoc(collection(db, "activity_logs"), {
+      action: action,
+      details: details,
+      adminUid: currentAdminUser.uid,
+      adminEmail: currentAdminUser.email,
+      timestamp: serverTimestamp()
+    });
+  } catch (err) {
+    console.warn("Could not record audit log:", err);
+  }
+}
+
+// 5. Tab & Search Handlers
+function setupAdminTabSwitching() {
+  const tabs = document.querySelectorAll("#admin-tabs .subnav-tab, .admin-tab-link");
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", (e) => {
+      e.preventDefault();
+      const targetKey = tab.getAttribute("data-tab");
+      if (!targetKey) return;
+
+      // Update subnav buttons
+      document.querySelectorAll("#admin-tabs .subnav-tab").forEach((b) => {
+        b.classList.toggle("active", b.getAttribute("data-tab") === targetKey);
+      });
+
+      // Update active panels
+      document.querySelectorAll(".tab-panel").forEach((panel) => {
+        panel.style.display = "none";
+        panel.classList.remove("active");
+      });
+
+      const targetPanel = document.getElementById(`tab-${targetKey}`);
+      if (targetPanel) {
+        targetPanel.style.display = "block";
+        targetPanel.classList.add("active");
+      }
+    });
+  });
+
+  const refreshBtn = document.getElementById("btn-refresh-logs");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      loadAuditTelemetry();
+      loadAdminKpis();
+    });
+  }
+}
+
+function setupAdminSearch() {
   const searchInput = document.getElementById("admin-user-search");
-  if (searchInput) {
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = "true";
     searchInput.addEventListener("input", (e) => {
-      const query = e.target.value.toLowerCase().trim();
-      if (!query) {
-        renderUsersTable(allUsersCache);
+      const term = e.target.value.toLowerCase().trim();
+      if (!term) {
+        renderUsers(allUsersCache);
         return;
       }
+
       const filtered = allUsersCache.filter((u) => {
         const name = (u.fullName || "").toLowerCase();
         const email = (u.email || "").toLowerCase();
         const role = (u.role || "").toLowerCase();
         const dept = (u.department || "").toLowerCase();
-        return name.includes(query) || email.includes(query) || role.includes(query) || dept.includes(query);
+        return name.includes(term) || email.includes(term) || role.includes(term) || dept.includes(term);
       });
-      renderUsersTable(filtered);
-    });
-  }
 
-  // Refresh logs button
-  const refreshBtn = document.getElementById("btn-refresh-logs");
-  if (refreshBtn) {
-    refreshBtn.addEventListener("click", () => {
-      loadAuditLogs();
-      loadKpiTelemetry();
+      renderUsers(filtered);
     });
   }
 }

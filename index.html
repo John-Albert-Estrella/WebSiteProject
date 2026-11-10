@@ -1,28 +1,48 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dark" class="dark-theme">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aimser - Management Simulator</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIMSER | Next-Gen HR Simulator</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/loader.css" />
 </head>
-<body style="display: flex; align-items: center; justify-content: center; height: 100vh; background: var(--bg-body);">
-  <div style="text-align: center;">
-    <img src="assets/aimser-logo.png" alt="Aimser Logo" style="height: 48px; margin-bottom: 16px;">
-    <p style="color: var(--text-secondary); font-size: 14px;">Initializing Aimser Workspace...</p>
-  </div>
+<body class="loader-body">
+  <div class="loader-ambient-grid"></div>
 
-  <script type="module">
-    import { auth } from "./js/firebase-init.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+  <!-- Central 3D Perspective Stage -->
+  <main class="loader-stage" role="main" aria-live="polite">
+    <div class="cube-viewport">
+      <div class="quantum-cube" id="quantum-cube">
+        <div class="cube-face cube-front"><div class="face-core"></div></div>
+        <div class="cube-face cube-back"><div class="face-core"></div></div>
+        <div class="cube-face cube-right"><div class="face-core"></div></div>
+        <div class="cube-face cube-left"><div class="face-core"></div></div>
+        <div class="cube-face cube-top"><div class="face-core"></div></div>
+        <div class="cube-face cube-bottom"><div class="face-core"></div></div>
+      </div>
+      <div class="cube-shadow-plane"></div>
+    </div>
 
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        window.location.replace("office.html");
-      } else {
-        window.location.replace("login.html");
-      }
-    });
-  </script>
+    <!-- Branding & Telemetry Status -->
+    <header class="loader-brand">
+      <h1 class="loader-title">AIMSER</h1>
+      <span class="loader-sub">HR Simulation Environment</span>
+    </header>
+
+    <div class="telemetry-wrapper">
+      <div class="telemetry-bar-chassis">
+        <div class="telemetry-bar-fill" id="telemetry-fill"></div>
+      </div>
+      <div class="telemetry-metrics">
+        <span class="metric-status" id="telemetry-status">Initializing Core Modules...</span>
+        <span class="metric-percent" id="telemetry-percent">0%</span>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="js/theme.js"></script>
+  <script type="module" src="js/loader.js"></script>
 </body>
 </html>
