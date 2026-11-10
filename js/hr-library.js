@@ -1,207 +1,337 @@
-import { auth, db } from "./firebase-init.js";
-import { initAuthGuard } from "./auth-guard.js";
-import { 
-  collection, query, addDoc, serverTimestamp, onSnapshot 
+// js/hr-library.js - Global HR Case Studies & Public Conflict Engine
+import { db, auth } from "./firebase-init.js";
+import {
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  getDocs,
+  query,
+  orderBy,
+  onSnapshot,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { uploadToCloudinary } from "./cloudinary-config.js";
 
 let currentUser = null;
-let currentRole = "student";
+let userRole = "student";
+let userProfile = null;
+let allCasesCache = [];
+let feedUnsubscribe = null;
+let casesUnsubscribe = null;
 
-const casesContainer = document.getElementById("hr-cases-container");
-const btnOpenCreateCase = document.getElementById("btn-open-create-case");
-const modalCreateCase = document.getElementById("modal-create-case");
-const formCreateCase = document.getElementById("form-create-case");
+// Initialize on auth state ready
+onAuthStateChanged(auth, async (user) => {
+  if (!user) return;
+  currentUser = user;
 
-const feedContainer = document.getElementById("hr-feed-container");
-const formConflictPost = document.getElementById("form-create-conflict-post");
-const inpConflictText = document.getElementById("inp-conflict-text");
-
-// Tab Switcher
-document.querySelectorAll(".module-tab-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".module-tab-btn").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll(".module-tab-panel").forEach(p => p.classList.remove("active"));
-    btn.classList.add("active");
-    const target = document.getElementById(btn.dataset.tab);
-    if (target) target.classList.add("active");
-  });
-});
-
-document.querySelectorAll(".close-modal-btn").forEach(b => {
-  b.addEventListener("click", () => {
-    document.querySelectorAll(".modal-backdrop-custom").forEach(m => m.style.display = "none");
-  });
-});
-
-initAuthGuard({
-  allowedRoles: ["student", "faculty", "admin"],
-  onReady: async ({ user, userData, role }) => {
-    currentUser = user;
-    currentRole = role;
-
-    const topbarRole = document.getElementById("topbar-role-badge");
-    const topbarName = document.getElementById("topbar-user-name");
-    const sidebarRole = document.getElementById("sidebar-role-tag");
-    const sidebarName = document.getElementById("sidebar-greeting-name");
-
-    const displayName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || user.email;
-    if (topbarName) topbarName.textContent = displayName;
-    if (sidebarName) sidebarName.textContent = displayName;
-    if (topbarRole) {
-      topbarRole.className = `role-badge ${role}`;
-      topbarRole.textContent = role.toUpperCase();
+  try {
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    if (userSnap.exists()) {
+      userProfile = userSnap.data();
+      userRole = userProfile.role || "student";
     }
-    if (sidebarRole) sidebarRole.textContent = role.toUpperCase();
-
-    if (role === "faculty" || role === "admin") {
-      document.querySelectorAll(".faculty-only-control").forEach(el => el.style.display = "inline-flex");
-    }
-
-    initPublicCases();
-    initPublicFeed();
+  } catch (e) {
+    console.warn("Could not load user role in HR Library:", e);
   }
+
+  updateHeaderAndRoleUI();
+  listenToCases();
+  listenToConflictFeed();
+  setupHRLibraryEventListeners();
 });
 
-// Upload Case with Answer Key (Faculty)
-btnOpenCreateCase?.addEventListener("click", () => {
-  if (modalCreateCase) modalCreateCase.style.display = "flex";
-});
+// Update role-based visibility and header chip
+function updateHeaderAndRoleUI() {
+  const isFacultyOrAdmin = userRole === "faculty" || userRole === "admin";
+  const publishBtn = document.getElementById("btn-publish-case-modal");
+  if (publishBtn) {
+    publishBtn.style.display = isFacultyOrAdmin ? "inline-flex" : "none";
+  }
 
-formCreateCase?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const title = document.getElementById("inp-case-title").value.trim();
-  const body = document.getElementById("inp-case-body").value.trim();
-  const question = document.getElementById("inp-case-question").value.trim();
-  const key = document.getElementById("inp-case-key").value.trim();
-  const explanation = document.getElementById("inp-case-explanation").value.trim();
+  const nameEl = document.getElementById("header-user-name");
+  const roleEl = document.getElementById("header-user-role");
+  const avatarEl = document.getElementById("header-user-avatar");
 
-  await addDoc(collection(db, "public_hr_cases"), {
-    title,
-    body,
-    question,
-    answerKey: key,
-    explanation,
-    authorName: currentUser.displayName || currentUser.email,
-    authorRole: currentRole,
-    createdAt: serverTimestamp()
-  });
+  if (nameEl && userProfile) nameEl.textContent = userProfile.fullName || currentUser.email;
+  if (roleEl) roleEl.textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
+  if (avatarEl && userProfile?.avatarUrl) avatarEl.src = userProfile.avatarUrl;
+}
 
-  alert("E-Module & Practice Case published to the public library!");
-  formCreateCase.reset();
-  modalCreateCase.style.display = "none";
-});
+// -------------------------------------------------------------
+// 1. HR Case Studies (Real-time listener & Interactive Answer Key)
+// -------------------------------------------------------------
+function listenToCases() {
+  if (casesUnsubscribe) casesUnsubscribe();
 
-function initPublicCases() {
-  const q = query(collection(db, "public_hr_cases"));
-  onSnapshot(q, (snap) => {
-    if (!casesContainer) return;
-    casesContainer.innerHTML = "";
-    if (snap.empty) {
-      casesContainer.innerHTML = `<div class="empty-state"><p>No public e-modules or cases uploaded yet.</p></div>`;
-      return;
-    }
+  const q = query(
+    collection(db, "public_hr_cases"),
+    orderBy("createdAt", "desc")
+  );
 
-    snap.forEach((cd) => {
-      const c = cd.data();
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `
-        <div class="card-header">
-          <div>
-            <h4 class="card-title">${c.title}</h4>
-            <div style="margin-top: 4px; display: flex; align-items: center; gap: 6px;">
-              <span style="font-size: 11.5px; color: var(--text-tertiary);">Uploaded by: ${c.authorName}</span>
-              <span class="role-badge ${c.authorRole || "faculty"}">${(c.authorRole || "faculty").toUpperCase()}</span>
-            </div>
-          </div>
-        </div>
-        <p style="font-size: 13px; line-height: 1.5; color: var(--text-secondary); margin: 10px 0;">${c.body}</p>
-        
-        <!-- Practice Case Section -->
-        <div class="practice-question-card">
-          <strong style="color: var(--accent); font-size: 12.5px;">📝 Practice Case:</strong>
-          <p style="font-size: 13px; margin: 6px 0;">${c.question}</p>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" class="form-control inp-student-answer" placeholder="Enter your answer...">
-            <button type="button" class="btn btn-primary btn-check-answer" style="font-size: 11.5px; white-space: nowrap;">Check Answer</button>
-          </div>
-          <div class="answer-key-box" id="box-key-${cd.id}">
-            <div style="font-size: 12px; font-weight: 700; color: #10b981;">✓ Official Answer Key: ${c.answerKey}</div>
-            <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px;">${c.explanation || ""}</div>
-          </div>
-        </div>
-      `;
-
-      card.querySelector(".btn-check-answer")?.addEventListener("click", () => {
-        const inp = card.querySelector(".inp-student-answer");
-        const studentAns = inp.value.trim().toLowerCase();
-        const correctAns = (c.answerKey || "").toLowerCase();
-        const keyBox = card.querySelector(`#box-key-${cd.id}`);
-
-        if (!studentAns) {
-          alert("Please type your answer before checking.");
-          return;
-        }
-
-        keyBox.classList.add("revealed");
-        if (studentAns === correctAns) {
-          alert("🎉 Correct! Your answer matches the faculty key.");
-        } else {
-          alert("⚠️ Answer does not match the faculty key. Compare your reasoning with the key below.");
-        }
-      });
-
-      casesContainer.appendChild(card);
+  casesUnsubscribe = onSnapshot(q, (snapshot) => {
+    allCasesCache = [];
+    snapshot.forEach((docSnap) => {
+      allCasesCache.push({ id: docSnap.id, ...docSnap.data() });
     });
+    renderCases(allCasesCache);
+  }, (err) => {
+    console.error("Error loading HR cases:", err);
+    const grid = document.getElementById("public-cases-grid");
+    if (grid) {
+      grid.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-circle"></i><p>Failed to load case studies. Please try refreshing.</p></div>';
+    }
   });
 }
 
-// Public HR Feed
-formConflictPost?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const text = inpConflictText.value.trim();
-  if (!text) return;
+function renderCases(cases) {
+  const grid = document.getElementById("public-cases-grid");
+  if (!grid) return;
 
-  await addDoc(collection(db, "public_hr_feed"), {
-    text,
-    authorName: currentUser.displayName || currentUser.email,
-    authorRole: currentRole,
-    createdAt: serverTimestamp()
+  if (cases.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-book-reader"></i>
+        <p>No HR Case Studies published yet. Faculty members can publish one above.</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = "";
+  cases.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "glass-panel";
+    card.style.display = "flex";
+    card.style.flexDirection = "column";
+    card.style.justifyContent = "space-between";
+    card.style.padding = "1.25rem";
+
+    const dateStr = item.createdAt?.toDate ? item.createdAt.toDate().toLocaleDateString() : "Recent";
+
+    card.innerHTML = `
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; gap: 0.5rem;">
+          <span class="badge-pill" style="font-size: 0.72rem;">${escapeHtml(item.category || "General HR")}</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);"><i class="far fa-calendar-alt"></i> ${dateStr}</span>
+        </div>
+        <h3 style="margin: 0 0 0.5rem 0; font-size: 1.15rem; color: var(--text-main);">${escapeHtml(item.title)}</h3>
+        <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin: 0 0 1rem 0; white-space: pre-line;">
+          ${escapeHtml(item.scenario)}
+        </p>
+      </div>
+
+      <div style="border-top: 1px solid var(--border-color); padding-top: 0.85rem; margin-top: 0.85rem;">
+        <div class="answer-key-box" id="answer-key-${item.id}" style="display: none; background: rgba(2, 132, 199, 0.08); border-left: 3px solid #0284c7; padding: 0.75rem; border-radius: 4px; margin-bottom: 0.75rem; font-size: 0.85rem;">
+          <strong style="color: #38bdf8; display: block; margin-bottom: 0.25rem;"><i class="fas fa-key"></i> Official Resolution Key:</strong>
+          <p style="margin: 0; color: var(--text-main); white-space: pre-line;">${escapeHtml(item.answerKey || "No official key provided.")}</p>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <button type="button" class="btn-secondary btn-toggle-answer" data-id="${item.id}" style="padding: 0.4rem 0.8rem; font-size: 0.78rem;">
+            <i class="fas fa-eye"></i> View Answer Key
+          </button>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">By: ${escapeHtml(item.authorName || "Faculty")}</span>
+        </div>
+      </div>
+    `;
+
+    // Interactive Answer Key Toggle
+    card.querySelector(".btn-toggle-answer").addEventListener("click", function () {
+      const box = document.getElementById(`answer-key-${item.id}`);
+      const isHidden = box.style.display === "none";
+      box.style.display = isHidden ? "block" : "none";
+      this.innerHTML = isHidden ? '<i class="fas fa-eye-slash"></i> Hide Answer Key' : '<i class="fas fa-eye"></i> View Answer Key';
+    });
+
+    grid.appendChild(card);
   });
+}
 
-  formConflictPost.reset();
-});
+// -------------------------------------------------------------
+// 2. Public Conflict Feed (Real-time Peer Discussion & Deliberation)
+// -------------------------------------------------------------
+function listenToConflictFeed() {
+  if (feedUnsubscribe) feedUnsubscribe();
 
-function initPublicFeed() {
-  const q = query(collection(db, "public_hr_feed"));
-  onSnapshot(q, (snap) => {
-    if (!feedContainer) return;
-    feedContainer.innerHTML = "";
-    if (snap.empty) {
-      feedContainer.innerHTML = `<div class="empty-state"><p>No conflict discussions posted yet.</p></div>`;
+  const q = query(
+    collection(db, "public_hr_feed"),
+    orderBy("createdAt", "desc")
+  );
+
+  feedUnsubscribe = onSnapshot(q, (snapshot) => {
+    const stream = document.getElementById("public-conflict-stream");
+    if (!stream) return;
+
+    if (snapshot.empty) {
+      stream.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-comments"></i>
+          <p>No conflict scenarios posted yet. Be the first to start a discussion above!</p>
+        </div>
+      `;
       return;
     }
 
-    const posts = [];
-    snap.forEach(d => posts.push({ id: d.id, ...d.data() }));
-    posts.sort((a, b) => (b.createdAt?.toMillis ? b.createdAt.toMillis() : 0) - (a.createdAt?.toMillis ? a.createdAt.toMillis() : 0));
+    stream.innerHTML = "";
+    snapshot.forEach((docSnap) => {
+      const post = docSnap.data();
+      const div = document.createElement("div");
+      div.className = "glass-panel";
+      div.style.padding = "1.25rem";
 
-    posts.forEach((p) => {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `
-        <div class="card-header" style="margin-bottom: 6px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <strong style="color: var(--accent); font-size: 13.5px;">${p.authorName}</strong>
-            <span class="role-badge ${p.authorRole || "student"}">${(p.authorRole || "student").toUpperCase()}</span>
+      const timeStr = post.createdAt?.toDate ? post.createdAt.toDate().toLocaleString() : "Just now";
+
+      div.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <img src="${post.authorAvatar || 'https://ui-avatars.com/api/?name=User&background=0284c7&color=fff'}" alt="Avatar" class="avatar-sm" />
+            <div>
+              <div style="font-weight: 600; font-size: 0.9rem; color: var(--text-main);">${escapeHtml(post.authorName || "Anonymous")}</div>
+              <div style="font-size: 0.72rem; color: var(--text-muted);">${escapeHtml(post.authorRole || "Member")}</div>
+            </div>
           </div>
-          <span style="font-size: 11px; color: var(--text-tertiary);">
-            ${p.createdAt?.toDate ? p.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Just now"}
-          </span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);"><i class="far fa-clock"></i> ${timeStr}</span>
         </div>
-        <p style="font-size: 13.5px; line-height: 1.5; color: var(--text-primary); margin: 0;">${p.text}</p>
+
+        <p style="font-size: 0.92rem; color: var(--text-main); line-height: 1.5; margin: 0 0 0.85rem 0; white-space: pre-line;">
+          ${escapeHtml(post.content)}
+        </p>
+
+        ${post.mediaUrl ? `
+          <div style="margin-bottom: 0.85rem;">
+            <a href="${post.mediaUrl}" target="_blank" rel="noopener" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #38bdf8;">
+              <i class="fas fa-paperclip"></i> View Attached Case Material
+            </a>
+          </div>
+        ` : ""}
       `;
-      feedContainer.appendChild(card);
+
+      stream.appendChild(div);
     });
+  }, (err) => {
+    console.error("Error loading conflict feed:", err);
   });
+}
+
+// -------------------------------------------------------------
+// 3. Search and Form Submissions
+// -------------------------------------------------------------
+function setupHRLibraryEventListeners() {
+  // Live case study search filter
+  const searchInput = document.getElementById("case-search-input");
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = "true";
+    searchInput.addEventListener("input", (e) => {
+      const term = e.target.value.toLowerCase().trim();
+      if (!term) {
+        renderCases(allCasesCache);
+        return;
+      }
+      const filtered = allCasesCache.filter((c) => {
+        const title = (c.title || "").toLowerCase();
+        const category = (c.category || "").toLowerCase();
+        const scenario = (c.scenario || "").toLowerCase();
+        return title.includes(term) || category.includes(term) || scenario.includes(term);
+      });
+      renderCases(filtered);
+    });
+  }
+
+  // Form: Publish Case Study (Faculty)
+  const formPublishCase = document.getElementById("form-publish-case");
+  if (formPublishCase && !formPublishCase.dataset.bound) {
+    formPublishCase.dataset.bound = "true";
+    formPublishCase.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("case-study-title").value.trim();
+      const category = document.getElementById("case-study-category").value;
+      const scenario = document.getElementById("case-study-scenario").value.trim();
+      const answerKey = document.getElementById("case-study-answer-key").value.trim();
+      const submitBtn = document.getElementById("btn-save-case");
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+
+      try {
+        await addDoc(collection(db, "public_hr_cases"), {
+          title,
+          category,
+          scenario,
+          answerKey,
+          authorUid: currentUser.uid,
+          authorName: userProfile?.fullName || currentUser.email,
+          createdAt: serverTimestamp()
+        });
+
+        formPublishCase.reset();
+        const modal = document.getElementById("modal-publish-case");
+        if (modal) {
+          modal.classList.remove("is-open");
+          modal.style.display = "none";
+        }
+      } catch (err) {
+        console.error("Error publishing case study:", err);
+        alert("Failed to publish case study: " + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = "Publish Case";
+      }
+    });
+  }
+
+  // Form: Post Conflict Scenario
+  const formConflict = document.getElementById("form-conflict-post");
+  if (formConflict && !formConflict.dataset.bound) {
+    formConflict.dataset.bound = "true";
+    formConflict.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const content = document.getElementById("conflict-post-content").value.trim();
+      const fileInput = document.getElementById("conflict-post-media");
+      const submitBtn = document.getElementById("btn-submit-conflict");
+
+      if (!content) return;
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
+
+      try {
+        let mediaUrl = "";
+        if (fileInput && fileInput.files.length > 0) {
+          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+          mediaUrl = await uploadToCloudinary(fileInput.files[0]);
+        }
+
+        await addDoc(collection(db, "public_hr_feed"), {
+          content,
+          mediaUrl: mediaUrl || null,
+          authorUid: currentUser.uid,
+          authorName: userProfile?.fullName || currentUser.email,
+          authorAvatar: userProfile?.avatarUrl || null,
+          authorRole: userRole,
+          createdAt: serverTimestamp()
+        });
+
+        formConflict.reset();
+      } catch (err) {
+        console.error("Error posting scenario:", err);
+        alert("Failed to post scenario: " + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Publish Scenario';
+      }
+    });
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return str.replace(/[&<>"']/g, (m) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[m]));
 }

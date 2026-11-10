@@ -1,230 +1,197 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Aimser - Institutional Admin Console</title>
-  <link rel="stylesheet" href="css/style.css">
-  <style>
-    .admin-stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .admin-stat-card {
-      background: var(--bg-surface);
-      border: 1px solid var(--surface-border);
-      border-radius: var(--radius-md);
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .admin-stat-label {
-      font-size: 12px;
-      color: var(--text-tertiary);
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .admin-stat-value {
-      font-size: 28px;
-      font-weight: 800;
-      color: var(--accent);
-    }
-    .role-select-inline {
-      background: var(--bg-input);
-      color: var(--text-primary);
-      border: 1px solid var(--surface-border);
-      border-radius: var(--radius-sm);
-      padding: 4px 8px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .search-filter-bar {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
-      flex-wrap: wrap;
-    }
-    .search-filter-bar input {
-      flex: 1;
-      min-width: 200px;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Command Center | AIMSER HR Simulator</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
+  <div class="dashboard-layout">
+    <!-- Dedicated Admin Sidebar (No Core Workspace Links) -->
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" />
+          <div class="brand-text">
+            <h2>AIMSER</h2>
+            <span style="color: #ef4444; font-weight: 700;">Admin Control</span>
+          </div>
+        </div>
 
-  <!-- Global Bento Rail Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
-      <p>Management Simulator</p>
-    </div>
+        <nav class="sidebar-nav">
+          <div class="nav-section-label">Administration</div>
+          <a href="admin-dashboard.html" class="nav-item active" id="nav-admin-dashboard">
+            <i class="fas fa-chart-line"></i>
+            <span>Overview &amp; Telemetry</span>
+          </a>
+          <a href="#tab-users" class="nav-item admin-tab-link" data-tab="users">
+            <i class="fas fa-users-cog"></i>
+            <span>Accounts &amp; Roles</span>
+          </a>
+          <a href="#tab-sections" class="nav-item admin-tab-link" data-tab="sections">
+            <i class="fas fa-chalkboard-teacher"></i>
+            <span>Classroom Sections</span>
+          </a>
+          <a href="#tab-telemetry" class="nav-item admin-tab-link" data-tab="telemetry">
+            <i class="fas fa-shield-virus"></i>
+            <span>Audit Trail</span>
+          </a>
 
-    <div class="sidebar-user-card">
-      <span class="welcome-tag">ADMIN CONSOLE</span>
-      <h3 id="sidebar-greeting-name">Loading...</h3>
-    </div>
-
-    <nav class="sidebar-nav">
-      <a href="admin-dashboard.html" class="nav-item active">🛡️ Admin Console</a>
-      <a href="settings.html" class="nav-item">⚙️ Settings</a>
-    </nav>
-  </aside>
-
-  <div class="main-content">
-    <header class="topbar">
-      <div class="brand-group">
-        <span class="faculty-name-display" id="topbar-user-name">Administrator</span>
-        <span class="role-tag admin" id="topbar-role-badge">ADMIN</span>
+          <div class="nav-section-label">Admin System</div>
+          <a href="admin-settings.html" class="nav-item" id="nav-admin-settings">
+            <i class="fas fa-sliders-h"></i>
+            <span>Admin Settings</span>
+          </a>
+        </nav>
       </div>
-      <div class="nav-actions">
-        <div class="notifications-wrapper">
-          <button type="button" class="btn-notif-bell" id="btn-notif-bell" title="Notifications" aria-label="Notifications">
-            <img src="assets/bell.png" alt="Bell" class="bell-icon">
-            <span class="notif-badge hidden" id="notif-badge">0</span>
+
+      <div class="sidebar-footer">
+        <button type="button" id="theme-toggle-btn" class="btn-sidebar-action theme-toggle">
+          <i class="fas fa-sun"></i>
+          <span>Toggle Theme</span>
+        </button>
+        <button type="button" id="logout-btn" class="btn-sidebar-action btn-logout">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Admin Workspace -->
+    <main class="main-workspace">
+      <header class="workspace-header">
+        <div class="header-left">
+          <h1 class="page-title">Admin Command Center</h1>
+          <span class="badge-pill" style="border-color: #ef4444; color: #ef4444; background-color: rgba(239, 68, 68, 0.1);">
+            Root Administrator
+          </span>
+        </div>
+
+        <div class="header-right">
+          <a href="admin-settings.html" class="btn-secondary" style="font-size: 0.85rem;">
+            <i class="fas fa-cog"></i> System Settings
+          </a>
+          <div class="user-profile-chip">
+            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=dc2626&color=fff" alt="Avatar" class="avatar-sm" />
+            <div class="user-meta">
+              <span id="header-user-name" class="user-name">Administrator</span>
+              <span id="header-user-role" class="user-role" style="color: #ef4444; font-weight: 700;">Super Admin</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- KPI Summary Cards -->
+      <div class="stats-row" style="margin-bottom: 1.5rem;">
+        <div class="stat-card glass-panel">
+          <span class="stat-label">Total Users</span>
+          <h3 id="stat-admin-users">0</h3>
+        </div>
+        <div class="stat-card glass-panel">
+          <span class="stat-label">Active Classrooms</span>
+          <h3 id="stat-admin-classes">0</h3>
+        </div>
+        <div class="stat-card glass-panel">
+          <span class="stat-label">Project Teams</span>
+          <h3 id="stat-admin-teams">0</h3>
+        </div>
+        <div class="stat-card glass-panel">
+          <span class="stat-label">Audit Logs</span>
+          <h3 id="stat-admin-logs">0</h3>
+        </div>
+      </div>
+
+      <!-- Admin Functional Tab Switcher -->
+      <div class="office-subnav" id="admin-tabs">
+        <button type="button" class="subnav-tab active" data-tab="users">
+          <i class="fas fa-users-cog"></i> Account Roster &amp; Roles
+        </button>
+        <button type="button" class="subnav-tab" data-tab="sections">
+          <i class="fas fa-chalkboard-teacher"></i> Classroom Sections
+        </button>
+        <button type="button" class="subnav-tab" data-tab="telemetry">
+          <i class="fas fa-shield-virus"></i> Security &amp; Activity Telemetry
+        </button>
+      </div>
+
+      <!-- Tab 1: User Directory & Role Assignment -->
+      <section id="tab-users" class="tab-panel active">
+        <div class="panel-toolbar">
+          <div>
+            <h2>Global Account Directory</h2>
+            <p class="text-muted">Modify platform roles, verify identity records, or purge inactive accounts.</p>
+          </div>
+          <div style="min-width: 280px;">
+            <input type="text" id="admin-user-search" class="form-control" placeholder="Search by name, email, or role..." />
+          </div>
+        </div>
+
+        <div class="glass-panel" style="overflow-x: auto; padding: 0.5rem 1rem;">
+          <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase;">
+                <th style="padding: 1rem 0.75rem;">Account User</th>
+                <th style="padding: 1rem 0.75rem;">Department</th>
+                <th style="padding: 1rem 0.75rem;">System Role</th>
+                <th style="padding: 1rem 0.75rem;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="admin-user-table-body">
+              <tr>
+                <td colspan="4" style="text-align: center; padding: 2.5rem;" class="text-muted">Loading account records...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tab 2: Section Overview & Management -->
+      <section id="tab-sections" class="tab-panel" style="display: none;">
+        <div class="panel-toolbar">
+          <div>
+            <h2>Classroom Section Overseer</h2>
+            <p class="text-muted">Inspect course section rosters, join codes, and purge obsolete cohorts.</p>
+          </div>
+        </div>
+
+        <div id="admin-sections-grid" class="cards-grid">
+          <div class="empty-state">
+            <i class="fas fa-chalkboard"></i>
+            <p>Loading active classroom sections...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab 3: Security & Activity Telemetry -->
+      <section id="tab-telemetry" class="tab-panel" style="display: none;">
+        <div class="panel-toolbar">
+          <div>
+            <h2>Platform Activity &amp; Audit Trail</h2>
+            <p class="text-muted">Real-time log of user registrations, role adjustments, and classroom activities.</p>
+          </div>
+          <button type="button" id="btn-refresh-logs" class="btn-secondary">
+            <i class="fas fa-sync-alt"></i> Refresh Logs
           </button>
-          <div class="notif-dropdown" id="notif-dropdown">
-            <div class="notif-header">
-              <h4 class="notif-title">Notifications</h4>
-              <button type="button" class="btn-mark-all-read" id="btn-mark-all-read">Mark all as read</button>
+        </div>
+
+        <div class="glass-panel" style="padding: 1rem 1.25rem;">
+          <div id="admin-audit-stream">
+            <div class="empty-state">
+              <i class="fas fa-stream"></i>
+              <p>Loading security audit stream...</p>
             </div>
-            <div class="notif-list" id="notif-list">
-              <div class="notif-empty">No notifications yet.</div>
-            </div>
           </div>
-        </div>
-      </div>
-    </header>
-
-    <main class="page-container">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">Institutional Administration</h1>
-          <p class="page-subtitle">Platform-wide governance: role management, classroom oversight, and telemetry telemetry audit stream.</p>
-        </div>
-      </div>
-
-      <!-- Institutional Metrics -->
-      <div class="admin-stats-grid">
-        <div class="admin-stat-card">
-          <span class="admin-stat-label">Total Students</span>
-          <span class="admin-stat-value" id="stat-total-students">0</span>
-        </div>
-        <div class="admin-stat-card">
-          <span class="admin-stat-label">Faculty Accounts</span>
-          <span class="admin-stat-value" id="stat-total-faculty">0</span>
-        </div>
-        <div class="admin-stat-card">
-          <span class="admin-stat-label">Active Classrooms</span>
-          <span class="admin-stat-value" id="stat-total-classes">0</span>
-        </div>
-        <div class="admin-stat-card">
-          <span class="admin-stat-label">Audit Log Events</span>
-          <span class="admin-stat-value" id="stat-total-logs">0</span>
-        </div>
-      </div>
-
-      <!-- SECTION 1: USER DIRECTORY & ROLE MANAGEMENT -->
-      <section class="card roster-card" style="margin-bottom: 24px;">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">User Accounts Directory</h2>
-            <p class="card-subtitle">Manage institutional roles and enrollment linkages.</p>
-          </div>
-        </div>
-
-        <div class="search-filter-bar">
-          <input type="text" id="user-search-input" class="form-control" placeholder="Search by name or email address...">
-          <select id="user-role-filter" class="form-control" style="max-width: 180px;">
-            <option value="all">All Roles</option>
-            <option value="student">Students</option>
-            <option value="faculty">Faculty</option>
-            <option value="admin">Administrators</option>
-          </select>
-        </div>
-
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Account Name</th>
-                <th>Institutional Email</th>
-                <th>Current Role</th>
-                <th>Enrolled Section</th>
-                <th>Role Elevation</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="users-tbody">
-              <tr><td colspan="6" class="empty-state">Loading user records...</td></tr>
-            </tbody>
-          </table>
         </div>
       </section>
-
-      <!-- SECTION 2: GLOBAL CLASSROOM DIRECTORY -->
-      <section class="card roster-card" style="margin-bottom: 24px;">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">Institutional Classrooms</h2>
-            <p class="card-subtitle">Active simulation cohorts across all faculty instructors.</p>
-          </div>
-        </div>
-
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Classroom Name</th>
-                <th>Section Cohort</th>
-                <th>Join Code</th>
-                <th>Instructor Email</th>
-                <th>Enrolled Count</th>
-                <th>Pending Requests</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="admin-classes-tbody">
-              <tr><td colspan="7" class="empty-state">Loading classrooms directory...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- SECTION 3: SYSTEM AUDIT & TELEMETRY STREAM -->
-      <section class="card roster-card">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">Global Activity Telemetry</h2>
-            <p class="card-subtitle">Real-time audit log stream across all operations.</p>
-          </div>
-        </div>
-
-        <div class="table-container">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Category</th>
-                <th>Account</th>
-                <th>Scope</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody id="admin-audit-tbody">
-              <tr><td colspan="5" class="empty-state">Streaming audit logs...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
     </main>
   </div>
 
-  <script type="module" src="js/admin-dashboard.js"></script>
   <script type="module" src="js/theme.js"></script>
+  <script type="module" src="js/ui-bridge.js"></script>
+  <script type="module" src="js/auth-guard.js"></script>
+  <script type="module" src="js/admin-dashboard.js"></script>
 </body>
 </html>

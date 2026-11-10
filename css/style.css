@@ -2350,3 +2350,433 @@ body.auth-body {
 .answer-key-box.revealed {
   display: block;
 }
+
+/* =========================================================
+   Unified Dashboard Layout, Sidebar Brand & Footer Styles
+   ========================================================= */
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--bg-primary, #0a0e17);
+  color: var(--text-main, #f3f4f6);
+}
+
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background-color: var(--bg-surface, #111827);
+  border-right: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.25rem 1rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 100;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.5rem 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  margin-bottom: 1rem;
+}
+
+.brand-logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.brand-text h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.5px;
+  color: var(--text-main, #ffffff);
+}
+
+.brand-text span {
+  font-size: 0.75rem;
+  color: var(--text-muted, #9ca3af);
+  display: block;
+}
+
+.sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.nav-section-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #9ca3af);
+  margin: 1rem 0.75rem 0.35rem;
+  font-weight: 600;
+}
+
+.sidebar-nav .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  color: var(--text-muted, #9ca3af);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.sidebar-nav .nav-item:hover {
+  background-color: rgba(2, 132, 199, 0.12);
+  color: var(--text-main, #ffffff);
+}
+
+.sidebar-nav .nav-item.active {
+  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+}
+
+/* Fix unstyled Toggle Theme & Sign Out buttons at bottom of sidebar */
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.btn-sidebar-action {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  background-color: rgba(255, 255, 255, 0.03);
+  color: var(--text-main, #f3f4f6);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.btn-sidebar-action:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.btn-sidebar-action.btn-logout {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.btn-sidebar-action.btn-logout:hover {
+  background-color: rgba(239, 68, 68, 0.12);
+}
+
+/* Main Workspace Right Panel */
+.main-workspace {
+  flex: 1;
+  padding: 1.75rem 2.25rem;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.workspace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.header-left,
+.header-right,
+.classroom-controls,
+.team-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.user-profile-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background-color: var(--bg-surface, #111827);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.avatar-sm {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.user-role {
+  font-size: 0.7rem;
+  color: var(--text-muted, #9ca3af);
+  text-transform: capitalize;
+}
+
+/* Subnav Tabs & Kanban Columns */
+.office-subnav,
+.library-subnav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  padding-bottom: 0.75rem;
+}
+
+.subnav-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted, #9ca3af);
+  padding: 0.6rem 1.1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.subnav-tab.active {
+  background-color: rgba(2, 132, 199, 0.15);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-top: 1.25rem;
+  align-items: start;
+}
+
+.kanban-column {
+  padding: 1rem;
+  border-radius: 12px;
+  min-height: 420px;
+}
+
+.kanban-column-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+/* =========================================================
+   AIMSER HR Simulator - Global Theme Tokens & Core Elements
+   ========================================================= */
+
+:root,
+[data-theme="dark"],
+html.dark-theme {
+  --bg-primary: #0a0e17;
+  --bg-surface: #111827;
+  --bg-card: rgba(17, 24, 39, 0.9);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --primary-accent: #0284c7;
+  --primary-hover: #0369a1;
+  --danger-color: #ef4444;
+  --success-color: #10b981;
+}
+
+[data-theme="light"],
+html.light-theme {
+  --bg-primary: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-card: #ffffff;
+  --border-color: rgba(15, 23, 42, 0.12);
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --primary-accent: #0284c7;
+  --primary-hover: #0369a1;
+  --danger-color: #dc2626;
+  --success-color: #059669;
+}
+
+/* Base Body Application */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary {
+  padding: 0.65rem 1.15rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: var(--primary-accent);
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background-color: rgba(128, 128, 128, 0.08);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* Form Inputs & Controls */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label,
+.form-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.form-control,
+.form-select {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--primary-accent);
+}
+
+.form-control:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-link {
+  color: #38bdf8;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.text-link:hover {
+  text-decoration: underline;
+}
+
+/* Auth Screens */
+.auth-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.auth-wrapper {
+  width: 100%;
+  max-width: 440px;
+}
+
+.auth-card {
+  padding: 2.25rem;
+}
+
+.auth-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin-bottom: 0.75rem;
+}
+
+.auth-brand h1 {
+  font-size: 1.6rem;
+  margin: 0 0 0.35rem 0;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+}
+
+/* Status Notifications */
+.status-msg {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-top: 0.75rem;
+}
+
+.status-msg.success {
+  color: var(--success-color);
+}
+
+.status-msg.error {
+  color: var(--danger-color);
+}

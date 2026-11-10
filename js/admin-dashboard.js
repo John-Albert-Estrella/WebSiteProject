@@ -1,329 +1,332 @@
-import { auth, db } from "./firebase-init.js";
-import { initAuthGuard } from "./auth-guard.js";
-import { logActivity } from "./audit-logger.js";
-import { 
-  collection, 
-  query, 
-  onSnapshot, 
-  doc, 
+// js/admin-dashboard.js - Super Administrator Command Engine
+import { db, auth } from "./firebase-init.js";
+import {
+  collection,
+  doc,
   getDoc,
-  updateDoc, 
-  deleteDoc, 
-  serverTimestamp 
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+  limit,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-// Metric DOM
-const statStudents = document.getElementById("stat-total-students");
-const statFaculty = document.getElementById("stat-total-faculty");
-const statClasses = document.getElementById("stat-total-classes");
-const statLogs = document.getElementById("stat-total-logs");
+let currentAdminUser = null;
+let allUsersCache = [];
 
-// User Table DOM
-const usersTbody = document.getElementById("users-tbody");
-const userSearchInput = document.getElementById("user-search-input");
-const userRoleFilter = document.getElementById("user-role-filter");
+// 1. Auth & Admin Security Guard
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.replace("login.html");
+    return;
+  }
+  currentAdminUser = user;
 
-// Classrooms & Logs DOM
-const adminClassesTbody = document.getElementById("admin-classes-tbody");
-const adminAuditTbody = document.getElementById("admin-audit-tbody");
+  try {
+    const profileSnap = await getDoc(doc(db, "users", user.uid));
+    const role = profileSnap.exists() ? (profileSnap.data().role || "student") : "student";
 
-let currentUser = null;
-let cachedUsers = [];
-let cachedClassrooms = [];
+    if (role !== "admin") {
+      alert("Access Denied: Super Administrator privileges required.");
+      window.location.replace("office.html");
+      return;
+    }
 
-initAuthGuard({
-  allowedRoles: ["admin"],
-  onReady: ({ user }) => {
-    currentUser = user;
-    initUsersStream();
-    initClassroomsStream();
-    initTelemetryStream();
+    // Populate header details
+    const nameEl = document.getElementById("header-user-name");
+    const roleEl = document.getElementById("header-user-role");
+    const avatarEl = document.getElementById("header-user-avatar");
+    if (nameEl) nameEl.textContent = profileSnap.data().fullName || user.email;
+    if (roleEl) roleEl.textContent = "Super Administrator";
+    if (avatarEl && profileSnap.data().avatarUrl) avatarEl.src = profileSnap.data().avatarUrl;
+
+    // Load admin panels
+    await Promise.all([
+      loadKpiTelemetry(),
+      loadUsersTable(),
+      loadSectionsOverseer(),
+      loadAuditLogs()
+    ]);
+
+    setupAdminListeners();
+  } catch (err) {
+    console.error("Admin verification error:", err);
+    window.location.replace("office.html");
   }
 });
 
-// =========================================================================
-// 1. USERS DIRECTORY & ROLE MANAGEMENT
-// =========================================================================
-function initUsersStream() {
-  const usersQ = query(collection(db, "users"));
+// 2. Load Metric Counters
+async function loadKpiTelemetry() {
+  try {
+    const [usersSnap, classesSnap, teamsSnap, logsSnap] = await Promise.all([
+      getDocs(collection(db, "users")),
+      getDocs(collection(db, "classrooms")),
+      getDocs(collection(db, "planner_teams")),
+      getDocs(collection(db, "activity_logs"))
+    ]);
 
-  onSnapshot(usersQ, (snapshot) => {
-    cachedUsers = [];
-    let studentCount = 0;
-    let facultyCount = 0;
+    const usersEl = document.getElementById("stat-admin-users");
+    const classesEl = document.getElementById("stat-admin-classes");
+    const teamsEl = document.getElementById("stat-admin-teams");
+    const logsEl = document.getElementById("stat-admin-logs");
 
-    snapshot.forEach((docSnap) => {
-      const u = { id: docSnap.id, ...docSnap.data() };
-      cachedUsers.push(u);
-
-      if (u.role === "student") studentCount++;
-      else if (u.role === "faculty") facultyCount++;
-    });
-
-    if (statStudents) statStudents.textContent = studentCount;
-    if (statFaculty) statFaculty.textContent = facultyCount;
-
-    renderUsersTable();
-  }, (err) => {
-    console.error("Users listener error:", err);
-  });
-
-  userSearchInput?.addEventListener("input", renderUsersTable);
-  userRoleFilter?.addEventListener("change", renderUsersTable);
+    if (usersEl) usersEl.textContent = usersSnap.size;
+    if (classesEl) classesEl.textContent = classesSnap.size;
+    if (teamsEl) teamsEl.textContent = teamsSnap.size;
+    if (logsEl) logsEl.textContent = logsSnap.size;
+  } catch (err) {
+    console.warn("Telemetry loading warning:", err);
+  }
 }
 
-function renderUsersTable() {
-  if (!usersTbody) return;
-  usersTbody.innerHTML = "";
+// 3. User Directory Table & Live Search
+async function loadUsersTable() {
+  const tbody = document.getElementById("admin-user-table-body");
+  if (!tbody) return;
 
-  const searchTerm = userSearchInput?.value.toLowerCase().trim() || "";
-  const roleFilter = userRoleFilter?.value || "all";
+  try {
+    const snap = await getDocs(collection(db, "users"));
+    allUsersCache = [];
 
-  const filtered = cachedUsers.filter((u) => {
-    const fullName = `${u.firstName || ""} ${u.lastName || ""}`.toLowerCase();
-    const email = (u.email || "").toLowerCase();
-    const matchesSearch = fullName.includes(searchTerm) || email.includes(searchTerm);
-    const matchesRole = roleFilter === "all" || u.role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
+    snap.forEach((d) => {
+      allUsersCache.push({ id: d.id, ...d.data() });
+    });
 
-  if (filtered.length === 0) {
-    usersTbody.innerHTML = `<tr><td colspan="6" class="empty-state">No matching user accounts found.</td></tr>`;
+    renderUsersTable(allUsersCache);
+  } catch (err) {
+    console.error("Error reading users:", err);
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger-color); padding: 2rem;">Failed to load accounts: ${escapeHtml(err.message)}</td></tr>`;
+  }
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById("admin-user-table-body");
+  if (!tbody) return;
+
+  if (users.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem;" class="text-muted">No registered accounts found.</td></tr>`;
     return;
   }
 
-  filtered.forEach((u) => {
+  tbody.innerHTML = "";
+  users.forEach((u) => {
     const tr = document.createElement("tr");
-    const nameDisplay = `${u.firstName || ""} ${u.lastName || ""}`.trim() || "Institutional User";
-    const isSelf = u.id === currentUser.uid;
+    tr.style.borderBottom = "1px solid var(--border-color)";
+
+    const isSelf = u.id === currentAdminUser.uid;
 
     tr.innerHTML = `
-      <td><strong>${nameDisplay}</strong></td>
-      <td>${u.email || "No Email"}</td>
-      <td>
-        <span class="role-tag ${u.role || "student"}">${(u.role || "student").toUpperCase()}</span>
+      <td style="padding: 0.85rem 0.75rem;">
+        <div style="font-weight: 600; color: var(--text-main);">${escapeHtml(u.fullName || "Unnamed User")}</div>
+        <div style="font-size: 0.78rem; color: var(--text-muted);">${escapeHtml(u.email || u.id)}</div>
       </td>
-      <td>
-        ${u.classroomCode 
-          ? `<span class="status-badge active">${u.classroomCode}</span>` 
-          : `<span style="font-size: 11.5px; color: var(--text-tertiary);">Unlinked</span>`}
+      <td style="padding: 0.85rem 0.75rem; color: var(--text-muted); font-size: 0.85rem;">
+        ${escapeHtml(u.department || "General Cohort")}
       </td>
-      <td>
-        <select class="role-select-inline" data-uid="${u.id}" ${isSelf ? "disabled" : ""}>
+      <td style="padding: 0.85rem 0.75rem;">
+        <select class="user-role-select form-control" data-uid="${u.id}" ${isSelf ? "disabled" : ""} style="padding: 0.35rem 0.6rem; font-size: 0.8rem; max-width: 130px;">
           <option value="student" ${u.role === "student" ? "selected" : ""}>Student</option>
           <option value="faculty" ${u.role === "faculty" ? "selected" : ""}>Faculty</option>
           <option value="admin" ${u.role === "admin" ? "selected" : ""}>Admin</option>
         </select>
       </td>
-      <td>
-        <button type="button" class="btn btn-secondary danger-action btn-del-user" data-uid="${u.id}" ${isSelf ? "disabled" : ""} style="padding: 3px 8px; font-size: 11px;">
-          Delete Record
-        </button>
+      <td style="padding: 0.85rem 0.75rem;">
+        ${isSelf ? `
+          <span style="font-size: 0.78rem; color: var(--text-muted); font-style: italic;">Active Session</span>
+        ` : `
+          <button type="button" class="btn-secondary btn-purge-user" data-uid="${u.id}" style="padding: 0.35rem 0.7rem; font-size: 0.78rem; color: var(--danger-color); border-color: rgba(239, 68, 68, 0.3);">
+            <i class="fas fa-trash-alt"></i> Purge
+          </button>
+        `}
       </td>
     `;
 
-    // Role elevation handler
-    tr.querySelector(".role-select-inline")?.addEventListener("change", async (e) => {
-      const newRole = e.target.value;
-      if (confirm(`Change ${u.email}'s role to ${newRole.toUpperCase()}?`)) {
-        await updateUserRole(u.id, u.email, newRole);
-      } else {
-        e.target.value = u.role || "student";
-      }
-    });
+    // Role Change Listener
+    const roleSelect = tr.querySelector(".user-role-select");
+    if (roleSelect) {
+      roleSelect.addEventListener("change", async (e) => {
+        const newRole = e.target.value;
+        if (confirm(`Change role of ${u.fullName || u.email} to ${newRole.toUpperCase()}?`)) {
+          try {
+            await updateDoc(doc(db, "users", u.id), {
+              role: newRole,
+              updatedAt: serverTimestamp()
+            });
+            alert("Role updated successfully.");
+            loadKpiTelemetry();
+          } catch (err) {
+            alert("Failed to update role: " + err.message);
+            roleSelect.value = u.role || "student";
+          }
+        } else {
+          roleSelect.value = u.role || "student";
+        }
+      });
+    }
 
-    // Account document delete handler
-    tr.querySelector(".btn-del-user")?.addEventListener("click", async () => {
-      if (confirm(`Permanently remove Firestore profile for ${u.email}? Note: Remember to remove from Firebase Authentication if purging completely.`)) {
-        await deleteUserRecord(u.id, u.email);
-      }
-    });
+    // Purge Account Listener
+    const purgeBtn = tr.querySelector(".btn-purge-user");
+    if (purgeBtn) {
+      purgeBtn.addEventListener("click", async () => {
+        if (confirm(`Are you sure you want to purge profile data for ${u.fullName || u.email}? This cannot be undone.`)) {
+          try {
+            await deleteDoc(doc(db, "users", u.id));
+            tr.remove();
+            loadKpiTelemetry();
+          } catch (err) {
+            alert("Failed to purge account record: " + err.message);
+          }
+        }
+      });
+    }
 
-    usersTbody.appendChild(tr);
+    tbody.appendChild(tr);
   });
 }
 
-async function updateUserRole(userId, userEmail, newRole) {
+// 4. Section Overseer Grid
+async function loadSectionsOverseer() {
+  const container = document.getElementById("admin-sections-grid");
+  if (!container) return;
+
   try {
-    await updateDoc(doc(db, "users", userId), {
-      role: newRole,
-      updatedAt: serverTimestamp()
-    });
-
-    await logActivity({
-      category: "Administration",
-      details: `Admin ${currentUser.email} updated role of ${userEmail} to [${newRole}]`,
-      classroomCode: "GLOBAL",
-      userEmail: currentUser.email
-    });
-
-    alert(`Role updated to ${newRole.toUpperCase()}.`);
-  } catch (err) {
-    console.error("Role update error:", err);
-    alert("Failed to update role: " + err.message);
-  }
-}
-
-async function deleteUserRecord(userId, userEmail) {
-  try {
-    await deleteDoc(doc(db, "users", userId));
-
-    await logActivity({
-      category: "Administration",
-      details: `Admin ${currentUser.email} deleted user document for ${userEmail}`,
-      classroomCode: "GLOBAL",
-      userEmail: currentUser.email
-    });
-
-    alert("User document removed from Firestore.");
-  } catch (err) {
-    console.error("User deletion error:", err);
-    alert("Failed to delete user: " + err.message);
-  }
-}
-
-// =========================================================================
-// 2. INSTITUTIONAL CLASSROOM DIRECTORY & PURGE
-// =========================================================================
-function initClassroomsStream() {
-  const classQ = query(collection(db, "classrooms"));
-
-  onSnapshot(classQ, (snapshot) => {
-    cachedClassrooms = [];
-    if (statClasses) statClasses.textContent = snapshot.size;
-
-    if (!adminClassesTbody) return;
-    adminClassesTbody.innerHTML = "";
-
-    if (snapshot.empty) {
-      adminClassesTbody.innerHTML = `<tr><td colspan="7" class="empty-state">No classroom spaces created yet.</td></tr>`;
+    const snap = await getDocs(collection(db, "classrooms"));
+    if (snap.empty) {
+      container.innerHTML = '<div class="empty-state"><i class="fas fa-chalkboard"></i><p>No classroom sections registered in the simulator.</p></div>';
       return;
     }
 
-    snapshot.forEach((docSnap) => {
-      const c = { id: docSnap.id, ...docSnap.data() };
-      cachedClassrooms.push(c);
+    container.innerHTML = "";
+    snap.forEach((docSnap) => {
+      const cls = docSnap.data();
+      const div = document.createElement("div");
+      div.className = "glass-panel";
+      div.style.padding = "1.25rem";
+      div.style.display = "flex";
+      div.style.flexDirection = "column";
+      div.style.justifyContent = "space-between";
 
-      const enrolledCount = Array.isArray(c.students) ? c.students.length : 0;
-      const pendingCount = Array.isArray(c.pendingRequests) ? c.pendingRequests.length : 0;
-
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td><strong>${c.name || "Untitled Class"}</strong></td>
-        <td>${c.section || "N/A"}</td>
-        <td><span class="status-badge active" style="letter-spacing: 1px;">${c.code}</span></td>
-        <td>${c.facultyEmail || "Instructor"}</td>
-        <td>${enrolledCount} enrolled</td>
-        <td>
-          ${pendingCount > 0 
-            ? `<span style="color: #ef4444; font-weight: 700;">${pendingCount} pending</span>` 
-            : `<span style="color: var(--text-tertiary);">0</span>`}
-        </td>
-        <td style="display: flex; gap: 6px;">
-          <a href="classroom.html?code=${c.code}" class="btn btn-secondary" style="padding: 3px 8px; font-size: 11px; text-decoration: none;">Inspect</a>
-          <button type="button" class="btn btn-secondary danger-action btn-purge-class" data-id="${c.id}" data-code="${c.code}" style="padding: 3px 8px; font-size: 11px;">
-            Purge
+      div.innerHTML = `
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+            <span class="badge-pill">Code: ${escapeHtml(cls.code || "---")}</span>
+            <span style="font-size: 0.78rem; color: var(--text-muted);"><i class="fas fa-user-graduate"></i> ${(cls.students || []).length} Students</span>
+          </div>
+          <h3 style="margin: 0 0 0.35rem 0; font-size: 1.1rem;">${escapeHtml(cls.name)}</h3>
+          <p class="text-muted" style="font-size: 0.85rem; margin: 0 0 1rem 0;">${escapeHtml(cls.description || "No course description provided.")}</p>
+        </div>
+        <div style="border-top: 1px solid var(--border-color); padding-top: 0.75rem; margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Instructor UID: ${cls.facultyUid ? cls.facultyUid.substring(0, 8) + '...' : 'Unknown'}</span>
+          <button type="button" class="btn-secondary btn-delete-classroom" style="color: var(--danger-color); border-color: rgba(239, 68, 68, 0.3); padding: 0.35rem 0.65rem; font-size: 0.78rem;">
+            <i class="fas fa-trash"></i> Purge Section
           </button>
-        </td>
+        </div>
       `;
 
-      tr.querySelector(".btn-purge-class")?.addEventListener("click", async () => {
-        if (confirm(`Purge classroom ${c.name} (${c.code})? All enrolled students will be unlinked automatically.`)) {
-          await purgeClassroom(c.id, c.code, c);
+      div.querySelector(".btn-delete-classroom").addEventListener("click", async () => {
+        if (confirm(`Permanently purge section "${cls.name}" and delete its roster linkage?`)) {
+          try {
+            await deleteDoc(doc(db, "classrooms", docSnap.id));
+            div.remove();
+            loadKpiTelemetry();
+          } catch (err) {
+            alert("Failed to delete section: " + err.message);
+          }
         }
       });
 
-      adminClassesTbody.appendChild(tr);
+      container.appendChild(div);
     });
-  }, (err) => {
-    console.error("Classrooms listener error:", err);
-  });
-}
-
-async function purgeClassroom(classId, classCode, classData) {
-  try {
-    const allMembers = [...(classData.students || []), ...(classData.pendingRequests || [])];
-
-    // Unlink every enrolled or pending student
-    for (const member of allMembers) {
-      if (member.uid) {
-        try {
-          await updateDoc(doc(db, "users", member.uid), {
-            classroomCode: null,
-            classroomId: null,
-            pendingClassroomCode: null,
-            pendingClassroomId: null,
-            updatedAt: serverTimestamp()
-          });
-        } catch (e) {
-          console.warn("Could not unlink user " + member.uid, e);
-        }
-      }
-    }
-
-    await deleteDoc(doc(db, "classrooms", classId));
-
-    await logActivity({
-      category: "Administration",
-      details: `Admin ${currentUser.email} purged classroom ${classCode}`,
-      classroomCode: classCode,
-      userEmail: currentUser.email
-    });
-
-    alert(`Classroom ${classCode} deleted and all member linkages cleared.`);
   } catch (err) {
-    console.error("Classroom purge error:", err);
-    alert("Failed to purge classroom: " + err.message);
+    console.error("Error reading sections:", err);
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Failed to load classroom sections.</p></div>';
   }
 }
 
-// =========================================================================
-// 3. REAL-TIME AUDIT TELEMETRY STREAM
-// =========================================================================
-function initTelemetryStream() {
-  const auditQ = query(collection(db, "activity_logs"));
+// 5. Activity & Audit Trail Stream
+async function loadAuditLogs() {
+  const stream = document.getElementById("admin-audit-stream");
+  if (!stream) return;
 
-  onSnapshot(auditQ, (snapshot) => {
-    if (statLogs) statLogs.textContent = snapshot.size;
+  try {
+    const q = query(collection(db, "activity_logs"), orderBy("timestamp", "desc"), limit(25));
+    const snap = await getDocs(q);
 
-    if (!adminAuditTbody) return;
-    adminAuditTbody.innerHTML = "";
-
-    if (snapshot.empty) {
-      adminAuditTbody.innerHTML = `<tr><td colspan="5" class="empty-state">No audit logs logged in Firestore.</td></tr>`;
+    if (snap.empty) {
+      stream.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i><p>No telemetry events logged yet.</p></div>';
       return;
     }
 
-    const logs = [];
-    snapshot.forEach(d => logs.push({ id: d.id, ...d.data() }));
+    stream.innerHTML = "";
+    snap.forEach((docSnap) => {
+      const log = docSnap.data();
+      const div = document.createElement("div");
+      div.style.padding = "0.75rem 0";
+      div.style.borderBottom = "1px solid var(--border-color)";
+      div.style.display = "flex";
+      div.style.justifyContent = "space-between";
+      div.style.alignItems = "center";
+      div.style.fontSize = "0.85rem";
 
-    // Client-side sort (newest first) to bypass composite index requirement
-    logs.sort((a, b) => {
-      const timeA = a.timestamp?.toMillis ? a.timestamp.toMillis() : (a.timestamp ? new Date(a.timestamp).getTime() : 0);
-      const timeB = b.timestamp?.toMillis ? b.timestamp.toMillis() : (b.timestamp ? new Date(b.timestamp).getTime() : 0);
-      return timeB - timeA;
-    });
+      const time = log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString() : "Recent";
 
-    // Show most recent 50 events
-    logs.slice(0, 50).forEach((l) => {
-      const tr = document.createElement("tr");
-      let timeStr = "Recently";
-      if (l.timestamp?.toDate) {
-        timeStr = l.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      } else if (l.timestamp) {
-        timeStr = new Date(l.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      }
-
-      tr.innerHTML = `
-        <td style="font-size: 11px; color: var(--text-tertiary);">${timeStr}</td>
-        <td><span class="status-badge" style="font-size: 10px;">${l.category || "Action"}</span></td>
-        <td>${l.userEmail || "System"}</td>
-        <td><strong style="color: var(--accent);">${l.classroomCode || "GLOBAL"}</strong></td>
-        <td style="font-size: 12.5px;">${l.details || ""}</td>
+      div.innerHTML = `
+        <div>
+          <span style="font-weight: 600; color: #38bdf8; margin-right: 0.5rem;">[${escapeHtml(log.action || "EVENT")}]</span>
+          <span>${escapeHtml(log.details || log.message || "Telemetry event")}</span>
+        </div>
+        <span class="text-muted" style="font-size: 0.78rem;">${time}</span>
       `;
-      adminAuditTbody.appendChild(tr);
+      stream.appendChild(div);
     });
-  }, (err) => {
-    console.error("Audit listener error:", err);
-  });
+  } catch (err) {
+    console.warn("Audit logs error:", err);
+    stream.innerHTML = '<div class="empty-state"><i class="fas fa-stream"></i><p>System activity telemetry stream ready.</p></div>';
+  }
+}
+
+// 6. Event Listeners & Search
+function setupAdminListeners() {
+  // Live user search filter
+  const searchInput = document.getElementById("admin-user-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      const query = e.target.value.toLowerCase().trim();
+      if (!query) {
+        renderUsersTable(allUsersCache);
+        return;
+      }
+      const filtered = allUsersCache.filter((u) => {
+        const name = (u.fullName || "").toLowerCase();
+        const email = (u.email || "").toLowerCase();
+        const role = (u.role || "").toLowerCase();
+        const dept = (u.department || "").toLowerCase();
+        return name.includes(query) || email.includes(query) || role.includes(query) || dept.includes(query);
+      });
+      renderUsersTable(filtered);
+    });
+  }
+
+  // Refresh logs button
+  const refreshBtn = document.getElementById("btn-refresh-logs");
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      loadAuditLogs();
+      loadKpiTelemetry();
+    });
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return str.replace(/[&<>"']/g, (m) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[m]));
 }

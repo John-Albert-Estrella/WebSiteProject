@@ -1,109 +1,195 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aimser - Platform Settings</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings | AIMSER HR Simulator</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
-
-  <!-- Unified Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
-      <p>Management Simulator</p>
-    </div>
-
-    <div class="sidebar-user-card">
-      <span class="welcome-tag" id="sidebar-role-tag">SETTINGS</span>
-      <h3 id="sidebar-greeting-name">Loading...</h3>
-    </div>
-
-    <nav class="sidebar-nav">
-      <a href="office.html" class="nav-item">🏢 Office</a>
-      <a href="planner.html" class="nav-item">📋 Project Planner</a>
-      <a href="hr-library.html" class="nav-item">📚 HR Library</a>
-      <a href="settings.html" class="nav-item active">⚙️ Settings</a>
-    </nav>
-  </aside>
-
-  <div class="main-content">
-    <header class="topbar">
-      <div class="brand-group">
-        <span class="faculty-name-display" id="topbar-user-name">User</span>
-        <span class="role-badge" id="topbar-role-badge">STUDENT</span>
-      </div>
-    </header>
-
-    <main class="page-container">
-      <div class="page-header">
-        <div>
-          <h1 class="page-title">Platform Preferences</h1>
-          <p class="page-subtitle">Manage appearance, profile metadata, and security credentials.</p>
-        </div>
-      </div>
-
-      <div class="dashboard-grid">
-        <!-- Theme Setting -->
-        <section class="card">
-          <div class="card-header">
-            <h3 class="card-title">Theme & Interface</h3>
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" />
+          <div class="brand-text">
+            <h2>AIMSER</h2>
+            <span>HR Simulator</span>
           </div>
-          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
-            Switch between obsidian Dark Mode and high-contrast Light Mode.
-          </p>
-          <button type="button" class="btn btn-secondary" id="theme-toggle-btn">🌓 Toggle Theme</button>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div class="nav-section-label">Core Workspace</div>
+          <a href="office.html" class="nav-item" id="nav-office">
+            <i class="fas fa-building"></i>
+            <span>Office</span>
+          </a>
+          <a href="planner.html" class="nav-item" id="nav-planner">
+            <i class="fas fa-columns"></i>
+            <span>Project Planner</span>
+          </a>
+          <a href="hr-library.html" class="nav-item" id="nav-hr-library">
+            <i class="fas fa-book-open"></i>
+            <span>HR Library</span>
+          </a>
+
+          <div class="nav-section-label">System</div>
+          <a href="settings.html" class="nav-item active" id="nav-settings">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
+          </a>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <button type="button" id="theme-toggle-btn" class="btn-sidebar-action theme-toggle">
+          <i class="fas fa-sun"></i>
+          <span>Toggle Theme</span>
+        </button>
+        <button type="button" id="logout-btn" class="btn-sidebar-action btn-logout">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-workspace">
+      <header class="workspace-header">
+        <div class="header-left">
+          <h1 class="page-title">Settings</h1>
+        </div>
+
+        <div class="header-right">
+          <div class="user-profile-chip">
+            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar" class="avatar-sm" />
+            <div class="user-meta">
+              <span id="header-user-name" class="user-name">Authenticated User</span>
+              <span id="header-user-role" class="user-role">Member</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="settings-grid">
+        <section class="settings-card glass-panel" id="profile-settings">
+          <div>
+            <i class="fas fa-id-badge fa-lg"></i>
+            <div>
+              <h3>Personal Profile</h3>
+              <p class="text-muted">Update your display name, department, and profile avatar.</p>
+            </div>
+          </div>
+
+          <form id="profile-settings-form">
+            <div>
+              <img id="settings-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar Preview" class="avatar-preview" />
+              <div>
+                <label for="avatar-file-input" class="form-label">Profile Picture (Cloudinary)</label>
+                <input type="file" id="avatar-file-input" class="form-control" accept="image/*" />
+              </div>
+            </div>
+
+            <div>
+              <div class="form-group">
+                <label for="settings-fullname" class="form-label">Full Name</label>
+                <input type="text" id="settings-fullname" class="form-control" placeholder="Your Full Name" required />
+              </div>
+
+              <div class="form-group">
+                <label for="settings-email" class="form-label">Institutional Email</label>
+                <input type="email" id="settings-email" class="form-control" disabled />
+              </div>
+
+              <div class="form-group">
+                <label for="settings-role" class="form-label">System Role</label>
+                <input type="text" id="settings-role" class="form-control" disabled />
+              </div>
+
+              <div class="form-group">
+                <label for="settings-department" class="form-label">Department / Section</label>
+                <input type="text" id="settings-department" class="form-control" placeholder="e.g., CCMS - BSIT" />
+              </div>
+            </div>
+
+            <button type="submit" id="btn-save-profile" class="btn-primary">
+              <i class="fas fa-save"></i> Save Profile Changes
+            </button>
+            <div id="profile-status-message" class="status-msg" aria-live="polite"></div>
+          </form>
         </section>
 
-        <!-- Account Security -->
-        <section class="card">
-          <div class="card-header">
-            <h3 class="card-title">Session & Credentials</h3>
+        <section class="settings-card glass-panel" id="security-settings">
+          <div>
+            <i class="fas fa-shield-alt fa-lg"></i>
+            <div>
+              <h3>Security &amp; Change Password</h3>
+              <p class="text-muted">Verify your current password to set a new account password.</p>
+            </div>
           </div>
-          <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
-            Safely terminate your authenticated session on this browser.
-          </p>
-          <div style="display: flex; gap: 8px;">
-            <a href="reset-password.html" class="btn btn-secondary" style="text-decoration: none;">Change Password</a>
-            <button type="button" class="btn btn-secondary danger-action" id="btn-sign-out">Sign Out</button>
+
+          <form id="change-password-form">
+            <div class="form-group">
+              <label for="current-password" class="form-label">Current Password</label>
+              <div class="input-password-wrapper">
+                <input type="password" id="current-password" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
+                <button type="button" class="btn-toggle-pw" data-target="current-password" aria-label="Show password">
+                  <i class="far fa-eye"></i>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div class="form-group">
+                <label for="new-password" class="form-label">New Password</label>
+                <div class="input-password-wrapper">
+                  <input type="password" id="new-password" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
+                  <button type="button" class="btn-toggle-pw" data-target="new-password" aria-label="Show password">
+                    <i class="far fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="confirm-new-password" class="form-label">Confirm New Password</label>
+                <div class="input-password-wrapper">
+                  <input type="password" id="confirm-new-password" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
+                  <button type="button" class="btn-toggle-pw" data-target="confirm-new-password" aria-label="Show password">
+                    <i class="far fa-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" id="btn-update-password" class="btn-primary">
+              <i class="fas fa-key"></i> Update Password
+            </button>
+            <div id="password-status-message" class="status-msg" aria-live="polite"></div>
+          </form>
+        </section>
+
+        <section class="settings-card glass-panel" id="appearance-settings">
+          <div>
+            <div>
+              <i class="fas fa-palette fa-lg"></i>
+              <div>
+                <h3>Workspace Appearance</h3>
+                <p class="text-muted">Toggle between Dark Mode and Light Mode across all simulator modules.</p>
+              </div>
+            </div>
+            <button type="button" class="btn-secondary theme-toggle">
+              <i class="fas fa-adjust"></i> Switch Theme
+            </button>
           </div>
         </section>
       </div>
     </main>
   </div>
 
-  <script type="module">
-    import { auth } from "./js/firebase-init.js";
-    import { initAuthGuard } from "./js/auth-guard.js";
-    import { signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-
-    initAuthGuard({
-      allowedRoles: ["student", "faculty", "admin"],
-      onReady: ({ user, userData, role }) => {
-        const topbarRole = document.getElementById("topbar-role-badge");
-        const topbarName = document.getElementById("topbar-user-name");
-        const sidebarRole = document.getElementById("sidebar-role-tag");
-        const sidebarName = document.getElementById("sidebar-greeting-name");
-
-        const displayName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || user.email;
-        if (topbarName) topbarName.textContent = displayName;
-        if (sidebarName) sidebarName.textContent = displayName;
-        if (topbarRole) {
-          topbarRole.className = `role-badge ${role}`;
-          topbarRole.textContent = role.toUpperCase();
-        }
-        if (sidebarRole) sidebarRole.textContent = role.toUpperCase();
-      }
-    });
-
-    document.getElementById("btn-sign-out")?.addEventListener("click", async () => {
-      if (confirm("Sign out of Aimser?")) {
-        await signOut(auth);
-        window.location.replace("login.html");
-      }
-    });
-  </script>
   <script type="module" src="js/theme.js"></script>
+  <script type="module" src="js/ui-bridge.js"></script>
+  <script type="module" src="js/auth-guard.js"></script>
+  <script type="module" src="js/settings.js"></script>
 </body>
 </html>

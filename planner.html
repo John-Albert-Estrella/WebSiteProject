@@ -1,228 +1,223 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aimser - Trello Project Planner</title>
-  <link rel="stylesheet" href="css/style.css">
-  <style>
-    .modal-backdrop-custom {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center;
-      z-index: 2000; padding: 16px;
-    }
-    .modal-box-card {
-      background: var(--bg-surface); border: 1px solid var(--surface-border);
-      border-radius: var(--radius-md); max-width: 550px; width: 100%; max-height: 90vh;
-      overflow-y: auto; padding: 24px;
-    }
-  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Planner | AIMSER HR Simulator</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
-
-  <!-- Global Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">
-      <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-logo">
-      <p>Management Simulator</p>
-    </div>
-
-    <div class="sidebar-user-card">
-      <span class="welcome-tag" id="sidebar-role-tag">PLANNER</span>
-      <h3 id="sidebar-greeting-name">Loading...</h3>
-    </div>
-
-    <nav class="sidebar-nav">
-      <a href="office.html" class="nav-item">🏢 Office</a>
-      <a href="planner.html" class="nav-item active">📋 Project Planner</a>
-      <a href="hr-library.html" class="nav-item">📚 HR Library</a>
-      <a href="settings.html" class="nav-item">⚙️ Settings</a>
-    </nav>
-  </aside>
-
-  <div class="main-content">
-    <header class="topbar">
-      <div class="brand-group">
-        <span class="faculty-name-display" id="topbar-user-name">User</span>
-        <span class="role-badge" id="topbar-role-badge">STUDENT</span>
-      </div>
-    </header>
-
-    <main class="page-container">
-
-      <!-- Team Gateway Card -->
-      <section class="card" id="team-gateway-card" style="margin-bottom: 24px;">
-        <div class="card-header">
-          <div>
-            <h2 class="card-title">Project Planner Teams</h2>
-            <p class="card-subtitle">Collaborate in 15-member project rooms with Trello-style boards.</p>
-          </div>
-          <button type="button" class="btn btn-primary" id="btn-open-create-team">+ Create New Team</button>
-        </div>
-        <div style="margin-top: 14px;">
-          <form id="form-join-team" style="display: flex; gap: 10px; max-width: 450px;">
-            <input type="text" id="inp-team-code" class="form-control" placeholder="Enter Team Code (e.g. TEAM-4321)" required>
-            <button type="submit" class="btn btn-primary">Enter Board</button>
-          </form>
-        </div>
-      </section>
-
-      <!-- Active Trello Workspace -->
-      <div id="team-workspace" style="display: none;">
-        
-        <div class="classroom-header-banner">
-          <div>
-            <h1 class="class-title-large" id="active-team-name">Alpha Team Board</h1>
-            <p class="class-meta-subtitle" id="active-team-meta">15 Members Max • Leader: Leader</p>
-          </div>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <div class="class-code-badge">
-              <span>TEAM CODE:</span>
-              <span id="active-team-code">TEAM-XXXX</span>
-            </div>
-            <button type="button" class="btn btn-secondary" id="btn-switch-team" style="font-size: 11px;">Switch Team</button>
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">
+          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" />
+          <div class="brand-text">
+            <h2>AIMSER</h2>
+            <span>HR Simulator</span>
           </div>
         </div>
 
-        <!-- Team Hierarchy Strip -->
-        <section class="card" style="margin-bottom: 20px; padding: 12px 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <strong style="font-size: 12.5px;">PROJECT HIERARCHY:</strong>
-              <div id="team-hierarchy-container" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
-            </div>
-            <button type="button" class="btn btn-secondary" id="btn-open-assign-role" style="font-size: 11px;">+ Assign Role</button>
-          </div>
-        </section>
+        <nav class="sidebar-nav">
+          <div class="nav-section-label">Core Workspace</div>
+          <a href="office.html" class="nav-item" id="nav-office">
+            <i class="fas fa-building"></i>
+            <span>Office</span>
+          </a>
+          <a href="planner.html" class="nav-item active" id="nav-planner">
+            <i class="fas fa-columns"></i>
+            <span>Project Planner</span>
+          </a>
+          <a href="hr-library.html" class="nav-item" id="nav-hr-library">
+            <i class="fas fa-book-open"></i>
+            <span>HR Library</span>
+          </a>
 
-        <!-- Trello Action Header -->
-        <div class="page-header" style="margin-bottom: 14px;">
-          <div>
-            <h3 class="card-title">Kanban Task Stream</h3>
-            <p class="card-subtitle">Manage tasks, deadlines, and responsibilities across columns.</p>
-          </div>
-          <button type="button" class="btn btn-primary" id="btn-open-add-card">+ Add Task Card</button>
-        </div>
-
-        <!-- 3 Trello Columns -->
-        <div class="trello-board">
-          <!-- Column 1: To Do -->
-          <div class="trello-column">
-            <div class="trello-column-header">
-              <span>📝 TO DO</span>
-              <span class="status-badge" id="count-todo">0</span>
-            </div>
-            <div id="column-todo" style="display: flex; flex-direction: column; gap: 8px;"></div>
-          </div>
-
-          <!-- Column 2: In Progress -->
-          <div class="trello-column">
-            <div class="trello-column-header">
-              <span>⚡ IN PROGRESS</span>
-              <span class="status-badge" id="count-in_progress">0</span>
-            </div>
-            <div id="column-in_progress" style="display: flex; flex-direction: column; gap: 8px;"></div>
-          </div>
-
-          <!-- Column 3: Done -->
-          <div class="trello-column">
-            <div class="trello-column-header">
-              <span>✅ DONE</span>
-              <span class="status-badge active" id="count-done">0</span>
-            </div>
-            <div id="column-done" style="display: flex; flex-direction: column; gap: 8px;"></div>
-          </div>
-        </div>
-
+          <div class="nav-section-label">System</div>
+          <a href="settings.html" class="nav-item" id="nav-settings">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
+          </a>
+        </nav>
       </div>
 
+      <div class="sidebar-footer">
+        <button type="button" id="theme-toggle-btn" class="btn-sidebar-action theme-toggle">
+          <i class="fas fa-sun"></i>
+          <span>Toggle Theme</span>
+        </button>
+        <button type="button" id="logout-btn" class="btn-sidebar-action btn-logout">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-workspace">
+      <header class="workspace-header">
+        <div class="header-left">
+          <h1 class="page-title">Project Planner</h1>
+          <span id="active-team-badge" class="badge-pill">Select or Create a Team</span>
+        </div>
+
+        <div class="header-right">
+          <div class="team-controls">
+            <select id="team-selector" class="form-select" aria-label="Select Project Team">
+              <option value="">Select Team Board...</option>
+            </select>
+            <button type="button" id="btn-create-team-modal" class="btn-primary" data-open="modal-create-team">
+              <i class="fas fa-users-cog"></i> New Team
+            </button>
+            <button type="button" id="btn-join-team-modal" class="btn-secondary" data-open="modal-join-team">
+              <i class="fas fa-user-plus"></i> Join Team
+            </button>
+          </div>
+
+          <div class="user-profile-chip">
+            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar" class="avatar-sm" />
+            <div class="user-meta">
+              <span id="header-user-name" class="user-name">Authenticated User</span>
+              <span id="header-user-role" class="user-role">Member</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div class="planner-toolbar glass-panel">
+        <div class="team-info">
+          <span id="team-code-display">Team Invite Code: <strong>---</strong></span>
+          <span id="team-members-count">
+            <i class="fas fa-user-friends"></i> 0 Members
+          </span>
+        </div>
+        <button type="button" id="btn-add-card-modal" class="btn-primary" data-open="modal-add-card">
+          <i class="fas fa-plus"></i> Add Task Card
+        </button>
+      </div>
+
+      <div class="kanban-board" id="planner-kanban-board">
+        <div class="kanban-column" data-status="todo">
+          <div class="kanban-column-header">
+            <h3><i class="fas fa-clipboard-list"></i> To Do</h3>
+            <span class="column-count" id="count-todo">0</span>
+          </div>
+          <div class="kanban-cards-container" id="col-todo"></div>
+        </div>
+
+        <div class="kanban-column" data-status="in_progress">
+          <div class="kanban-column-header">
+            <h3><i class="fas fa-spinner"></i> In Progress</h3>
+            <span class="column-count" id="count-in_progress">0</span>
+          </div>
+          <div class="kanban-cards-container" id="col-in_progress"></div>
+        </div>
+
+        <div class="kanban-column" data-status="review">
+          <div class="kanban-column-header">
+            <h3><i class="fas fa-search"></i> Review</h3>
+            <span class="column-count" id="count-review">0</span>
+          </div>
+          <div class="kanban-cards-container" id="col-review"></div>
+        </div>
+
+        <div class="kanban-column" data-status="done">
+          <div class="kanban-column-header">
+            <h3><i class="fas fa-check-circle"></i> Completed</h3>
+            <span class="column-count" id="count-done">0</span>
+          </div>
+          <div class="kanban-cards-container" id="col-done"></div>
+        </div>
+      </div>
     </main>
   </div>
 
-  <!-- Create Team Modal -->
-  <div class="modal-backdrop-custom" id="modal-create-team" style="display: none;">
-    <div class="modal-box-card">
-      <div class="card-header">
-        <h3 class="card-title">Create Project Team (Max 15)</h3>
-        <button type="button" class="btn btn-secondary close-modal-btn">✕</button>
+  <!-- Modals (Hidden by Default) -->
+  <div id="modal-create-team" class="modal-backdrop" style="display: none;">
+    <div class="modal-card glass-panel">
+      <div class="modal-header">
+        <h3>Create Project Team</h3>
+        <button type="button" class="btn-close-modal" data-close="modal-create-team">&times;</button>
       </div>
-      <form id="form-create-team" class="auth-form">
+      <form id="form-create-team">
         <div class="form-group">
-          <label class="form-label" for="inp-new-team-name">Team Name</label>
-          <input type="text" id="inp-new-team-name" class="form-control" placeholder="e.g. Project Alpha HR" required>
+          <label for="team-name-input">Team Name</label>
+          <input type="text" id="team-name-input" class="form-control" placeholder="e.g., Alpha HR Consultants" required />
         </div>
         <div class="form-group">
-          <label class="form-label" for="inp-link-office-code">Link to Office Class Code (Optional)</label>
-          <input type="text" id="inp-link-office-code" class="form-control" placeholder="e.g. AIM-1234 (Lets professor inspect board)">
+          <label for="team-max-members">Max Capacity</label>
+          <input type="number" id="team-max-members" class="form-control" value="5" min="2" max="15" required />
         </div>
-        <div class="card-actions">
-          <button type="submit" class="btn btn-primary">Create Team Room</button>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close="modal-create-team">Cancel</button>
+          <button type="submit" class="btn-primary">Create Team</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Add Card Modal -->
-  <div class="modal-backdrop-custom" id="modal-add-card" style="display: none;">
-    <div class="modal-box-card">
-      <div class="card-header">
-        <h3 class="card-title">Add Trello Task Card</h3>
-        <button type="button" class="btn btn-secondary close-modal-btn">✕</button>
+  <div id="modal-join-team" class="modal-backdrop" style="display: none;">
+    <div class="modal-card glass-panel">
+      <div class="modal-header">
+        <h3>Join Project Team</h3>
+        <button type="button" class="btn-close-modal" data-close="modal-join-team">&times;</button>
       </div>
-      <form id="form-create-card" class="auth-form">
+      <form id="form-join-team">
         <div class="form-group">
-          <label class="form-label" for="card-title">Card Title</label>
-          <input type="text" id="card-title" class="form-control" placeholder="e.g. 6.1 Project Justification" required>
+          <label for="team-invite-code">Team Invite Code</label>
+          <input type="text" id="team-invite-code" class="form-control" placeholder="Enter invite code" required />
         </div>
-        <div class="form-group">
-          <label class="form-label" for="card-assignee">Assign Member</label>
-          <input type="text" id="card-assignee" class="form-control" placeholder="e.g. Mariel (Research Lead)">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="card-due">Due Date</label>
-          <input type="date" id="card-due" class="form-control" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="card-desc">Checklist & Responsibilities</label>
-          <textarea id="card-desc" class="form-control" rows="3" placeholder="Outline specific task outputs..."></textarea>
-        </div>
-        <div class="card-actions">
-          <button type="submit" class="btn btn-primary">Create Card</button>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close="modal-join-team">Cancel</button>
+          <button type="submit" class="btn-primary">Join Team</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Assign Role Modal -->
-  <div class="modal-backdrop-custom" id="modal-assign-role" style="display: none;">
-    <div class="modal-box-card">
-      <div class="card-header">
-        <h3 class="card-title">Assign Team Position & Hierarchy</h3>
-        <button type="button" class="btn btn-secondary close-modal-btn">✕</button>
+  <div id="modal-add-card" class="modal-backdrop" style="display: none;">
+    <div class="modal-card glass-panel">
+      <div class="modal-header">
+        <h3>Create Task Card</h3>
+        <button type="button" class="btn-close-modal" data-close="modal-add-card">&times;</button>
       </div>
-      <form id="form-assign-role" class="auth-form">
+      <form id="form-add-card">
         <div class="form-group">
-          <label class="form-label" for="role-member-name">Member Name</label>
-          <input type="text" id="role-member-name" class="form-control" placeholder="e.g. Kathleen Jade" required>
+          <label for="card-title">Task Title</label>
+          <input type="text" id="card-title" class="form-control" placeholder="e.g., Draft Employee Handbook Section 4" required />
         </div>
         <div class="form-group">
-          <label class="form-label" for="role-title">Position / Hierarchy</label>
-          <select id="role-title" class="form-control">
-            <option value="Project Manager">Project Manager (Lead)</option>
-            <option value="Documentation Lead">Documentation Lead</option>
-            <option value="Research & Stakeholder Lead">Research & Stakeholder Lead</option>
-            <option value="Main Scheduler / WBS">Main Scheduler / WBS</option>
-            <option value="Resource & Cost Planner">Resource & Cost Planner</option>
+          <label for="card-desc">Description</label>
+          <textarea id="card-desc" class="form-control" rows="3" placeholder="Task notes, subtasks, or links..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="card-priority">Priority</label>
+          <select id="card-priority" class="form-control">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
           </select>
         </div>
-        <div class="card-actions">
-          <button type="submit" class="btn btn-primary">Save Role</button>
+        <div class="form-group">
+          <label for="card-due">Due Date</label>
+          <input type="date" id="card-due" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="card-attachment">Attachment (Optional via Cloudinary)</label>
+          <input type="file" id="card-attachment" class="form-control" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close="modal-add-card">Cancel</button>
+          <button type="submit" class="btn-primary">Save Card</button>
         </div>
       </form>
     </div>
   </div>
 
-  <script type="module" src="js/planner.js"></script>
   <script type="module" src="js/theme.js"></script>
+  <script type="module" src="js/ui-bridge.js"></script>
+  <script type="module" src="js/auth-guard.js"></script>
+  <script type="module" src="js/planner.js"></script>
 </body>
 </html>

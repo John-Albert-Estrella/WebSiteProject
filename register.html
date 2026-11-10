@@ -1,116 +1,84 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Aimser - Institutional Registration</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account | AIMSER HR Simulator</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body class="auth-body">
-
   <div class="auth-wrapper">
-    <div class="auth-card">
-      <div class="auth-header">
-        <img src="assets/aimser-logo.png" alt="Aimser Logo" class="brand-img-badge">
-        <h1 class="auth-title">Create Account</h1>
-        <p class="auth-subtitle">Join the institutional Human Resource Management Simulator.</p>
+    <div class="auth-card glass-panel">
+      <div class="auth-brand">
+        <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="auth-logo" />
+        <h1>Create Simulator Account</h1>
+        <p class="text-muted">Join your classroom section or manage HR simulation cohorts.</p>
       </div>
 
-      <div id="register-error-box" class="settings-alert-banner danger"></div>
-
-      <form id="form-register" class="auth-form">
-        <div class="form-row-duo">
-          <div class="form-group">
-            <label class="form-label" for="reg-first-name">First Name</label>
-            <input 
-              type="text" 
-              id="reg-first-name" 
-              class="form-control" 
-              placeholder="e.g. John Albert" 
-              autocomplete="given-name"
-              required
-            >
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="reg-last-name">Last Name</label>
-            <input 
-              type="text" 
-              id="reg-last-name" 
-              class="form-control" 
-              placeholder="e.g. Estrella" 
-              autocomplete="family-name"
-              required
-            >
-          </div>
+      <form id="register-form" class="auth-form">
+        <div class="form-group">
+          <label for="reg-fullname">Full Name</label>
+          <input 
+            type="text" 
+            id="reg-fullname" 
+            class="form-control" 
+            placeholder="Juan Dela Cruz" 
+            required 
+          />
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="reg-email">Institutional Email</label>
+          <label for="reg-email">Institutional Email</label>
           <input 
             type="email" 
             id="reg-email" 
             class="form-control" 
-            placeholder="e.g. user@mseuf.edu.ph" 
+            placeholder="name@institution.edu.ph" 
+            required 
             autocomplete="email"
-            required
-          >
+          />
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="reg-role">Account Role</label>
+          <label for="reg-role">Account Role</label>
           <select id="reg-role" class="form-control" required>
-            <option value="" disabled selected>Select your institutional role</option>
-            <option value="student">Student (Classroom Participant)</option>
-            <option value="faculty">Faculty (Course Instructor)</option>
+            <option value="student" selected>Student / Trainee</option>
+            <option value="faculty">Faculty / Instructor</option>
           </select>
         </div>
 
-        <div class="form-row-duo">
-          <div class="form-group">
-            <label class="form-label" for="reg-password">Password</label>
-            <div class="password-input-wrapper">
-              <input 
-                type="password" 
-                id="reg-password" 
-                class="form-control" 
-                placeholder="Min 6 characters" 
-                autocomplete="new-password"
-                minlength="6"
-                required
-              >
-              <button type="button" class="btn-toggle-password" data-target="reg-password" title="Toggle password visibility">👁️</button>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="reg-confirm-password">Confirm Password</label>
-            <div class="password-input-wrapper">
-              <input 
-                type="password" 
-                id="reg-confirm-password" 
-                class="form-control" 
-                placeholder="Re-enter password" 
-                autocomplete="new-password"
-                minlength="6"
-                required
-              >
-              <button type="button" class="btn-toggle-password" data-target="reg-confirm-password" title="Toggle password visibility">👁️</button>
-            </div>
+        <div class="form-group">
+          <label for="reg-password">Password</label>
+          <div class="password-input-box">
+            <input 
+              type="password" 
+              id="reg-password" 
+              class="form-control" 
+              placeholder="Minimum 6 characters" 
+              minlength="6" 
+              required 
+              autocomplete="new-password"
+            />
+            <button type="button" class="btn-toggle-pw" id="toggle-reg-pw" aria-label="Toggle password visibility">
+              <i class="far fa-eye"></i>
+            </button>
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary auth-submit-btn" id="btn-register-submit">
-          Complete Registration
+        <button type="submit" id="reg-submit-btn" class="btn-primary btn-block">
+          Create Account
         </button>
       </form>
 
       <div class="auth-footer">
-        Already registered? <a href="login.html" class="auth-link">Sign in here</a>
+        <p>Already have an account? <a href="login.html" class="text-link">Sign in here</a></p>
       </div>
     </div>
   </div>
 
   <script type="module" src="js/theme.js"></script>
+  <script type="module" src="js/ui-bridge.js"></script>
   <script type="module" src="js/auth.js"></script>
 </body>
 </html>
