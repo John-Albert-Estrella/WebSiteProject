@@ -3,29 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AIMSER | Next-Gen HR Simulator</title>
+  <title>AIMSER | HR Management Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/loader.css" />
 </head>
 <body class="loader-body">
-  <div class="loader-ambient-grid"></div>
-
-  <!-- Central 3D Perspective Stage -->
   <main class="loader-stage" role="main" aria-live="polite">
-    <div class="cube-viewport">
-      <div class="quantum-cube" id="quantum-cube">
-        <div class="cube-face cube-front"><div class="face-core"></div></div>
-        <div class="cube-face cube-back"><div class="face-core"></div></div>
-        <div class="cube-face cube-right"><div class="face-core"></div></div>
-        <div class="cube-face cube-left"><div class="face-core"></div></div>
-        <div class="cube-face cube-top"><div class="face-core"></div></div>
-        <div class="cube-face cube-bottom"><div class="face-core"></div></div>
-      </div>
-      <div class="cube-shadow-plane"></div>
+    <div class="spinner-chassis">
+      <div class="spinner-outer"></div>
+      <div class="spinner-inner"></div>
     </div>
 
-    <!-- Branding & Telemetry Status -->
     <header class="loader-brand">
       <h1 class="loader-title">AIMSER</h1>
       <span class="loader-sub">HR Simulation Environment</span>
@@ -36,7 +25,7 @@
         <div class="telemetry-bar-fill" id="telemetry-fill"></div>
       </div>
       <div class="telemetry-metrics">
-        <span class="metric-status" id="telemetry-status">Initializing Core Modules...</span>
+        <span class="metric-status" id="telemetry-status">Loading workspace modules...</span>
         <span class="metric-percent" id="telemetry-percent">0%</span>
       </div>
     </div>

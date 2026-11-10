@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" class="dark-theme">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,13 +10,21 @@
 <body class="auth-body">
   <div class="auth-wrapper">
     <div class="auth-card glass-panel">
-      <div class="auth-brand">
-        <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="auth-logo" />
+      <div class="auth-brand" style="text-align: center;">
+        <img 
+          src="assets/aimser-logo.png" 
+          alt="AIMSER Logo" 
+          class="auth-logo" 
+          onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" 
+        />
         <h1>Welcome Back</h1>
         <p class="text-muted">Sign in to your HR Management Simulator workspace.</p>
       </div>
 
-      <form id="login-form" class="auth-form">
+      <!-- Live Error / Notification Banner -->
+      <div id="auth-status-message" class="status-msg" aria-live="polite"></div>
+
+      <form id="login-form" class="auth-form" novalidate>
         <div class="form-group">
           <label for="login-email">Institutional Email</label>
           <input 
@@ -30,7 +38,7 @@
         </div>
 
         <div class="form-group">
-          <div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
             <label for="login-password">Password</label>
             <a href="#" id="forgot-password-link" class="text-link">Forgot Password?</a>
           </div>
@@ -50,7 +58,7 @@
         </div>
 
         <button type="submit" id="login-submit-btn" class="btn-primary btn-block">
-          Sign In to Simulator
+          <i class="fas fa-sign-in-alt"></i> Sign In to Simulator
         </button>
       </form>
 

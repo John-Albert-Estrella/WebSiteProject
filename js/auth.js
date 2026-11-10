@@ -1,158 +1,247 @@
+// js/auth.js - Authentication Engine & Session Dispatcher
 import { auth, db } from "./firebase-init.js";
-import { 
-  signInWithEmailAndPassword, 
+import {
+  signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  updateProfile,
-  onAuthStateChanged
+  sendPasswordResetEmail,
+  updateProfile
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  serverTimestamp 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-// DOM Elements - Login
-const formLogin = document.getElementById("form-login");
-const inputLoginEmail = document.getElementById("login-email");
-const inputLoginPassword = document.getElementById("login-password");
-const btnLoginSubmit = document.getElementById("btn-login-submit");
-
-// DOM Elements - Register
-const formRegister = document.getElementById("form-register");
-const inputRegFirstName = document.getElementById("reg-first-name");
-const inputRegLastName = document.getElementById("reg-last-name");
-const inputRegEmail = document.getElementById("reg-email");
-const inputRegPassword = document.getElementById("reg-password");
-const selectRegRole = document.getElementById("reg-role");
-const btnRegisterSubmit = document.getElementById("btn-register-submit");
-
-// -------------------------------------------------------------
-// CENTRALIZED ROUTER
-// -------------------------------------------------------------
-function redirectByRole(role) {
-  if (role === "admin") {
-    window.location.replace("admin-dashboard.html");
-  } else {
-    // Both faculty and student roles route directly to the Office module
-    window.location.replace("office.html");
-  }
-}
-
-// Auto-redirect if already signed in and browsing login or register
-onAuthStateChanged(auth, async (user) => {
-  if (user && (window.location.pathname.endsWith("login.html") || window.location.pathname.endsWith("register.html"))) {
-    try {
-      const userSnap = await getDoc(doc(db, "users", user.uid));
-      if (userSnap.exists()) {
-        redirectByRole(userSnap.data().role);
-      }
-    } catch (err) {
-      console.warn("Auth check failed:", err);
-    }
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  setupLoginForm();
+  setupRegisterForm();
+  setupForgotPassword();
 });
 
 // -------------------------------------------------------------
-// 1. LOGIN HANDLER
+// 1. Sign In Flow
 // -------------------------------------------------------------
-if (formLogin) {
-  formLogin.addEventListener("submit", async (e) => {
+function setupLoginForm() {
+  const loginForm = document.getElementById("login-form");
+  const submitBtn = document.getElementById("login-submit-btn");
+  const statusMsg = document.getElementById("auth-status-message");
+
+  if (!loginForm) return;
+
+  loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const email = inputLoginEmail?.value.trim();
-    const password = inputLoginPassword?.value;
+    const emailInput = document.getElementById("login-email");
+    const passInput = document.getElementById("login-password");
 
+    const email = emailInput ? emailInput.value.trim() : "";
+    const password = passInput ? passInput.value : "";
+
+    // Clear previous errors
+    showStatus("", "clear");
+
+    // Client-side quick check
     if (!email || !password) {
-      alert("Please enter both email and password.");
+      showStatus("Please enter both your email and password.", "error");
       return;
     }
 
-    if (btnLoginSubmit) {
-      btnLoginSubmit.disabled = true;
-      btnLoginSubmit.textContent = "Signing In...";
+    // Set UI to loading state
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...';
     }
 
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const userDocRef = doc(db, "users", cred.user.uid);
-      const userSnap = await getDoc(userDocRef);
+      console.log("Attempting sign-in for:", email);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      if (!userSnap.exists()) {
-        alert("Account authenticated, but user record was not found in Firestore.");
-        return;
+      showStatus("Sign-in successful! Redirecting...", "success");
+
+      // Verify user role in Firestore to determine destination
+      let destination = "office.html";
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userDocRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          if (userData.role === "admin") {
+            destination = "admin-dashboard.html";
+          }
+        } else {
+          // Self-heal: ensure user document exists
+          await setDoc(userDocRef, {
+            email: user.email,
+            fullName: user.displayName || user.email.split("@")[0],
+            role: "student",
+            createdAt: serverTimestamp()
+          });
+        }
+      } catch (err) {
+        console.warn("Could not query user role, defaulting to office.html:", err);
       }
 
-      const userData = userSnap.data();
-      redirectByRole(userData.role);
+      // Smooth redirection
+      setTimeout(() => {
+        window.location.replace(destination);
+      }, 500);
+
     } catch (error) {
-      console.error("Login Error:", error);
-      alert("Sign-in failed: " + error.message);
-    } finally {
-      if (btnLoginSubmit) {
-        btnLoginSubmit.disabled = false;
-        btnLoginSubmit.textContent = "Sign In";
+      console.error("Sign-in error:", error);
+      const friendlyMessage = getFriendlyAuthError(error.code, error.message);
+      showStatus(friendlyMessage, "error");
+
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In to Simulator';
       }
     }
   });
 }
 
 // -------------------------------------------------------------
-// 2. REGISTRATION HANDLER
+// 2. Registration Flow
 // -------------------------------------------------------------
-if (formRegister) {
-  formRegister.addEventListener("submit", async (e) => {
+function setupRegisterForm() {
+  const registerForm = document.getElementById("register-form");
+  const submitBtn = document.getElementById("reg-submit-btn");
+
+  if (!registerForm) return;
+
+  registerForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const firstName = inputRegFirstName?.value.trim() || "";
-    const lastName = inputRegLastName?.value.trim() || "";
-    const email = inputRegEmail?.value.trim();
-    const password = inputRegPassword?.value;
-    const role = selectRegRole?.value || "student";
+    const fullNameInput = document.getElementById("reg-fullname");
+    const emailInput = document.getElementById("reg-email");
+    const roleInput = document.getElementById("reg-role");
+    const passwordInput = document.getElementById("reg-password");
 
-    if (!email || !password) {
-      alert("Please fill out all required fields.");
+    const fullName = fullNameInput ? fullNameInput.value.trim() : "";
+    const email = emailInput ? emailInput.value.trim() : "";
+    const role = roleInput ? roleInput.value : "student";
+    const password = passwordInput ? passwordInput.value : "";
+
+    showStatus("", "clear");
+
+    if (!fullName || !email || !password) {
+      showStatus("Please complete all required fields.", "error");
       return;
     }
 
     if (password.length < 6) {
-      alert("Password must be at least 6 characters long.");
+      showStatus("Password must be at least 6 characters.", "error");
       return;
     }
 
-    if (btnRegisterSubmit) {
-      btnRegisterSubmit.disabled = true;
-      btnRegisterSubmit.textContent = "Creating Account...";
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
     }
 
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const displayName = `${firstName} ${lastName}`.trim() || email.split("@")[0];
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-      // Update Auth Profile Display Name
-      await updateProfile(cred.user, { displayName });
+      await updateProfile(user, { displayName: fullName });
 
-      // Save user document into Firestore
-      await setDoc(doc(db, "users", cred.user.uid), {
-        uid: cred.user.uid,
-        firstName,
-        lastName,
-        email,
-        role,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+      // Save initial profile record in Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        fullName: fullName,
+        email: email,
+        role: role,
+        department: "",
+        createdAt: serverTimestamp()
       });
 
-      alert("Account created successfully!");
-      redirectByRole(role);
+      showStatus("Account created successfully! Redirecting to workspace...", "success");
+
+      setTimeout(() => {
+        window.location.replace(role === "admin" ? "admin-dashboard.html" : "office.html");
+      }, 700);
+
     } catch (error) {
-      console.error("Registration Error:", error);
-      alert("Registration failed: " + error.message);
-    } finally {
-      if (btnRegisterSubmit) {
-        btnRegisterSubmit.disabled = false;
-        btnRegisterSubmit.textContent = "Register";
+      console.error("Registration error:", error);
+      const friendlyMessage = getFriendlyAuthError(error.code, error.message);
+      showStatus(friendlyMessage, "error");
+
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = "Create Account";
       }
     }
   });
+}
+
+// -------------------------------------------------------------
+// 3. Forgot Password Flow
+// -------------------------------------------------------------
+function setupForgotPassword() {
+  const forgotLink = document.getElementById("forgot-password-link");
+  if (!forgotLink) return;
+
+  forgotLink.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const emailInput = document.getElementById("login-email");
+    const email = emailInput ? emailInput.value.trim() : "";
+
+    if (!email) {
+      showStatus("Please enter your email above, then click 'Forgot Password?'.", "error");
+      if (emailInput) emailInput.focus();
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      showStatus(`Password reset link sent to ${email}. Check your inbox or spam folder.`, "success");
+    } catch (error) {
+      console.error("Reset password error:", error);
+      const msg = getFriendlyAuthError(error.code, error.message);
+      showStatus(msg, "error");
+    }
+  });
+}
+
+// -------------------------------------------------------------
+// Helpers: Error Translation & UI Notification Banner
+// -------------------------------------------------------------
+function showStatus(message, type) {
+  const statusMsg = document.getElementById("auth-status-message");
+  if (!statusMsg) return;
+
+  if (type === "clear" || !message) {
+    statusMsg.style.display = "none";
+    statusMsg.textContent = "";
+    statusMsg.className = "status-msg";
+    return;
+  }
+
+  statusMsg.textContent = message;
+  statusMsg.className = `status-msg ${type}`;
+  statusMsg.style.display = "block";
+}
+
+function getFriendlyAuthError(code, defaultMsg) {
+  switch (code) {
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+      return "Invalid email or password. Please double check and try again.";
+    case "auth/invalid-email":
+      return "Please enter a valid email address.";
+    case "auth/user-disabled":
+      return "This account has been disabled. Please contact your instructor or administrator.";
+    case "auth/email-already-in-use":
+      return "An account with this email already exists. Please sign in instead.";
+    case "auth/weak-password":
+      return "Password is too weak. Please choose at least 6 characters.";
+    case "auth/network-request-failed":
+      return "Network error. Please verify your internet connection.";
+    case "auth/too-many-requests":
+      return "Too many failed attempts. Access to this account has been temporarily disabled. Please reset your password or try again later.";
+    default:
+      return defaultMsg || "An authentication error occurred. Please try again.";
+  }
 }
