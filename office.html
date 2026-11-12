@@ -1,19 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" class="dark-theme">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Office | AIMSER HR Simulator</title>
+  <title>Office Workspace | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
   <div class="dashboard-layout">
+    <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">
-          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" />
+          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
           <div class="brand-text">
             <h2>AIMSER</h2>
             <span>HR Simulator</span>
@@ -55,219 +56,221 @@
       </div>
     </aside>
 
+    <!-- Main Workspace -->
     <main class="main-workspace">
       <header class="workspace-header">
         <div class="header-left">
-          <h1 class="page-title">Office</h1>
-          <span id="active-classroom-badge" class="badge-pill">Select or Join a Section</span>
+          <h1 class="page-title">Office Hub</h1>
+          <select id="active-classroom-select" class="form-select" style="max-width: 260px; padding: 0.45rem 0.85rem;" aria-label="Select Active Classroom">
+            <option value="">Loading Classrooms...</option>
+          </select>
+          <button type="button" id="btn-open-classroom-action" class="btn-primary" style="padding: 0.45rem 0.9rem; font-size: 0.8125rem;">
+            <i class="fas fa-plus"></i> <span id="classroom-action-label">Join / Create Class</span>
+          </button>
         </div>
 
         <div class="header-right">
-          <div class="classroom-controls">
-            <select id="classroom-selector" class="form-select" aria-label="Select Classroom Section">
-              <option value="">Select a Section...</option>
-            </select>
-            <button type="button" id="btn-join-sectionModal" class="btn-secondary" data-open="modal-join-section">
-              <i class="fas fa-sign-in-alt"></i> Join Section
-            </button>
-            <button type="button" id="btn-create-sectionModal" class="btn-primary faculty-only" data-open="modal-create-section">
-              <i class="fas fa-plus"></i> Create Section
-            </button>
-          </div>
-
           <div class="user-profile-chip">
-            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar" class="avatar-sm" />
+            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Avatar" class="avatar-sm" />
             <div class="user-meta">
-              <span id="header-user-name" class="user-name">Authenticated User</span>
+              <span id="header-user-name" class="user-name">Loading...</span>
               <span id="header-user-role" class="user-role">Member</span>
             </div>
           </div>
         </div>
       </header>
 
-      <div class="office-subnav" id="office-tabs">
-        <button type="button" class="subnav-tab active" data-tab="activities">
-          <i class="fas fa-tasks"></i> Activities &amp; Deliverables
-        </button>
-        <button type="button" class="subnav-tab" data-tab="analytics">
-          <i class="fas fa-chart-line"></i> Performance Analytics
-        </button>
-        <button type="button" class="subnav-tab" data-tab="portfolio">
-          <i class="fas fa-briefcase"></i> Student Portfolio
-        </button>
-        <button type="button" class="subnav-tab" data-tab="roster">
-          <i class="fas fa-users"></i> Classroom Roster
-        </button>
-      </div>
-
-      <section id="tab-activities" class="tab-panel active">
-        <div class="panel-toolbar">
-          <div>
-            <h2>Section Activities &amp; Deliverables</h2>
-            <p class="text-muted">Manage HR simulations, case deliverables, and grading rubrics.</p>
-          </div>
-          <button type="button" id="btn-new-activity" class="btn-primary faculty-only" data-open="modal-create-activity">
-            <i class="fas fa-plus-circle"></i> Post New Activity
-          </button>
+      <!-- Workspace KPI Summary -->
+      <section class="stats-row">
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Active Section Code</span>
+          <h3 id="stat-section-code">—</h3>
         </div>
-
-        <div id="activities-list" class="cards-grid">
-          <div class="empty-state">
-            <i class="fas fa-folder-open"></i>
-            <p>Select or join a classroom section above to view and submit activities.</p>
-          </div>
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Published Activities</span>
+          <h3 id="stat-activity-count">0</h3>
+        </div>
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Enrolled Members</span>
+          <h3 id="stat-member-count">0</h3>
+        </div>
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Pending Requests</span>
+          <h3 id="stat-pending-count">0</h3>
         </div>
       </section>
 
-      <section id="tab-analytics" class="tab-panel">
-        <div class="panel-toolbar">
-          <div>
-            <h2>Performance Analytics</h2>
-            <p class="text-muted">Real-time completion metrics, average scores, and competency distribution.</p>
-          </div>
-        </div>
+      <!-- Office Sub-Navigation -->
+      <nav class="office-subnav" aria-label="Office Sections">
+        <button type="button" class="subnav-tab active" data-tab="panel-activities">
+          <i class="fas fa-tasks"></i>
+          <span>Activities &amp; Simulations</span>
+        </button>
+        <button type="button" class="subnav-tab" data-tab="panel-roster">
+          <i class="fas fa-users"></i>
+          <span>Section Roster &amp; Approvals</span>
+        </button>
+      </nav>
 
-        <div class="stats-row">
-          <div class="stat-card glass-panel">
-            <span class="stat-label">Total Activities</span>
-            <h3 id="stat-total-activities">0</h3>
-          </div>
-          <div class="stat-card glass-panel">
-            <span class="stat-label">Completed Submissions</span>
-            <h3 id="stat-completed-subs">0</h3>
-          </div>
-          <div class="stat-card glass-panel">
-            <span class="stat-label">Average Grade</span>
-            <h3 id="stat-average-grade">0%</h3>
-          </div>
-          <div class="stat-card glass-panel">
-            <span class="stat-label">Enrolled Students</span>
-            <h3 id="stat-enrolled-count">0</h3>
-          </div>
-        </div>
-
-        <div id="analytics-details" class="glass-panel">
-          <p class="text-muted">Detailed performance telemetry loads automatically when a section is selected.</p>
-        </div>
-      </section>
-
-      <section id="tab-portfolio" class="tab-panel">
-        <div class="panel-toolbar">
-          <div>
-            <h2>Student Portfolio</h2>
-            <p class="text-muted">Verified record of evaluated HR deliverables and faculty feedback.</p>
-          </div>
-        </div>
-
-        <div id="portfolio-list" class="cards-grid">
-          <div class="empty-state">
-            <i class="fas fa-award"></i>
-            <p>Graded submissions and portfolio artifacts will appear here.</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="tab-roster" class="tab-panel">
-        <div class="panel-toolbar">
-          <div>
-            <h2>Classroom Roster</h2>
-            <p class="text-muted">Enrolled students, section join code, and pending access requests.</p>
-          </div>
-          <div id="section-code-box" class="badge-pill">
-            Join Code: <strong id="display-section-code">---</strong>
-          </div>
-        </div>
-
-        <div id="pending-requests-card" class="glass-panel faculty-only">
-          <h3>Pending Join Requests</h3>
-          <div id="pending-roster-list" class="roster-list">
-            <p class="text-muted">No pending requests.</p>
-          </div>
-        </div>
-
+      <!-- Panel 1: Activities & Simulations -->
+      <section id="panel-activities" class="tab-panel active">
         <div class="glass-panel">
-          <h3>Enrolled Members</h3>
-          <div id="enrolled-roster-list" class="roster-list">
-            <p class="text-muted">Select a section to view enrolled members.</p>
+          <div class="panel-toolbar">
+            <div>
+              <h2 id="active-classroom-title">Classroom Activities</h2>
+              <p id="active-classroom-desc" class="text-muted">Select or join a classroom section to view assigned HR simulations and deliverables.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button type="button" id="btn-open-new-activity" class="btn-primary" style="display: none;">
+                <i class="fas fa-plus-circle"></i> Post Activity
+              </button>
+              <button type="button" id="btn-refresh-office" class="btn-secondary" title="Refresh Workspace">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
           </div>
+
+          <div id="activities-container" class="cards-grid">
+            <div class="empty-state">
+              <i class="fas fa-spinner fa-spin"></i>
+              <h3>Synchronizing workspace...</h3>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel 2: Roster & Join Requests -->
+      <section id="panel-roster" class="tab-panel">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div>
+              <h2>Classroom Roster &amp; Access Queue</h2>
+              <p class="text-muted">Manage enrolled students and approve incoming section join requests.</p>
+            </div>
+          </div>
+
+          <div id="join-requests-wrapper" style="margin-bottom: 1.5rem; display: none;">
+            <h3 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--warning);">
+              <i class="fas fa-user-clock"></i> Pending Join Requests
+            </h3>
+            <div id="join-requests-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+          </div>
+
+          <div id="roster-list-container" class="cards-grid"></div>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- Modals (Hidden by Default) -->
-  <div id="modal-create-section" class="modal-backdrop" style="display: none;">
-    <div class="modal-card glass-panel">
+  <!-- Modal: Create / Join Classroom -->
+  <div class="modal-backdrop" id="modal-classroom" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
       <div class="modal-header">
-        <h3>Create Classroom Section</h3>
-        <button type="button" class="btn-close-modal" data-close="modal-create-section">&times;</button>
+        <h3 id="modal-classroom-title">Classroom Access</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-classroom">&times;</button>
       </div>
-      <form id="form-create-section">
+
+      <!-- Faculty Create Form -->
+      <form id="form-create-classroom" style="display: none;">
         <div class="form-group">
-          <label for="section-name">Section Name / Course Code</label>
-          <input type="text" id="section-name" class="form-control" placeholder="e.g., BSIT 3A - HR Management" required />
+          <label for="new-class-name" class="form-label">Section / Course Name</label>
+          <input type="text" id="new-class-name" class="form-control" placeholder="e.g., HRM 301 - Organizational Behavior" required />
         </div>
         <div class="form-group">
-          <label for="section-desc">Description / Schedule</label>
-          <textarea id="section-desc" class="form-control" rows="3" placeholder="Enter course details or schedule"></textarea>
+          <label for="new-class-desc" class="form-label">Description / Schedule</label>
+          <textarea id="new-class-desc" class="form-control" rows="3" placeholder="Brief overview of simulation objectives..."></textarea>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close="modal-create-section">Cancel</button>
-          <button type="submit" class="btn-primary">Create Section</button>
+          <button type="button" class="btn-secondary" data-close-modal="modal-classroom">Cancel</button>
+          <button type="submit" class="btn-primary" id="btn-submit-create-class">
+            <i class="fas fa-plus"></i> Create Section
+          </button>
+        </div>
+      </form>
+
+      <!-- Student Join Form -->
+      <form id="form-join-classroom" style="display: none;">
+        <div class="form-group">
+          <label for="join-class-code" class="form-label">Enter 8-Character Class Code</label>
+          <input type="text" id="join-class-code" class="form-control" placeholder="e.g., AIM-C7Y8" style="text-transform: uppercase; font-family: var(--font-mono);" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close-modal="modal-classroom">Cancel</button>
+          <button type="submit" class="btn-primary" id="btn-submit-join-class">
+            <i class="fas fa-paper-plane"></i> Request Access
+          </button>
         </div>
       </form>
     </div>
   </div>
 
-  <div id="modal-join-section" class="modal-backdrop" style="display: none;">
-    <div class="modal-card glass-panel">
+  <!-- Modal: Publish Activity (Faculty) -->
+  <div class="modal-backdrop" id="modal-activity" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
       <div class="modal-header">
-        <h3>Join a Classroom Section</h3>
-        <button type="button" class="btn-close-modal" data-close="modal-join-section">&times;</button>
+        <h3>Publish HR Simulation Activity</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-activity">&times;</button>
       </div>
-      <form id="form-join-section">
-        <div class="form-group">
-          <label for="join-code-input">Section Invite Code</label>
-          <input type="text" id="join-code-input" class="form-control" placeholder="e.g., HR2026" required />
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close="modal-join-section">Cancel</button>
-          <button type="submit" class="btn-primary">Send Join Request</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
-  <div id="modal-create-activity" class="modal-backdrop" style="display: none;">
-    <div class="modal-card glass-panel">
-      <div class="modal-header">
-        <h3>Post New Activity</h3>
-        <button type="button" class="btn-close-modal" data-close="modal-create-activity">&times;</button>
-      </div>
       <form id="form-create-activity">
         <div class="form-group">
-          <label for="activity-title">Activity Title</label>
-          <input type="text" id="activity-title" class="form-control" placeholder="e.g., Case Study 1: Labor Arbitration" required />
+          <label for="act-title" class="form-label">Activity Title</label>
+          <input type="text" id="act-title" class="form-control" placeholder="e.g., Sprint 1: Recruitment & Onboarding Policy" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="act-category" class="form-label">HR Domain</label>
+            <select id="act-category" class="form-select">
+              <option value="Talent Acquisition">Talent Acquisition</option>
+              <option value="Compensation & Benefits">Compensation &amp; Benefits</option>
+              <option value="Labor Relations">Labor Relations</option>
+              <option value="Performance Appraisal">Performance Appraisal</option>
+              <option value="Organizational Development">Organizational Development</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="act-due-date" class="form-label">Target Due Date</label>
+            <input type="date" id="act-due-date" class="form-control" required />
+          </div>
         </div>
         <div class="form-group">
-          <label for="activity-instructions">Instructions &amp; Rubric</label>
-          <textarea id="activity-instructions" class="form-control" rows="4" placeholder="Detail the deliverable expectations..." required></textarea>
-        </div>
-        <div class="form-group">
-          <label for="activity-due">Due Date</label>
-          <input type="datetime-local" id="activity-due" class="form-control" required />
-        </div>
-        <div class="form-group">
-          <label for="activity-points">Max Points</label>
-          <input type="number" id="activity-points" class="form-control" value="100" min="1" required />
-        </div>
-        <div class="form-group">
-          <label for="activity-attachment">Reference Attachment (Optional)</label>
-          <input type="file" id="activity-attachment" class="form-control" />
+          <label for="act-instructions" class="form-label">Instructions &amp; Deliverables</label>
+          <textarea id="act-instructions" class="form-control" rows="4" placeholder="Detail the scenario requirements and expected outputs..." required></textarea>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close="modal-create-activity">Cancel</button>
-          <button type="submit" class="btn-primary">Publish Activity</button>
+          <button type="button" class="btn-secondary" data-close-modal="modal-activity">Cancel</button>
+          <button type="submit" class="btn-primary" id="btn-submit-activity">
+            <i class="fas fa-bullhorn"></i> Publish Activity
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: View & Submit Activity Deliverable -->
+  <div class="modal-backdrop" id="modal-activity-detail" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="detail-act-title">Activity Details</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-activity-detail">&times;</button>
+      </div>
+      <div style="margin-bottom: 1rem;">
+        <span id="detail-act-badge" class="badge-pill">Domain</span>
+        <span id="detail-act-due" class="text-muted" style="font-size: 0.8rem; margin-left: 0.5rem;"></span>
+      </div>
+      <p id="detail-act-desc" style="white-space: pre-wrap; line-height: 1.6; color: var(--text-secondary); margin-bottom: 1.5rem;"></p>
+
+      <form id="form-submit-deliverable">
+        <input type="hidden" id="detail-act-id" />
+        <div class="form-group">
+          <label for="deliverable-notes" class="form-label">Team / Student Submission Notes or Link</label>
+          <textarea id="deliverable-notes" class="form-control" rows="3" placeholder="Paste your Google Doc link, summary report, or deliverable notes..." required></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close-modal="modal-activity-detail">Close</button>
+          <button type="submit" class="btn-primary" id="btn-save-deliverable">
+            <i class="fas fa-check-circle"></i> Submit Deliverable
+          </button>
         </div>
       </form>
     </div>

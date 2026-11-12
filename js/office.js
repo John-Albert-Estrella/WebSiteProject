@@ -1,510 +1,516 @@
-// js/office.js - Core Classroom Workspace & Activity Management Engine
-import { db, auth } from "./firebase-init.js";
+// js/office.js - Complete Office Workspace, Activities, Classrooms & Join Approval Engine
+import { auth, db } from "./firebase-init.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
   collection,
   doc,
-  addDoc,
   getDoc,
   getDocs,
+  addDoc,
+  setDoc,
   updateDoc,
+  deleteDoc,
   query,
   where,
-  orderBy,
-  onSnapshot,
-  serverTimestamp,
-  arrayUnion
+  arrayUnion,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { uploadToCloudinary } from "./cloudinary-config.js";
+import { FastCache, escapeHtml, checkRateLimit, logAuditEvent } from "./security-utils.js";
 
-let currentClassId = null;
 let currentUser = null;
-let userRole = "student";
-let activitiesUnsubscribe = null;
+let userProfile = null;
+let classrooms = [];
+let activeClassroom = null;
+let currentActivities = [];
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   currentUser = user;
 
-  // Retrieve user role from /users profile
-  try {
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    if (userSnap.exists()) {
-      userRole = userSnap.data().role || "student";
-    }
-  } catch (e) {
-    console.warn("Could not read user profile role, defaulting to student:", e);
+  // Use cached profile first for 0ms role UI setup, then verify
+  userProfile = FastCache.get("user_profile");
+  if (!userProfile) {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    const data = snap.exists() ? snap.data() : {};
+    userProfile = {
+      uid: user.uid,
+      email: user.email,
+      fullName: data.fullName || user.displayName || user.email.split("@")[0],
+      role: (data.role || "student").toLowerCase(),
+      avatarUrl: data.avatarUrl || user.photoURL || ""
+    };
+    FastCache.set("user_profile", userProfile);
   }
 
-  applyRoleVisibility();
+  configureRoleControls();
+  bindUIEvents();
   await loadUserClassrooms();
-  setupOfficeEventListeners();
 });
 
-// Show/hide controls based on role
-function applyRoleVisibility() {
-  const isFaculty = userRole === "faculty" || userRole === "admin";
-  document.querySelectorAll(".faculty-only").forEach((el) => {
-    el.style.display = isFaculty ? "" : "none";
-  });
-  document.querySelectorAll(".student-only").forEach((el) => {
-    el.style.display = isFaculty ? "none" : "";
-  });
+function configureRoleControls() {
+  const isFaculty = userProfile.role === "faculty";
+  const actionLabel = document.getElementById("classroom-action-label");
+  const newActBtn = document.getElementById("btn-open-new-activity");
+
+  if (actionLabel) actionLabel.textContent = isFaculty ? "Create Section" : "Join Class";
+  if (newActBtn) newActBtn.style.display = isFaculty ? "inline-flex" : "none";
 }
 
-// Load classrooms user belongs to
 async function loadUserClassrooms() {
-  const selector = document.getElementById("classroom-selector");
-  if (!selector) return;
+  const select = document.getElementById("active-classroom-select");
+  if (!select) return;
 
   try {
-    let q;
-    if (userRole === "faculty" || userRole === "admin") {
-      q = query(collection(db, "classrooms"), where("facultyUid", "==", currentUser.uid));
+    const snap = await getDocs(collection(db, "classrooms"));
+    const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    if (userProfile.role === "faculty") {
+      classrooms = all.filter((c) => c.instructorId === currentUser.uid || c.instructorEmail === currentUser.email);
     } else {
-      q = query(collection(db, "classrooms"), where("students", "array-contains", currentUser.uid));
+      classrooms = all.filter((c) => {
+        const students = c.students || c.enrolled || [];
+        return students.some((s) => (typeof s === "string" ? s === currentUser.uid || s === currentUser.email : s.uid === currentUser.uid));
+      });
     }
 
-    const snap = await getDocs(q);
-    selector.innerHTML = '<option value="">Select a Section...</option>';
-
-    snap.forEach((docSnap) => {
-      const cls = docSnap.data();
-      const opt = document.createElement("option");
-      opt.value = docSnap.id;
-      opt.textContent = `${cls.name} (${cls.code || "No code"})`;
-      selector.appendChild(opt);
-    });
-
-    if (snap.docs.length > 0) {
-      selector.value = snap.docs[0].id;
-      switchClassroom(snap.docs[0].id);
-    } else {
-      resetOfficeView();
+    if (classrooms.length === 0) {
+      select.innerHTML = `<option value="">No Active Classrooms</option>`;
+      renderEmptyWorkspace();
+      return;
     }
+
+    select.innerHTML = classrooms.map((c) =>
+      `<option value="${c.id}">${escapeHtml(c.name || "Classroom")} (${escapeHtml(c.sectionCode || c.code || "AIM")})</option>`
+    ).join("");
+
+    const savedId = localStorage.getItem("aimser_active_classroom");
+    const target = classrooms.find((c) => c.id === savedId) || classrooms[0];
+    select.value = target.id;
+    await selectClassroom(target.id);
   } catch (err) {
     console.error("Error loading classrooms:", err);
   }
 }
 
-// Switch active classroom section
-async function switchClassroom(classId) {
-  currentClassId = classId;
-  const badge = document.getElementById("active-classroom-badge");
-  const codeBox = document.getElementById("section-code-box");
-  const codeDisplay = document.getElementById("display-section-code");
-
-  if (!classId) {
-    resetOfficeView();
+async function selectClassroom(classroomId) {
+  activeClassroom = classrooms.find((c) => c.id === classroomId) || null;
+  if (!activeClassroom) {
+    renderEmptyWorkspace();
     return;
   }
 
+  localStorage.setItem("aimser_active_classroom", classroomId);
+
+  const code = activeClassroom.sectionCode || activeClassroom.code || "N/A";
+  const students = activeClassroom.students || activeClassroom.enrolled || [];
+
+  document.getElementById("stat-section-code").textContent = code;
+  document.getElementById("stat-member-count").textContent = students.length;
+  document.getElementById("active-classroom-title").textContent = activeClassroom.name || "Classroom Activities";
+  document.getElementById("active-classroom-desc").textContent = activeClassroom.description || `Section Code: ${code} • Instructor: ${activeClassroom.instructorEmail || "Faculty"}`;
+
+  await Promise.all([
+    loadClassroomActivities(classroomId),
+    loadRosterAndRequests(classroomId, students)
+  ]);
+}
+
+/**
+ * Loads activities from BOTH subcollection 'classrooms/{id}/activities' AND root 'activities'
+ * so legacy and newly created activities are guaranteed to render.
+ */
+async function loadClassroomActivities(classroomId) {
+  const container = document.getElementById("activities-container");
+  const countEl = document.getElementById("stat-activity-count");
+  if (!container) return;
+
+  // Render cached activities instantly if available
+  const cachedActs = FastCache.get(`acts_${classroomId}`);
+  if (cachedActs) {
+    renderActivitiesList(cachedActs);
+  }
+
   try {
-    const classDoc = await getDoc(doc(db, "classrooms", classId));
-    if (!classDoc.exists()) return;
+    const mergedMap = new Map();
 
-    const data = classDoc.data();
-    if (badge) badge.textContent = data.name;
-    if (codeDisplay) codeDisplay.textContent = data.code || "---";
-    if (codeBox) codeBox.style.display = "inline-flex";
-
-    listenToActivities(classId);
-    loadRoster(data);
-    loadAnalytics(classId, data);
-    loadPortfolio(classId);
-  } catch (err) {
-    console.error("Error switching classroom:", err);
-  }
-}
-
-function resetOfficeView() {
-  currentClassId = null;
-  const badge = document.getElementById("active-classroom-badge");
-  const codeBox = document.getElementById("section-code-box");
-  if (badge) badge.textContent = "Select or Join a Section";
-  if (codeBox) codeBox.style.display = "none";
-
-  const list = document.getElementById("activities-list");
-  if (list) {
-    list.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>Select or join a classroom section above.</p></div>';
-  }
-
-  if (activitiesUnsubscribe) activitiesUnsubscribe();
-}
-
-// Real-time listener for section activities
-function listenToActivities(classId) {
-  if (activitiesUnsubscribe) activitiesUnsubscribe();
-
-  const q = query(
-    collection(db, "office_activities"),
-    where("classId", "==", classId),
-    orderBy("createdAt", "desc")
-  );
-
-  activitiesUnsubscribe = onSnapshot(q, (snapshot) => {
-    const list = document.getElementById("activities-list");
-    if (!list) return;
-
-    if (snapshot.empty) {
-      list.innerHTML = '<div class="empty-state"><i class="fas fa-folder-open"></i><p>No activities posted yet for this section.</p></div>';
-      return;
+    // Source 1: Subcollection classrooms/{id}/activities
+    try {
+      const subSnap = await getDocs(collection(db, "classrooms", classroomId, "activities"));
+      subSnap.docs.forEach((d) => mergedMap.set(d.id, { id: d.id, source: "sub", ...d.data() }));
+    } catch {
+      // Subcollection may not exist yet
     }
 
-    list.innerHTML = "";
-    snapshot.forEach((docSnap) => {
-      const act = docSnap.data();
-      list.appendChild(createActivityCard(docSnap.id, act));
+    // Source 2: Top-level activities collection filtered by classroomId or sectionId
+    try {
+      const rootSnap = await getDocs(collection(db, "activities"));
+      rootSnap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.classroomId === classroomId || data.sectionId === classroomId) {
+          mergedMap.set(d.id, { id: d.id, source: "root", ...data });
+        }
+      });
+    } catch {
+      // Root collection optional
+    }
+
+    currentActivities = Array.from(mergedMap.values()).sort((a, b) => {
+      const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return tB - tA;
     });
-  }, (err) => {
-    console.error("Error loading activities:", err);
+
+    FastCache.set(`acts_${classroomId}`, currentActivities);
+    if (countEl) countEl.textContent = currentActivities.length;
+    renderActivitiesList(currentActivities);
+  } catch (err) {
+    console.error("Failed loading activities:", err);
+    container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Unable to load activities</h3></div>`;
+  }
+}
+
+function renderActivitiesList(activities) {
+  const container = document.getElementById("activities-container");
+  const countEl = document.getElementById("stat-activity-count");
+  if (countEl) countEl.textContent = activities.length;
+
+  if (!activities || activities.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-clipboard-check"></i>
+        <h3>No Activities Published Yet</h3>
+        <p>${userProfile.role === "faculty" ? "Click 'Post Activity' above to assign an HR simulation case." : "Your instructor has not posted activities for this section yet."}</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = activities.map((act) => `
+    <article class="glass-panel" style="display: flex; flex-direction: column; justify-content: space-between;">
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.5rem;">
+          <span class="badge-pill">${escapeHtml(act.category || "HR Simulation")}</span>
+          <span class="text-muted" style="font-size: 0.75rem;"><i class="far fa-calendar-alt"></i> Due: ${escapeHtml(act.dueDate || "Open")}</span>
+        </div>
+        <h3 style="font-size: 1.05rem; margin-bottom: 0.5rem; color: var(--text-primary);">${escapeHtml(act.title || "Untitled Activity")}</h3>
+        <p class="text-muted" style="font-size: 0.84rem; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+          ${escapeHtml(act.instructions || act.description || "")}
+        </p>
+      </div>
+
+      <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.75rem; color: var(--text-tertiary);">Status: <strong style="color: var(--success);">Active</strong></span>
+        <button type="button" class="btn-secondary btn-open-act-detail" data-id="${act.id}" style="padding: 0.35rem 0.8rem; font-size: 0.78rem;">
+          <i class="fas fa-folder-open"></i> Open Workspace
+        </button>
+      </div>
+    </article>
+  `).join("");
+
+  container.querySelectorAll(".btn-open-act-detail").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const act = currentActivities.find((a) => a.id === btn.dataset.id);
+      if (act) openActivityDetailModal(act);
+    });
   });
 }
 
-function createActivityCard(actId, act) {
-  const div = document.createElement("div");
-  div.className = "activity-card glass-panel";
-  div.style.padding = "1.25rem";
-  div.style.display = "flex";
-  div.style.flexDirection = "column";
-  div.style.justifyContent = "space-between";
+async function loadRosterAndRequests(classroomId, students) {
+  const rosterEl = document.getElementById("roster-list-container");
+  const reqWrapper = document.getElementById("join-requests-wrapper");
+  const reqList = document.getElementById("join-requests-list");
+  const pendingEl = document.getElementById("stat-pending-count");
 
-  const isFaculty = userRole === "faculty" || userRole === "admin";
-  const dueDateStr = act.dueDate ? new Date(act.dueDate).toLocaleString() : "No due date";
-
-  div.innerHTML = `
-    <div>
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-        <span class="badge-pill" style="font-size: 0.72rem;">${act.points || 100} Points</span>
-        <span style="font-size: 0.75rem; color: var(--text-muted);"><i class="far fa-clock"></i> Due: ${dueDateStr}</span>
-      </div>
-      <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem;">${escapeHtml(act.title)}</h3>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0 0 1rem 0; white-space: pre-line;">${escapeHtml(act.instructions)}</p>
-      ${act.attachmentUrl ? `<a href="${act.attachmentUrl}" target="_blank" rel="noopener" style="font-size: 0.8rem; color: #38bdf8; display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 1rem;"><i class="fas fa-download"></i> Activity File</a>` : ""}
-    </div>
-    <div style="border-top: 1px solid var(--border-color); padding-top: 0.75rem; margin-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
-      ${isFaculty ? `
-        <span style="font-size: 0.8rem; color: var(--text-muted);"><i class="fas fa-user-check"></i> Submissions Enabled</span>
-      ` : `
-        <button type="button" class="btn-primary btn-submit-activity" data-id="${actId}" style="padding: 0.45rem 0.85rem; font-size: 0.8rem;">
-          <i class="fas fa-upload"></i> Submit Deliverable
-        </button>
-      `}
-    </div>
-  `;
-
-  return div;
-}
-
-// Load Roster & Pending Requests
-async function loadRoster(classData) {
-  const enrolledList = document.getElementById("enrolled-roster-list");
-  const pendingCard = document.getElementById("pending-requests-card");
-  const pendingList = document.getElementById("pending-roster-list");
-
-  if (!enrolledList) return;
-
-  const studentUids = classData.students || [];
-  const pendingUids = classData.pendingStudents || [];
-
-  // Enrolled
-  if (studentUids.length === 0) {
-    enrolledList.innerHTML = '<p class="text-muted" style="font-size: 0.85rem;">No students enrolled yet.</p>';
-  } else {
-    enrolledList.innerHTML = "";
-    for (const uid of studentUids) {
-      try {
-        const uSnap = await getDoc(doc(db, "users", uid));
-        const uData = uSnap.exists() ? uSnap.data() : { fullName: "Student", email: uid };
-        const row = document.createElement("div");
-        row.style.padding = "0.5rem 0";
-        row.style.borderBottom = "1px solid var(--border-color)";
-        row.style.fontSize = "0.85rem";
-        row.innerHTML = `<strong>${escapeHtml(uData.fullName || "Student")}</strong> <span class="text-muted">(${escapeHtml(uData.email || "")})</span>`;
-        enrolledList.appendChild(row);
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-  }
-
-  // Pending (Faculty view)
-  if (pendingCard && pendingList && (userRole === "faculty" || userRole === "admin")) {
-    if (pendingUids.length === 0) {
-      pendingCard.style.display = "none";
+  // Render Roster
+  if (rosterEl) {
+    if (students.length === 0) {
+      rosterEl.innerHTML = `<div class="empty-state"><i class="fas fa-user-friends"></i><h3>No Students Enrolled</h3><p>Share section code <strong>${escapeHtml(activeClassroom.sectionCode || "")}</strong> with your class.</p></div>`;
     } else {
-      pendingCard.style.display = "block";
-      pendingList.innerHTML = "";
-      for (const uid of pendingUids) {
-        const row = document.createElement("div");
-        row.style.display = "flex";
-        row.style.justifyContent = "space-between";
-        row.style.alignItems = "center";
-        row.style.padding = "0.5rem 0";
-        row.innerHTML = `
-          <span style="font-size: 0.85rem;">UID: ${uid}</span>
-          <button type="button" class="btn-primary btn-approve-student" data-uid="${uid}" style="padding: 0.3rem 0.6rem; font-size: 0.75rem;">
-            Approve
-          </button>
-        `;
-        row.querySelector(".btn-approve-student").addEventListener("click", async () => {
-          await approveStudent(uid);
+      rosterEl.innerHTML = students.map((s) => {
+        const label = typeof s === "string" ? s : (s.fullName || s.email || s.uid);
+        const email = typeof s === "object" ? (s.email || "") : "";
+        return `
+          <div class="glass-panel" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.9rem 1rem;">
+            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=1b5375&color=faf2dd" alt="" class="avatar-sm" />
+            <div>
+              <div style="font-weight: 600; font-size: 0.9rem;">${escapeHtml(label)}</div>
+              <div class="text-muted" style="font-size: 0.75rem;">${escapeHtml(email || "Enrolled Participant")}</div>
+            </div>
+          </div>`;
+      }).join("");
+    }
+  }
+
+  // Load Pending Join Requests (Faculty Only)
+  if (userProfile.role === "faculty" && reqWrapper && reqList) {
+    try {
+      const q = query(collection(db, "join_requests"), where("classroomId", "==", classroomId));
+      const snap = await getDocs(q);
+      const pending = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((r) => r.status === "pending");
+
+      if (pendingEl) pendingEl.textContent = pending.length;
+      if (pending.length === 0) {
+        reqWrapper.style.display = "none";
+      } else {
+        reqWrapper.style.display = "block";
+        reqList.innerHTML = pending.map((req) => `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-medium);">
+            <div>
+              <strong>${escapeHtml(req.studentName || req.studentEmail)}</strong>
+              <span class="text-muted" style="font-size: 0.8rem; margin-left: 0.5rem;">(${escapeHtml(req.studentEmail)})</span>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+              <button type="button" class="btn-primary btn-approve-req" data-req-id="${req.id}" data-uid="${req.studentUid}" data-name="${escapeHtml(req.studentName || req.studentEmail)}" data-email="${escapeHtml(req.studentEmail)}" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;">
+                <i class="fas fa-check"></i> Approve
+              </button>
+              <button type="button" class="btn-sidebar-action btn-logout btn-reject-req" data-req-id="${req.id}" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.78rem;">
+                Decline
+              </button>
+            </div>
+          </div>
+        `).join("");
+
+        reqList.querySelectorAll(".btn-approve-req").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            btn.disabled = true;
+            await updateDoc(doc(db, "classrooms", classroomId), {
+              students: arrayUnion({
+                uid: btn.dataset.uid,
+                fullName: btn.dataset.name,
+                email: btn.dataset.email
+              })
+            });
+            await updateDoc(doc(db, "join_requests", btn.dataset.reqId), { status: "approved" });
+            await logAuditEvent(`Approved ${btn.dataset.email} into ${activeClassroom.sectionCode}`, "CLASSROOM", userProfile.email);
+            await loadUserClassrooms();
+          });
         });
-        pendingList.appendChild(row);
+
+        reqList.querySelectorAll(".btn-reject-req").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            btn.disabled = true;
+            await deleteDoc(doc(db, "join_requests", btn.dataset.reqId));
+            await selectClassroom(classroomId);
+          });
+        });
       }
+    } catch (err) {
+      console.warn("Join request check skipped:", err.message);
     }
   }
 }
 
-async function approveStudent(uid) {
-  if (!currentClassId) return;
-  try {
-    const classRef = doc(db, "classrooms", currentClassId);
-    const snap = await getDoc(classRef);
-    if (!snap.exists()) return;
+function renderEmptyWorkspace() {
+  document.getElementById("stat-section-code").textContent = "—";
+  document.getElementById("stat-activity-count").textContent = "0";
+  document.getElementById("stat-member-count").textContent = "0";
+  document.getElementById("activities-container").innerHTML = `
+    <div class="empty-state">
+      <i class="fas fa-chalkboard-teacher"></i>
+      <h3>No Classroom Selected</h3>
+      <p>${userProfile.role === "faculty" ? "Click 'Create Section' in the header to launch your first HR simulation classroom." : "Click 'Join Class' in the header and enter your instructor's class code."}</p>
+    </div>`;
+}
 
-    const data = snap.data();
-    const currentPending = (data.pendingStudents || []).filter((id) => id !== uid);
+function openActivityDetailModal(act) {
+  document.getElementById("detail-act-id").value = act.id;
+  document.getElementById("detail-act-title").textContent = act.title || "Activity";
+  document.getElementById("detail-act-badge").textContent = act.category || "HR Simulation";
+  document.getElementById("detail-act-due").textContent = `Due: ${act.dueDate || "Open"}`;
+  document.getElementById("detail-act-desc").textContent = act.instructions || act.description || "";
+  document.getElementById("deliverable-notes").value = "";
+  openModal("modal-activity-detail");
+}
 
-    await updateDoc(classRef, {
-      students: arrayUnion(uid),
-      pendingStudents: currentPending,
-      updatedAt: serverTimestamp()
+function bindUIEvents() {
+  // Subnav Tabs
+  document.querySelectorAll(".subnav-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".subnav-tab").forEach((t) => t.classList.remove("active"));
+      document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById(tab.dataset.tab)?.classList.add("active");
     });
+  });
 
-    switchClassroom(currentClassId);
-  } catch (err) {
-    console.error("Error approving student:", err);
-  }
-}
+  // Modal Close Buttons
+  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
+    btn.addEventListener("click", () => closeModal(btn.dataset.closeModal));
+  });
 
-// Load section analytics
-async function loadAnalytics(classId, classData) {
-  const totalActEl = document.getElementById("stat-total-activities");
-  const compSubsEl = document.getElementById("stat-completed-subs");
-  const enrolledEl = document.getElementById("stat-enrolled-count");
+  // Switch Classroom Dropdown
+  document.getElementById("active-classroom-select")?.addEventListener("change", (e) => {
+    if (e.target.value) selectClassroom(e.target.value);
+  });
 
-  if (enrolledEl) enrolledEl.textContent = (classData.students || []).length;
+  // Refresh Button
+  document.getElementById("btn-refresh-office")?.addEventListener("click", () => {
+    if (activeClassroom) selectClassroom(activeClassroom.id);
+  });
 
-  try {
-    const actSnap = await getDocs(query(collection(db, "office_activities"), where("classId", "==", classId)));
-    if (totalActEl) totalActEl.textContent = actSnap.size;
+  // Open Create/Join Classroom Modal
+  document.getElementById("btn-open-classroom-action")?.addEventListener("click", () => {
+    const isFaculty = userProfile.role === "faculty";
+    document.getElementById("modal-classroom-title").textContent = isFaculty ? "Create New Classroom Section" : "Join Classroom Section";
+    document.getElementById("form-create-classroom").style.display = isFaculty ? "block" : "none";
+    document.getElementById("form-join-classroom").style.display = isFaculty ? "none" : "block";
+    openModal("modal-classroom");
+  });
 
-    const subSnap = await getDocs(query(collection(db, "office_submissions"), where("classId", "==", classId)));
-    if (compSubsEl) compSubsEl.textContent = subSnap.size;
-  } catch (err) {
-    console.warn("Analytics fetch error:", err);
-  }
-}
+  // Submit Create Classroom (Faculty)
+  document.getElementById("form-create-classroom")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btn-submit-create-class");
+    const name = document.getElementById("new-class-name").value.trim();
+    const description = document.getElementById("new-class-desc").value.trim();
+    const code = "AIM-" + Math.random().toString(36).substring(2, 6).toUpperCase();
 
-// Load portfolio deliverables
-async function loadPortfolio(classId) {
-  const list = document.getElementById("portfolio-list");
-  if (!list) return;
+    btn.disabled = true;
+    try {
+      checkRateLimit("create_class", 5, 60000);
+      const docRef = await addDoc(collection(db, "classrooms"), {
+        name,
+        description,
+        sectionCode: code,
+        instructorId: currentUser.uid,
+        instructorEmail: currentUser.email,
+        students: [],
+        activityCount: 0,
+        createdAt: serverTimestamp()
+      });
+      await logAuditEvent(`Faculty ${currentUser.email} created classroom ${name} (${code})`, "CLASSROOM", currentUser.email);
+      localStorage.setItem("aimser_active_classroom", docRef.id);
+      closeModal("modal-classroom");
+      e.target.reset();
+      await loadUserClassrooms();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
-  try {
-    const q = query(
-      collection(db, "office_submissions"),
-      where("classId", "==", classId),
-      where("studentUid", "==", currentUser.uid)
-    );
-    const snap = await getDocs(q);
+  // Submit Join Classroom Request (Student)
+  document.getElementById("form-join-classroom")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("btn-submit-join-class");
+    const code = document.getElementById("join-class-code").value.trim().toUpperCase();
 
-    if (snap.empty) {
-      list.innerHTML = '<div class="empty-state"><i class="fas fa-award"></i><p>No graded deliverables submitted yet.</p></div>';
+    btn.disabled = true;
+    try {
+      checkRateLimit("join_class", 5, 60000);
+      const snap = await getDocs(collection(db, "classrooms"));
+      const match = snap.docs.find((d) => (d.data().sectionCode || d.data().code || "").toUpperCase() === code);
+      if (!match) throw new Error(`No classroom found with code "${code}".`);
+
+      await addDoc(collection(db, "join_requests"), {
+        classroomId: match.id,
+        sectionCode: code,
+        studentUid: currentUser.uid,
+        studentName: userProfile.fullName,
+        studentEmail: currentUser.email,
+        status: "pending",
+        createdAt: serverTimestamp()
+      });
+
+      await logAuditEvent(`${currentUser.email} submitted join request for class ${code}`, "JOIN_REQUEST", currentUser.email);
+      alert(`Join request sent for ${match.data().name}. Awaiting faculty approval.`);
+      closeModal("modal-classroom");
+      e.target.reset();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // Open Publish Activity Modal
+  document.getElementById("btn-open-new-activity")?.addEventListener("click", () => {
+    if (!activeClassroom) {
+      alert("Please create or select a classroom first.");
       return;
     }
+    openModal("modal-activity");
+  });
 
-    list.innerHTML = "";
-    snap.forEach((docSnap) => {
-      const sub = docSnap.data();
-      const div = document.createElement("div");
-      div.className = "portfolio-card glass-panel";
-      div.style.padding = "1rem";
-      div.innerHTML = `
-        <h4 style="margin: 0 0 0.25rem 0;">${escapeHtml(sub.activityTitle || "Deliverable")}</h4>
-        <p class="text-muted" style="font-size: 0.8rem; margin: 0 0 0.5rem 0;">Status: <strong>${sub.status || "Submitted"}</strong></p>
-        <span class="badge-pill" style="font-size: 0.72rem;">Score: ${sub.grade != null ? sub.grade : "Pending"}</span>
-      `;
-      list.appendChild(div);
-    });
-  } catch (err) {
-    console.warn("Portfolio fetch error:", err);
+  // Submit New Activity
+  document.getElementById("form-create-activity")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!activeClassroom) return;
+    const btn = document.getElementById("btn-submit-activity");
+
+    const title = document.getElementById("act-title").value.trim();
+    const category = document.getElementById("act-category").value;
+    const dueDate = document.getElementById("act-due-date").value;
+    const instructions = document.getElementById("act-instructions").value.trim();
+
+    btn.disabled = true;
+    try {
+      checkRateLimit("create_act", 8, 60000);
+      await addDoc(collection(db, "classrooms", activeClassroom.id, "activities"), {
+        title,
+        category,
+        dueDate,
+        instructions,
+        classroomId: activeClassroom.id,
+        createdBy: currentUser.email,
+        createdAt: serverTimestamp()
+      });
+
+      await updateDoc(doc(db, "classrooms", activeClassroom.id), {
+        activityCount: currentActivities.length + 1
+      });
+
+      await logAuditEvent(`Published activity "${title}" in ${activeClassroom.sectionCode}`, "ACTIVITY", currentUser.email);
+      closeModal("modal-activity");
+      e.target.reset();
+      await loadClassroomActivities(activeClassroom.id);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // Submit Activity Deliverable
+  document.getElementById("form-submit-deliverable")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!activeClassroom) return;
+    const btn = document.getElementById("btn-save-deliverable");
+    const actId = document.getElementById("detail-act-id").value;
+    const notes = document.getElementById("deliverable-notes").value.trim();
+
+    btn.disabled = true;
+    try {
+      await setDoc(doc(db, "classrooms", activeClassroom.id, "activities", actId, "submissions", currentUser.uid), {
+        studentUid: currentUser.uid,
+        studentName: userProfile.fullName,
+        studentEmail: currentUser.email,
+        notes,
+        submittedAt: serverTimestamp()
+      });
+      await logAuditEvent(`${currentUser.email} submitted deliverable for activity ${actId}`, "SUBMISSION", currentUser.email);
+      alert("Deliverable submitted successfully!");
+      closeModal("modal-activity-detail");
+    } catch (err) {
+      alert("Submission failed: " + err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+function openModal(id) {
+  const m = document.getElementById(id);
+  if (m) {
+    m.classList.add("is-open");
+    m.setAttribute("aria-hidden", "false");
   }
 }
 
-// Setup Office Event Listeners
-function setupOfficeEventListeners() {
-  const selector = document.getElementById("classroom-selector");
-  if (selector) {
-    selector.addEventListener("change", (e) => {
-      switchClassroom(e.target.value);
-    });
+function closeModal(id) {
+  const m = document.getElementById(id);
+  if (m) {
+    m.classList.remove("is-open");
+    m.setAttribute("aria-hidden", "true");
   }
-
-  // 1. Form: Create Section (Faculty)
-  const formCreateSection = document.getElementById("form-create-section");
-  if (formCreateSection && !formCreateSection.dataset.bound) {
-    formCreateSection.dataset.bound = "true";
-    formCreateSection.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const name = document.getElementById("section-name").value.trim();
-      const desc = document.getElementById("section-desc").value.trim();
-      const submitBtn = formCreateSection.querySelector("button[type='submit']");
-
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
-
-      try {
-        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const docRef = await addDoc(collection(db, "classrooms"), {
-          name: name,
-          description: desc,
-          code: code,
-          facultyUid: currentUser.uid,
-          students: [],
-          pendingStudents: [],
-          createdAt: serverTimestamp()
-        });
-
-        formCreateSection.reset();
-        closeModal("modal-create-section");
-        await loadUserClassrooms();
-        selector.value = docRef.id;
-        switchClassroom(docRef.id);
-      } catch (err) {
-        console.error("Error creating section:", err);
-        alert("Failed to create section: " + err.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = "Create Section";
-      }
-    });
-  }
-
-  // 2. Form: Join Section (Student)
-  const formJoinSection = document.getElementById("form-join-section");
-  if (formJoinSection && !formJoinSection.dataset.bound) {
-    formJoinSection.dataset.bound = "true";
-    formJoinSection.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const codeInput = document.getElementById("join-code-input");
-      const submitBtn = formJoinSection.querySelector("button[type='submit']");
-      const code = codeInput.value.trim().toUpperCase();
-
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Requesting...';
-
-      try {
-        const q = query(collection(db, "classrooms"), where("code", "==", code));
-        const snap = await getDocs(q);
-
-        if (snap.empty) {
-          alert("Classroom code not found.");
-          return;
-        }
-
-        const clsDoc = snap.docs[0];
-        const clsData = clsDoc.data();
-
-        if ((clsData.students || []).includes(currentUser.uid)) {
-          alert("You are already enrolled in this section.");
-          closeModal("modal-join-section");
-          return;
-        }
-
-        if ((clsData.pendingStudents || []).includes(currentUser.uid)) {
-          alert("Your join request is already pending instructor approval.");
-          closeModal("modal-join-section");
-          return;
-        }
-
-        // Add to pending approvals
-        await updateDoc(doc(db, "classrooms", clsDoc.id), {
-          pendingStudents: arrayUnion(currentUser.uid),
-          updatedAt: serverTimestamp()
-        });
-
-        alert("Join request sent successfully! Awaiting faculty approval.");
-        formJoinSection.reset();
-        closeModal("modal-join-section");
-      } catch (err) {
-        console.error("Error requesting join:", err);
-        alert("Failed to join section: " + err.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = "Send Join Request";
-      }
-    });
-  }
-
-  // 3. Form: Post Activity (Faculty)
-  const formCreateActivity = document.getElementById("form-create-activity");
-  if (formCreateActivity && !formCreateActivity.dataset.bound) {
-    formCreateActivity.dataset.bound = "true";
-    formCreateActivity.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      if (!currentClassId) {
-        alert("Please select or create a classroom section first.");
-        return;
-      }
-
-      const title = document.getElementById("activity-title").value.trim();
-      const instructions = document.getElementById("activity-instructions").value.trim();
-      const due = document.getElementById("activity-due").value;
-      const points = parseInt(document.getElementById("activity-points").value, 10) || 100;
-      const fileInput = document.getElementById("activity-attachment");
-      const submitBtn = formCreateActivity.querySelector("button[type='submit']");
-
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
-
-      try {
-        let attachmentUrl = "";
-        if (fileInput && fileInput.files.length > 0) {
-          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Resource...';
-          attachmentUrl = await uploadToCloudinary(fileInput.files[0]);
-        }
-
-        await addDoc(collection(db, "office_activities"), {
-          classId: currentClassId,
-          title: title,
-          instructions: instructions,
-          dueDate: due,
-          points: points,
-          attachmentUrl: attachmentUrl || null,
-          facultyUid: currentUser.uid,
-          createdAt: serverTimestamp()
-        });
-
-        formCreateActivity.reset();
-        closeModal("modal-create-activity");
-      } catch (err) {
-        console.error("Error creating activity:", err);
-        alert("Failed to publish activity: " + err.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = "Publish Activity";
-      }
-    });
-  }
-}
-
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.remove("is-open");
-    modal.style.display = "none";
-  }
-}
-
-function escapeHtml(str) {
-  if (!str) return "";
-  return str.replace(/[&<>"']/g, (m) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[m]));
 }

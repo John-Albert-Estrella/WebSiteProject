@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" class="dark-theme">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,7 +13,7 @@
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">
-          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" />
+          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
           <div class="brand-text">
             <h2>AIMSER</h2>
             <span>HR Simulator</span>
@@ -59,157 +59,127 @@
       <header class="workspace-header">
         <div class="header-left">
           <h1 class="page-title">Project Planner</h1>
-          <span id="active-team-badge" class="badge-pill">Select or Create a Team</span>
+          <select id="planner-team-select" class="form-select" style="max-width: 240px; padding: 0.45rem 0.85rem;">
+            <option value="">Loading Teams...</option>
+          </select>
+          <button type="button" id="btn-open-team-modal" class="btn-secondary" style="padding: 0.45rem 0.85rem; font-size: 0.8125rem;">
+            <i class="fas fa-users"></i> New / Join Team
+          </button>
+          <button type="button" id="btn-open-task-modal" class="btn-primary" style="padding: 0.45rem 0.85rem; font-size: 0.8125rem;">
+            <i class="fas fa-plus"></i> Add Task
+          </button>
         </div>
 
         <div class="header-right">
-          <div class="team-controls">
-            <select id="team-selector" class="form-select" aria-label="Select Project Team">
-              <option value="">Select Team Board...</option>
-            </select>
-            <button type="button" id="btn-create-team-modal" class="btn-primary" data-open="modal-create-team">
-              <i class="fas fa-users-cog"></i> New Team
-            </button>
-            <button type="button" id="btn-join-team-modal" class="btn-secondary" data-open="modal-join-team">
-              <i class="fas fa-user-plus"></i> Join Team
-            </button>
-          </div>
-
           <div class="user-profile-chip">
-            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar" class="avatar-sm" />
+            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Avatar" class="avatar-sm" />
             <div class="user-meta">
-              <span id="header-user-name" class="user-name">Authenticated User</span>
+              <span id="header-user-name" class="user-name">Loading...</span>
               <span id="header-user-role" class="user-role">Member</span>
             </div>
           </div>
         </div>
       </header>
 
-      <div class="planner-toolbar glass-panel">
-        <div class="team-info">
-          <span id="team-code-display">Team Invite Code: <strong>---</strong></span>
-          <span id="team-members-count">
-            <i class="fas fa-user-friends"></i> 0 Members
-          </span>
-        </div>
-        <button type="button" id="btn-add-card-modal" class="btn-primary" data-open="modal-add-card">
-          <i class="fas fa-plus"></i> Add Task Card
-        </button>
-      </div>
-
-      <div class="kanban-board" id="planner-kanban-board">
-        <div class="kanban-column" data-status="todo">
-          <div class="kanban-column-header">
-            <h3><i class="fas fa-clipboard-list"></i> To Do</h3>
-            <span class="column-count" id="count-todo">0</span>
+      <!-- Kanban Board Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; align-items: start;">
+        <section class="glass-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: var(--text-tertiary); font-size: 0.6rem; margin-right: 0.4rem;"></i> To Do</h3>
+            <span id="count-todo" class="badge-pill">0</span>
           </div>
-          <div class="kanban-cards-container" id="col-todo"></div>
-        </div>
+          <div id="col-todo" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 220px;"></div>
+        </section>
 
-        <div class="kanban-column" data-status="in_progress">
-          <div class="kanban-column-header">
-            <h3><i class="fas fa-spinner"></i> In Progress</h3>
-            <span class="column-count" id="count-in_progress">0</span>
+        <section class="glass-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: #38bdf8; font-size: 0.6rem; margin-right: 0.4rem;"></i> In Progress</h3>
+            <span id="count-inprogress" class="badge-pill">0</span>
           </div>
-          <div class="kanban-cards-container" id="col-in_progress"></div>
-        </div>
+          <div id="col-inprogress" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 220px;"></div>
+        </section>
 
-        <div class="kanban-column" data-status="review">
-          <div class="kanban-column-header">
-            <h3><i class="fas fa-search"></i> Review</h3>
-            <span class="column-count" id="count-review">0</span>
+        <section class="glass-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: var(--warning); font-size: 0.6rem; margin-right: 0.4rem;"></i> Under Review</h3>
+            <span id="count-review" class="badge-pill">0</span>
           </div>
-          <div class="kanban-cards-container" id="col-review"></div>
-        </div>
+          <div id="col-review" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 220px;"></div>
+        </section>
 
-        <div class="kanban-column" data-status="done">
-          <div class="kanban-column-header">
-            <h3><i class="fas fa-check-circle"></i> Completed</h3>
-            <span class="column-count" id="count-done">0</span>
+        <section class="glass-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: var(--success); font-size: 0.6rem; margin-right: 0.4rem;"></i> Completed</h3>
+            <span id="count-done" class="badge-pill">0</span>
           </div>
-          <div class="kanban-cards-container" id="col-done"></div>
-        </div>
+          <div id="col-done" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 220px;"></div>
+        </section>
       </div>
     </main>
   </div>
 
-  <!-- Modals (Hidden by Default) -->
-  <div id="modal-create-team" class="modal-backdrop" style="display: none;">
-    <div class="modal-card glass-panel">
+  <!-- Modal: Create / Join Team -->
+  <div class="modal-backdrop" id="modal-team" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
       <div class="modal-header">
-        <h3>Create Project Team</h3>
-        <button type="button" class="btn-close-modal" data-close="modal-create-team">&times;</button>
+        <h3>Team Workspace Setup</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-team">&times;</button>
       </div>
-      <form id="form-create-team">
-        <div class="form-group">
-          <label for="team-name-input">Team Name</label>
-          <input type="text" id="team-name-input" class="form-control" placeholder="e.g., Alpha HR Consultants" required />
-        </div>
-        <div class="form-group">
-          <label for="team-max-members">Max Capacity</label>
-          <input type="number" id="team-max-members" class="form-control" value="5" min="2" max="15" required />
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close="modal-create-team">Cancel</button>
-          <button type="submit" class="btn-primary">Create Team</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
-  <div id="modal-join-team" class="modal-backdrop" style="display: none;">
-    <div class="modal-card glass-panel">
-      <div class="modal-header">
-        <h3>Join Project Team</h3>
-        <button type="button" class="btn-close-modal" data-close="modal-join-team">&times;</button>
-      </div>
+      <form id="form-create-team" style="margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-subtle);">
+        <div class="form-group">
+          <label for="new-team-name" class="form-label">Create New HR Project Team</label>
+          <input type="text" id="new-team-name" class="form-control" placeholder="e.g., Team Vanguard HR" required />
+        </div>
+        <button type="submit" class="btn-primary" style="width: 100%;">
+          <i class="fas fa-plus"></i> Create Team
+        </button>
+      </form>
+
       <form id="form-join-team">
         <div class="form-group">
-          <label for="team-invite-code">Team Invite Code</label>
-          <input type="text" id="team-invite-code" class="form-control" placeholder="Enter invite code" required />
+          <label for="join-team-code" class="form-label">Or Join Existing Team via Invite Code</label>
+          <input type="text" id="join-team-code" class="form-control" placeholder="e.g., TM-94A2" style="text-transform: uppercase; font-family: var(--font-mono);" required />
         </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close="modal-join-team">Cancel</button>
-          <button type="submit" class="btn-primary">Join Team</button>
-        </div>
+        <button type="submit" class="btn-secondary" style="width: 100%;">
+          <i class="fas fa-sign-in-alt"></i> Join Team
+        </button>
       </form>
     </div>
   </div>
 
-  <div id="modal-add-card" class="modal-backdrop" style="display: none;">
-    <div class="modal-card glass-panel">
+  <!-- Modal: Add Task -->
+  <div class="modal-backdrop" id="modal-task" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
       <div class="modal-header">
-        <h3>Create Task Card</h3>
-        <button type="button" class="btn-close-modal" data-close="modal-add-card">&times;</button>
+        <h3>Create Sprint Task</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-task">&times;</button>
       </div>
-      <form id="form-add-card">
+
+      <form id="form-create-task">
         <div class="form-group">
-          <label for="card-title">Task Title</label>
-          <input type="text" id="card-title" class="form-control" placeholder="e.g., Draft Employee Handbook Section 4" required />
+          <label for="task-title" class="form-label">Task Title</label>
+          <input type="text" id="task-title" class="form-control" placeholder="e.g., Draft Employee Handbook Section 2" required />
         </div>
-        <div class="form-group">
-          <label for="card-desc">Description</label>
-          <textarea id="card-desc" class="form-control" rows="3" placeholder="Task notes, subtasks, or links..."></textarea>
-        </div>
-        <div class="form-group">
-          <label for="card-priority">Priority</label>
-          <select id="card-priority" class="form-control">
-            <option value="low">Low</option>
-            <option value="medium" selected>Medium</option>
-            <option value="high">High</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="card-due">Due Date</label>
-          <input type="date" id="card-due" class="form-control" />
-        </div>
-        <div class="form-group">
-          <label for="card-attachment">Attachment (Optional via Cloudinary)</label>
-          <input type="file" id="card-attachment" class="form-control" />
+        <div class="form-row">
+          <div class="form-group">
+            <label for="task-priority" class="form-label">Priority</label>
+            <select id="task-priority" class="form-select">
+              <option value="Normal">Normal</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="task-assignee" class="form-label">Assignee</label>
+            <input type="text" id="task-assignee" class="form-control" placeholder="Member name" />
+          </div>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close="modal-add-card">Cancel</button>
-          <button type="submit" class="btn-primary">Save Card</button>
+          <button type="button" class="btn-secondary" data-close-modal="modal-task">Cancel</button>
+          <button type="submit" class="btn-primary">
+            <i class="fas fa-plus"></i> Add to Board
+          </button>
         </div>
       </form>
     </div>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" class="dark-theme">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,11 +10,10 @@
 </head>
 <body>
   <div class="dashboard-layout">
-    <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">
-          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" />
+          <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
           <div class="brand-text">
             <h2>AIMSER</h2>
             <span>HR Simulator</span>
@@ -56,117 +55,85 @@
       </div>
     </aside>
 
-    <!-- Main Workspace -->
     <main class="main-workspace">
       <header class="workspace-header">
         <div class="header-left">
-          <h1 class="page-title">HR Library</h1>
-          <span class="badge-pill">Global Repository</span>
+          <h1 class="page-title">HR Case Library</h1>
+          <span class="badge-pill">Knowledge &amp; Policy Repository</span>
         </div>
 
         <div class="header-right">
-          <button type="button" id="btn-publish-case-modal" class="btn-primary faculty-only" data-open="modal-publish-case" style="display: none;">
-            <i class="fas fa-plus-circle"></i> Publish Case Study
-          </button>
-
           <div class="user-profile-chip">
-            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=0284c7&color=fff" alt="Avatar" class="avatar-sm" />
+            <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Avatar" class="avatar-sm" />
             <div class="user-meta">
-              <span id="header-user-name" class="user-name">Authenticated User</span>
+              <span id="header-user-name" class="user-name">Loading...</span>
               <span id="header-user-role" class="user-role">Member</span>
             </div>
           </div>
         </div>
       </header>
 
-      <!-- Sub-Navigation Tabs -->
-      <div class="library-subnav" id="library-tabs">
-        <button type="button" class="subnav-tab active" data-tab="case-studies">
-          <i class="fas fa-folder-open"></i> HR Case Studies
-        </button>
-        <button type="button" class="subnav-tab" data-tab="conflict-feed">
-          <i class="fas fa-comments"></i> Public Conflict Feed
-        </button>
+      <div class="glass-panel">
+        <div class="panel-toolbar">
+          <div>
+            <h2>Simulation Case Studies &amp; Reference Policies</h2>
+            <p class="text-muted">Browse Philippine Labor Code references, HR SOP templates, and simulation briefs.</p>
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="text" id="library-search" class="form-control" placeholder="Filter cases..." style="max-width: 240px;" />
+            <button type="button" id="btn-open-case-modal" class="btn-primary" style="display: none;">
+              <i class="fas fa-plus"></i> Publish Case
+            </button>
+          </div>
+        </div>
+
+        <div id="library-grid" class="cards-grid"></div>
       </div>
-
-      <!-- Tab 1: HR Case Studies -->
-      <section id="tab-case-studies" class="tab-panel active">
-        <div class="glass-panel" style="margin-bottom: 1.25rem;">
-          <input type="text" id="case-search-input" class="form-control" placeholder="Search case studies by title, domain, or labor code..." />
-        </div>
-
-        <div id="public-cases-grid" class="cards-grid">
-          <div class="empty-state">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading HR Case Studies...</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Tab 2: Public Conflict Feed -->
-      <section id="tab-conflict-feed" class="tab-panel" style="display: none;">
-        <div class="glass-panel" style="margin-bottom: 1.5rem;">
-          <h3 style="margin-top: 0; margin-bottom: 0.5rem;">Post a Workplace Scenario or Conflict</h3>
-          <p class="text-muted" style="margin-bottom: 1rem; font-size: 0.85rem;">Share an HR dilemma, arbitration question, or policy debate with the community.</p>
-
-          <form id="form-conflict-post">
-            <div class="form-group">
-              <textarea id="conflict-post-content" class="form-control" rows="3" placeholder="Describe the employee scenario, contract conflict, or policy dispute..." required></textarea>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
-              <input type="file" id="conflict-post-media" class="form-control" style="max-width: 300px;" accept="image/*,application/pdf" />
-              <button type="submit" id="btn-submit-conflict" class="btn-primary">
-                <i class="fas fa-paper-plane"></i> Publish Scenario
-              </button>
-            </div>
-          </form>
-        </div>
-
-        <div id="public-conflict-stream" style="display: flex; flex-direction: column; gap: 1rem;">
-          <div class="empty-state">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>Loading conflict scenarios...</p>
-          </div>
-        </div>
-      </section>
     </main>
   </div>
 
-  <!-- Modal: Publish Case Study (Faculty & Admins) -->
-  <div id="modal-publish-case" class="modal-backdrop" style="display: none;">
-    <div class="modal-card glass-panel">
+  <!-- Modal: Publish Case (Faculty) -->
+  <div class="modal-backdrop" id="modal-case" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
       <div class="modal-header">
         <h3>Publish HR Case Study</h3>
-        <button type="button" class="btn-close-modal" data-close="modal-publish-case">&times;</button>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-case">&times;</button>
       </div>
-      <form id="form-publish-case">
+      <form id="form-create-case">
         <div class="form-group">
-          <label for="case-study-title">Case Title</label>
-          <input type="text" id="case-study-title" class="form-control" placeholder="e.g., Constructive Dismissal and Due Process Dispute" required />
+          <label for="case-title" class="form-label">Case Title</label>
+          <input type="text" id="case-title" class="form-control" required />
         </div>
         <div class="form-group">
-          <label for="case-study-category">HR Domain</label>
-          <select id="case-study-category" class="form-control" required>
+          <label for="case-category" class="form-label">Category</label>
+          <select id="case-category" class="form-select">
+            <option value="Labor Law & Compliance">Labor Law &amp; Compliance</option>
+            <option value="Recruitment & Selection">Recruitment &amp; Selection</option>
             <option value="Employee Relations">Employee Relations</option>
-            <option value="Talent Acquisition">Talent Acquisition</option>
-            <option value="Performance Management">Performance Management</option>
-            <option value="Compensation & Benefits">Compensation &amp; Benefits</option>
-            <option value="Labor Law Compliance">Labor Law Compliance</option>
+            <option value="Compensation Design">Compensation Design</option>
           </select>
         </div>
         <div class="form-group">
-          <label for="case-study-scenario">Scenario Background &amp; Problem</label>
-          <textarea id="case-study-scenario" class="form-control" rows="4" placeholder="Detail the events, employee actions, company responses, and the dilemma..." required></textarea>
-        </div>
-        <div class="form-group">
-          <label for="case-study-answer-key">Official Resolution / Answer Key</label>
-          <textarea id="case-study-answer-key" class="form-control" rows="3" placeholder="Provide the legal basis, recommended HR resolution, and evaluation criteria..." required></textarea>
+          <label for="case-body" class="form-label">Case Scenario &amp; Guidelines</label>
+          <textarea id="case-body" class="form-control" rows="5" required></textarea>
         </div>
         <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close="modal-publish-case">Cancel</button>
-          <button type="submit" id="btn-save-case" class="btn-primary">Publish Case</button>
+          <button type="button" class="btn-secondary" data-close-modal="modal-case">Cancel</button>
+          <button type="submit" class="btn-primary">Publish to Library</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal: Read Case -->
+  <div class="modal-backdrop" id="modal-read-case" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="read-case-title">Case Study</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-read-case">&times;</button>
+      </div>
+      <span id="read-case-cat" class="badge-pill" style="margin-bottom: 1rem; display: inline-block;">Category</span>
+      <p id="read-case-body" style="white-space: pre-wrap; line-height: 1.65; color: var(--text-secondary);"></p>
     </div>
   </div>
 

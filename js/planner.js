@@ -1,402 +1,220 @@
-// js/planner.js - Project Planner Kanban & Team Collaboration Engine
-import { db, auth } from "./firebase-init.js";
+// js/planner.js - Real-Time Team Kanban Board & Policy-Enforced Team Builder
+import { auth, db } from "./firebase-init.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
   collection,
   doc,
-  addDoc,
   getDoc,
   getDocs,
+  addDoc,
   updateDoc,
   deleteDoc,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  serverTimestamp,
-  arrayUnion
+  arrayUnion,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { uploadToCloudinary } from "./cloudinary-config.js";
+import { FastCache, escapeHtml, logAuditEvent } from "./security-utils.js";
 
-let currentTeamId = null;
 let currentUser = null;
-let cardsUnsubscribe = null;
+let userProfile = null;
+let teams = [];
+let activeTeam = null;
 
-// Initialize on auth ready
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   currentUser = user;
-  await loadUserTeams();
-  setupPlannerEventListeners();
+  userProfile = FastCache.get("user_profile") || { uid: user.uid, email: user.email, fullName: user.displayName || "Member", role: "student" };
+
+  bindPlannerEvents();
+  await loadTeams();
 });
 
-// Load all teams where current user is leader or member
-async function loadUserTeams() {
-  const teamSelector = document.getElementById("team-selector");
-  if (!teamSelector) return;
+async function loadTeams() {
+  const select = document.getElementById("planner-team-select");
+  if (!select) return;
 
-  try {
-    const q = query(
-      collection(db, "planner_teams"),
-      where("members", "array-contains", currentUser.uid)
-    );
-    const snap = await getDocs(q);
+  const snap = await getDocs(collection(db, "teams"));
+  const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-    teamSelector.innerHTML = '<option value="">Select Team Board...</option>';
+  teams = userProfile.role === "faculty"
+    ? all
+    : all.filter((t) => (t.members || []).includes(currentUser.uid));
 
-    snap.forEach((docSnap) => {
-      const team = docSnap.data();
-      const opt = document.createElement("option");
-      opt.value = docSnap.id;
-      opt.textContent = `${team.name} (${team.code})`;
-      teamSelector.appendChild(opt);
-    });
-
-    if (snap.docs.length > 0) {
-      teamSelector.value = snap.docs[0].id;
-      switchTeam(snap.docs[0].id);
-    } else {
-      resetBoardView();
-    }
-  } catch (err) {
-    console.error("Error loading teams:", err);
-  }
-}
-
-// Switch active team board and attach real-time snapshot listener
-async function switchTeam(teamId) {
-  currentTeamId = teamId;
-  const activeBadge = document.getElementById("active-team-badge");
-  const codeDisplay = document.getElementById("team-code-display");
-  const membersCount = document.getElementById("team-members-count");
-
-  if (!teamId) {
-    resetBoardView();
+  if (teams.length === 0) {
+    select.innerHTML = `<option value="">No Teams Yet</option>`;
+    clearBoard();
     return;
   }
 
-  try {
-    const teamDoc = await getDoc(doc(db, "planner_teams", teamId));
-    if (!teamDoc.exists()) return;
+  select.innerHTML = teams.map((t) =>
+    `<option value="${t.id}">${escapeHtml(t.name)} (${escapeHtml(t.inviteCode || "TEAM")})</option>`
+  ).join("");
 
-    const data = teamDoc.data();
-    if (activeBadge) activeBadge.textContent = data.name;
-    if (codeDisplay) codeDisplay.innerHTML = `Team Invite Code: <strong>${data.code}</strong>`;
-    if (membersCount) membersCount.innerHTML = `<i class="fas fa-user-friends"></i> ${(data.members || []).length} / ${data.capacity || 5} Members`;
-
-    listenToCards(teamId);
-  } catch (err) {
-    console.error("Error switching team:", err);
-  }
+  activeTeam = teams[0];
+  select.value = activeTeam.id;
+  await loadTasks(activeTeam.id);
 }
 
-function resetBoardView() {
-  currentTeamId = null;
-  const activeBadge = document.getElementById("active-team-badge");
-  const codeDisplay = document.getElementById("team-code-display");
-  const membersCount = document.getElementById("team-members-count");
+async function loadTasks(teamId) {
+  clearBoard();
+  const snap = await getDocs(collection(db, "teams", teamId, "tasks"));
+  const tasks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-  if (activeBadge) activeBadge.textContent = "Select or Create a Team";
-  if (codeDisplay) codeDisplay.innerHTML = "Team Invite Code: <strong>---</strong>";
-  if (membersCount) membersCount.innerHTML = '<i class="fas fa-user-friends"></i> 0 Members';
+  const buckets = { todo: [], inprogress: [], review: [], done: [] };
+  tasks.forEach((t) => {
+    const status = buckets[t.status] ? t.status : "todo";
+    buckets[status].push(t);
+  });
 
-  ["todo", "in_progress", "review", "done"].forEach((status) => {
+  Object.entries(buckets).forEach(([status, list]) => {
     const col = document.getElementById(`col-${status}`);
-    const count = document.getElementById(`count-${status}`);
-    if (col) col.innerHTML = '<div class="empty-state" style="padding: 1.5rem 0.5rem;"><p style="font-size: 0.85rem;">No tasks</p></div>';
-    if (count) count.textContent = "0";
-  });
+    const badge = document.getElementById(`count-${status}`);
+    if (badge) badge.textContent = list.length;
+    if (!col) return;
 
-  if (cardsUnsubscribe) cardsUnsubscribe();
-}
+    col.innerHTML = list.map((task) => `
+      <div style="padding: 0.85rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-medium);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+          <span class="badge-pill" style="font-size: 0.68rem;">${escapeHtml(task.priority || "Normal")}</span>
+          <button type="button" class="btn-del-task" data-id="${task.id}" style="background: none; border: none; color: var(--text-tertiary); cursor: pointer;" title="Delete Task">&times;</button>
+        </div>
+        <div style="font-weight: 600; font-size: 0.88rem; margin-bottom: 0.4rem; color: var(--text-primary);">${escapeHtml(task.title)}</div>
+        <div class="text-muted" style="font-size: 0.75rem; margin-bottom: 0.65rem;">
+          <i class="fas fa-user-circle"></i> ${escapeHtml(task.assignee || "Unassigned")}
+        </div>
+        <select class="form-select task-status-mover" data-id="${task.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+          <option value="todo" ${status === "todo" ? "selected" : ""}>To Do</option>
+          <option value="inprogress" ${status === "inprogress" ? "selected" : ""}>In Progress</option>
+          <option value="review" ${status === "review" ? "selected" : ""}>Under Review</option>
+          <option value="done" ${status === "done" ? "selected" : ""}>Completed</option>
+        </select>
+      </div>
+    `).join("");
 
-// Listen to Kanban cards in Firestore
-function listenToCards(teamId) {
-  if (cardsUnsubscribe) cardsUnsubscribe();
-
-  const q = query(
-    collection(db, "planner_cards"),
-    where("teamId", "==", teamId),
-    orderBy("createdAt", "desc")
-  );
-
-  cardsUnsubscribe = onSnapshot(q, (snapshot) => {
-    const cols = {
-      todo: document.getElementById("col-todo"),
-      in_progress: document.getElementById("col-in_progress"),
-      review: document.getElementById("col-review"),
-      done: document.getElementById("col-done")
-    };
-
-    const counts = { todo: 0, in_progress: 0, review: 0, done: 0 };
-
-    Object.values(cols).forEach((col) => {
-      if (col) col.innerHTML = "";
-    });
-
-    snapshot.forEach((docSnap) => {
-      const card = docSnap.data();
-      const cardId = docSnap.id;
-      const status = card.status || "todo";
-
-      if (cols[status]) {
-        counts[status]++;
-        cols[status].appendChild(createCardElement(cardId, card));
-      }
-    });
-
-    Object.keys(counts).forEach((key) => {
-      const countEl = document.getElementById(`count-${key}`);
-      if (countEl) countEl.textContent = counts[key];
-      if (counts[key] === 0 && cols[key]) {
-        cols[key].innerHTML = '<div class="empty-state" style="padding: 1.5rem 0.5rem;"><p style="font-size: 0.85rem;">No tasks</p></div>';
-      }
-    });
-  }, (err) => {
-    console.error("Error reading cards:", err);
-  });
-}
-
-function createCardElement(id, card) {
-  const div = document.createElement("div");
-  div.className = "planner-task-card glass-panel";
-  div.style.padding = "0.85rem";
-  div.style.marginBottom = "0.75rem";
-  div.style.cursor = "grab";
-  div.draggable = true;
-
-  const priorityColors = {
-    low: "#10b981",
-    medium: "#f59e0b",
-    high: "#ef4444"
-  };
-
-  div.innerHTML = `
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-      <span style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: ${priorityColors[card.priority] || "#38bdf8"};">
-        ${card.priority || "Normal"}
-      </span>
-      <button type="button" class="btn-delete-card" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem;">
-        <i class="fas fa-trash-alt"></i>
-      </button>
-    </div>
-    <h4 style="margin: 0 0 0.35rem 0; font-size: 0.92rem; color: var(--text-main);">${escapeHtml(card.title)}</h4>
-    ${card.description ? `<p style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 0.5rem 0;">${escapeHtml(card.description)}</p>` : ""}
-    ${card.attachmentUrl ? `<a href="${card.attachmentUrl}" target="_blank" rel="noopener" style="font-size: 0.78rem; color: #38bdf8; display: inline-flex; align-items: center; gap: 0.3rem; margin-bottom: 0.5rem;"><i class="fas fa-paperclip"></i> Attachment</a>` : ""}
-    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 0.5rem; margin-top: 0.5rem;">
-      <span><i class="far fa-calendar-alt"></i> ${card.dueDate || "No deadline"}</span>
-      <select class="card-status-select" style="background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px; font-size: 0.72rem; padding: 0.15rem 0.35rem;">
-        <option value="todo" ${card.status === "todo" ? "selected" : ""}>To Do</option>
-        <option value="in_progress" ${card.status === "in_progress" ? "selected" : ""}>In Progress</option>
-        <option value="review" ${card.status === "review" ? "selected" : ""}>Review</option>
-        <option value="done" ${card.status === "done" ? "selected" : ""}>Done</option>
-      </select>
-    </div>
-  `;
-
-  // Status changer dropdown listener
-  const statusSelect = div.querySelector(".card-status-select");
-  statusSelect.addEventListener("change", async (e) => {
-    try {
-      await updateDoc(doc(db, "planner_cards", id), {
-        status: e.target.value,
-        updatedAt: serverTimestamp()
-      });
-    } catch (err) {
-      console.error("Error updating status:", err);
-    }
-  });
-
-  // Delete card listener
-  const deleteBtn = div.querySelector(".btn-delete-card");
-  deleteBtn.addEventListener("click", async () => {
-    if (confirm("Delete this card permanently?")) {
-      try {
-        await deleteDoc(doc(db, "planner_cards", id));
-      } catch (err) {
-        console.error("Error deleting card:", err);
-      }
-    }
-  });
-
-  return div;
-}
-
-// Attach all modal forms and action handlers
-function setupPlannerEventListeners() {
-  const teamSelector = document.getElementById("team-selector");
-  if (teamSelector) {
-    teamSelector.addEventListener("change", (e) => {
-      switchTeam(e.target.value);
-    });
-  }
-
-  // 1. Form: Create Team
-  const formCreateTeam = document.getElementById("form-create-team");
-  if (formCreateTeam && !formCreateTeam.dataset.bound) {
-    formCreateTeam.dataset.bound = "true";
-    formCreateTeam.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const nameInput = document.getElementById("team-name-input");
-      const capacityInput = document.getElementById("team-max-members");
-      const submitBtn = formCreateTeam.querySelector("button[type='submit']");
-
-      const teamName = nameInput.value.trim();
-      const capacity = parseInt(capacityInput.value, 10) || 5;
-
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
-
-      try {
-        const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-        const docRef = await addDoc(collection(db, "planner_teams"), {
-          name: teamName,
-          code: teamCode,
-          capacity: capacity,
-          leaderUid: currentUser.uid,
-          members: [currentUser.uid],
-          createdAt: serverTimestamp()
-        });
-
-        formCreateTeam.reset();
-        closeModal("modal-create-team");
-        await loadUserTeams();
-        teamSelector.value = docRef.id;
-        switchTeam(docRef.id);
-      } catch (err) {
-        console.error("Error creating team:", err);
-        alert("Failed to create team: " + err.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = "Create Team";
-      }
-    });
-  }
-
-  // 2. Form: Join Team
-  const formJoinTeam = document.getElementById("form-join-team");
-  if (formJoinTeam && !formJoinTeam.dataset.bound) {
-    formJoinTeam.dataset.bound = "true";
-    formJoinTeam.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const codeInput = document.getElementById("team-invite-code");
-      const submitBtn = formJoinTeam.querySelector("button[type='submit']");
-      const code = codeInput.value.trim().toUpperCase();
-
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining...';
-
-      try {
-        const q = query(collection(db, "planner_teams"), where("code", "==", code));
-        const snap = await getDocs(q);
-
-        if (snap.empty) {
-          alert("Invalid team invite code. Team not found.");
-          return;
-        }
-
-        const teamDoc = snap.docs[0];
-        const teamData = teamDoc.data();
-
-        if ((teamData.members || []).includes(currentUser.uid)) {
-          alert("You are already a member of this team.");
-          closeModal("modal-join-team");
-          return;
-        }
-
-        if ((teamData.members || []).length >= (teamData.capacity || 5)) {
-          alert("This team has reached its maximum member capacity.");
-          return;
-        }
-
-        await updateDoc(doc(db, "planner_teams", teamDoc.id), {
-          members: arrayUnion(currentUser.uid),
+    col.querySelectorAll(".task-status-mover").forEach((sel) => {
+      sel.addEventListener("change", async (e) => {
+        await updateDoc(doc(db, "teams", teamId, "tasks", sel.dataset.id), {
+          status: e.target.value,
           updatedAt: serverTimestamp()
         });
-
-        formJoinTeam.reset();
-        closeModal("modal-join-team");
-        await loadUserTeams();
-        teamSelector.value = teamDoc.id;
-        switchTeam(teamDoc.id);
-      } catch (err) {
-        console.error("Error joining team:", err);
-        alert("Failed to join team: " + err.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = "Join Team";
-      }
+        await loadTasks(teamId);
+      });
     });
-  }
 
-  // 3. Form: Add Task Card
-  const formAddCard = document.getElementById("form-add-card");
-  if (formAddCard && !formAddCard.dataset.bound) {
-    formAddCard.dataset.bound = "true";
-    formAddCard.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      if (!currentTeamId) {
-        alert("Please select or create a team board first.");
-        return;
-      }
-
-      const title = document.getElementById("card-title").value.trim();
-      const desc = document.getElementById("card-desc").value.trim();
-      const priority = document.getElementById("card-priority").value;
-      const due = document.getElementById("card-due").value;
-      const fileInput = document.getElementById("card-attachment");
-      const submitBtn = formAddCard.querySelector("button[type='submit']");
-
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-
-      try {
-        let attachmentUrl = "";
-        if (fileInput && fileInput.files.length > 0) {
-          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading File...';
-          attachmentUrl = await uploadToCloudinary(fileInput.files[0]);
-        }
-
-        await addDoc(collection(db, "planner_cards"), {
-          teamId: currentTeamId,
-          title: title,
-          description: desc,
-          priority: priority,
-          dueDate: due || null,
-          attachmentUrl: attachmentUrl || null,
-          status: "todo",
-          authorUid: currentUser.uid,
-          createdAt: serverTimestamp()
-        });
-
-        formAddCard.reset();
-        closeModal("modal-add-card");
-      } catch (err) {
-        console.error("Error adding card:", err);
-        alert("Failed to save task card: " + err.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = "Save Card";
-      }
+    col.querySelectorAll(".btn-del-task").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        await deleteDoc(doc(db, "teams", teamId, "tasks", btn.dataset.id));
+        await loadTasks(teamId);
+      });
     });
-  }
+  });
 }
 
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (modal) {
-    modal.classList.remove("is-open");
-    modal.style.display = "none";
-  }
+function clearBoard() {
+  ["todo", "inprogress", "review", "done"].forEach((s) => {
+    const col = document.getElementById(`col-${s}`);
+    const badge = document.getElementById(`count-${s}`);
+    if (col) col.innerHTML = "";
+    if (badge) badge.textContent = "0";
+  });
 }
 
-function escapeHtml(str) {
-  if (!str) return "";
-  return str.replace(/[&<>"']/g, (m) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[m]));
+function bindPlannerEvents() {
+  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const m = document.getElementById(btn.dataset.closeModal);
+      if (m) m.classList.remove("is-open");
+    });
+  });
+
+  document.getElementById("planner-team-select")?.addEventListener("change", (e) => {
+    activeTeam = teams.find((t) => t.id === e.target.value) || null;
+    if (activeTeam) loadTasks(activeTeam.id);
+  });
+
+  document.getElementById("btn-open-team-modal")?.addEventListener("click", () => {
+    document.getElementById("modal-team")?.classList.add("is-open");
+  });
+
+  document.getElementById("btn-open-task-modal")?.addEventListener("click", () => {
+    if (!activeTeam) {
+      alert("Create or join a team first.");
+      return;
+    }
+    document.getElementById("modal-task")?.classList.add("is-open");
+  });
+
+  // Create Team
+  document.getElementById("form-create-team")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("new-team-name").value.trim();
+    const inviteCode = "TM-" + Math.random().toString(36).substring(2, 6).toUpperCase();
+
+    await addDoc(collection(db, "teams"), {
+      name,
+      inviteCode,
+      members: [currentUser.uid],
+      createdBy: currentUser.email,
+      createdAt: serverTimestamp()
+    });
+
+    await logAuditEvent(`Created project team "${name}" (${inviteCode})`, "TEAM", currentUser.email);
+    document.getElementById("modal-team")?.classList.remove("is-open");
+    e.target.reset();
+    await loadTeams();
+  });
+
+  // Join Team (Enforces Admin maxTeamSize policy)
+  document.getElementById("form-join-team")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const code = document.getElementById("join-team-code").value.trim().toUpperCase();
+
+    try {
+      let maxMembers = 6;
+      const cfg = await getDoc(doc(db, "system", "config"));
+      if (cfg.exists() && cfg.data().maxTeamSize) {
+        maxMembers = Number(cfg.data().maxTeamSize);
+      }
+
+      const snap = await getDocs(collection(db, "teams"));
+      const match = snap.docs.find((d) => (d.data().inviteCode || "").toUpperCase() === code);
+      if (!match) throw new Error("Invalid team invite code.");
+
+      const members = match.data().members || [];
+      if (!members.includes(currentUser.uid) && members.length >= maxMembers) {
+        throw new Error(`Team capacity reached (Max ${maxMembers} members allowed by Admin Policy).`);
+      }
+
+      await updateDoc(doc(db, "teams", match.id), {
+        members: arrayUnion(currentUser.uid)
+      });
+
+      document.getElementById("modal-team")?.classList.remove("is-open");
+      e.target.reset();
+      await loadTeams();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  // Create Task
+  document.getElementById("form-create-task")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!activeTeam) return;
+
+    const title = document.getElementById("task-title").value.trim();
+    const priority = document.getElementById("task-priority").value;
+    const assignee = document.getElementById("task-assignee").value.trim() || userProfile.fullName;
+
+    await addDoc(collection(db, "teams", activeTeam.id, "tasks"), {
+      title,
+      priority,
+      assignee,
+      status: "todo",
+      createdAt: serverTimestamp()
+    });
+
+    document.getElementById("modal-task")?.classList.remove("is-open");
+    e.target.reset();
+    await loadTasks(activeTeam.id);
+  });
 }
