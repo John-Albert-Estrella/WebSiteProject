@@ -8,68 +8,56 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body class="auth-body">
-  <div class="auth-wrapper">
-    <div class="auth-card glass-panel">
-      <div class="auth-brand" style="text-align: center;">
-        <img 
-          src="assets/aimser-logo.png" 
-          alt="AIMSER Logo" 
-          class="auth-logo" 
-          onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" 
-        />
+  <div class="auth-container">
+    <div class="auth-topbar">
+      <a href="index.html" class="btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+        <i class="fas fa-arrow-left"></i> Home
+      </a>
+      <button type="button" id="theme-toggle-btn" class="btn-secondary" style="padding: 0.4rem 0.75rem;" aria-label="Toggle Theme">
+        <i class="fas fa-sun"></i>
+      </button>
+    </div>
+
+    <div class="glass-panel auth-card">
+      <div class="auth-header">
+        <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" style="width: 48px; height: 48px; margin: 0 auto 0.75rem;" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
         <h1>Welcome Back</h1>
-        <p class="text-muted">Sign in to your HR Management Simulator workspace.</p>
+        <p class="text-muted">Sign in with your institutional credentials to enter your workspace.</p>
       </div>
 
-      <!-- Live Error / Notification Banner -->
       <div id="auth-status-message" class="status-msg" aria-live="polite"></div>
 
-      <form id="login-form" class="auth-form" novalidate>
+      <form id="login-form">
         <div class="form-group">
-          <label for="login-email">Institutional Email</label>
-          <input 
-            type="email" 
-            id="login-email" 
-            class="form-control" 
-            placeholder="name@institution.edu.ph" 
-            required 
-            autocomplete="email"
-          />
+          <label for="login-email" class="form-label">Institutional Email</label>
+          <input type="email" id="login-email" class="form-control" placeholder="name@institution.edu.ph" required autocomplete="email" />
         </div>
 
         <div class="form-group">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <label for="login-password">Password</label>
-            <a href="#" id="forgot-password-link" class="text-link">Forgot Password?</a>
-          </div>
-          <div class="password-input-box">
-            <input 
-              type="password" 
-              id="login-password" 
-              class="form-control" 
-              placeholder="Enter your password" 
-              required 
-              autocomplete="current-password"
-            />
-            <button type="button" class="btn-toggle-pw" id="toggle-login-pw" aria-label="Toggle password visibility">
+          <label for="login-password" class="form-label">Password</label>
+          <div class="input-password-wrapper">
+            <input type="password" id="login-password" class="form-control" placeholder="Enter your password" required autocomplete="current-password" />
+            <button type="button" class="btn-toggle-pw" data-target="login-password" aria-label="Toggle password visibility">
               <i class="far fa-eye"></i>
             </button>
           </div>
         </div>
 
-        <button type="submit" id="login-submit-btn" class="btn-primary btn-block">
-          <i class="fas fa-sign-in-alt"></i> Sign In to Simulator
+        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 0.5rem; padding: 0.75rem;">
+          <i class="fas fa-sign-in-alt"></i> Sign In
         </button>
       </form>
 
       <div class="auth-footer">
-        <p>Need an account? <a href="register.html" class="text-link">Register here</a></p>
+        <span>Don't have an account yet?</span>
+        <a href="register.html">Register Here</a>
       </div>
     </div>
   </div>
 
   <script type="module" src="js/theme.js"></script>
   <script type="module" src="js/ui-bridge.js"></script>
+  <script type="module" src="js/auth-guard.js"></script>
   <script type="module" src="js/auth.js"></script>
 </body>
 </html>

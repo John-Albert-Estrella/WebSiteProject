@@ -3,35 +3,102 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AIMSER | HR Management Simulator</title>
+  <title>AIMSER | Enterprise HR Simulation &amp; Learning Platform</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/loader.css" />
 </head>
-<body class="loader-body">
-  <main class="loader-stage" role="main" aria-live="polite">
-    <div class="spinner-chassis">
-      <div class="spinner-outer"></div>
-      <div class="spinner-inner"></div>
-    </div>
+<body class="landing-body">
+  <!-- Top Navigation -->
+  <header class="landing-nav">
+    <div class="landing-nav-inner">
+      <a href="index.html" class="sidebar-brand" style="text-decoration: none;">
+        <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
+        <div class="brand-text">
+          <h2>AIMSER</h2>
+          <span>HR Simulator</span>
+        </div>
+      </a>
 
-    <header class="loader-brand">
-      <h1 class="loader-title">AIMSER</h1>
-      <span class="loader-sub">HR Simulation Environment</span>
-    </header>
-
-    <div class="telemetry-wrapper">
-      <div class="telemetry-bar-chassis">
-        <div class="telemetry-bar-fill" id="telemetry-fill"></div>
-      </div>
-      <div class="telemetry-metrics">
-        <span class="metric-status" id="telemetry-status">Loading workspace modules...</span>
-        <span class="metric-percent" id="telemetry-percent">0%</span>
+      <div class="landing-nav-actions">
+        <button type="button" id="theme-toggle-btn" class="btn-secondary" style="padding: 0.5rem 0.85rem;" aria-label="Toggle Theme">
+          <i class="fas fa-sun"></i>
+        </button>
+        <a href="login.html" id="landing-login-link" class="btn-secondary">Sign In</a>
+        <a href="register.html" id="landing-register-link" class="btn-primary">Create Account</a>
       </div>
     </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="landing-main">
+    <section class="landing-hero">
+      <span class="badge-pill" style="margin-bottom: 1rem; display: inline-flex; align-items: center; gap: 0.45rem;">
+        <i class="fas fa-shield-alt"></i> Academic &amp; Corporate HR Operations Simulator
+      </span>
+      <h1 class="hero-title">Master Real-World Human Resource Management Through Live Simulation</h1>
+      <p class="hero-subtitle">
+        Manage virtual classrooms, analyze workforce turnover and training metrics, collaborate in structured 15-member HR project teams, and resolve real workplace conflict cases.
+      </p>
+
+      <div class="hero-cta-row">
+        <a href="register.html" id="hero-primary-cta" class="btn-primary" style="padding: 0.85rem 1.75rem; font-size: 0.95rem;">
+          <i class="fas fa-rocket"></i> Launch Workspace
+        </a>
+        <a href="login.html" id="hero-secondary-cta" class="btn-secondary" style="padding: 0.85rem 1.75rem; font-size: 0.95rem;">
+          <i class="fas fa-sign-in-alt"></i> Member Sign In
+        </a>
+      </div>
+    </section>
+
+    <!-- Core Pillars Grid -->
+    <section class="landing-features">
+      <article class="glass-panel feature-card">
+        <div class="feature-icon"><i class="fas fa-building"></i></div>
+        <h3>Office Hub &amp; HR Analytics</h3>
+        <p class="text-muted">
+          Room-coded classrooms supporting up to 100 students, rubric-graded simulations, live turnover and absenteeism calculators, and digital HR portfolios.
+        </p>
+      </article>
+
+      <article class="glass-panel feature-card">
+        <div class="feature-icon"><i class="fas fa-columns"></i></div>
+        <h3>Project Planner &amp; Onboarding</h3>
+        <p class="text-muted">
+          Collaborative 15-member team rooms with hierarchical positions, assigned responsibilities, deadline-tracked Kanban boards, and new-hire onboarding checklists.
+        </p>
+      </article>
+
+      <article class="glass-panel feature-card">
+        <div class="feature-icon"><i class="fas fa-book-open"></i></div>
+        <h3>HR Case Library &amp; Conflict Feed</h3>
+        <p class="text-muted">
+          Access labor law company cases, HR e-modules, self-check practice cases with verified answer keys, and a peer-reviewed workplace conflict forum.
+        </p>
+      </article>
+    </section>
   </main>
 
+  <footer class="landing-footer">
+    <span>&copy; 2026 AIMSER HR Simulator. Built for Academic &amp; Organizational Excellence.</span>
+  </footer>
+
   <script type="module" src="js/theme.js"></script>
-  <script type="module" src="js/loader.js"></script>
+  <script type="module">
+    import { FastCache } from "./js/security-utils.js";
+    const profile = FastCache.get("user_profile");
+    if (profile && profile.role) {
+      const target = profile.role === "admin" ? "admin-dashboard.html" : "office.html";
+      const primaryCta = document.getElementById("hero-primary-cta");
+      const navLogin = document.getElementById("landing-login-link");
+      if (primaryCta) {
+        primaryCta.href = target;
+        primaryCta.innerHTML = '<i class="fas fa-arrow-right"></i> Return to Workspace';
+      }
+      if (navLogin) {
+        navLogin.href = target;
+        navLogin.textContent = "Dashboard";
+      }
+    }
+  </script>
 </body>
 </html>

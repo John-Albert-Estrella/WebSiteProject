@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HR Library | AIMSER HR Simulator</title>
+  <title>HR Library &amp; Feed | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/dashboard.css" />
 </head>
 <body>
   <div class="dashboard-layout">
+    <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">
@@ -55,11 +56,12 @@
       </div>
     </aside>
 
+    <!-- Main Workspace -->
     <main class="main-workspace">
       <header class="workspace-header">
         <div class="header-left">
-          <h1 class="page-title">HR Case Library</h1>
-          <span class="badge-pill">Knowledge &amp; Policy Repository</span>
+          <h1 class="page-title">HR Library</h1>
+          <span class="badge-pill">Public Repository &amp; Conflict Forum</span>
         </div>
 
         <div class="header-right">
@@ -73,67 +75,203 @@
         </div>
       </header>
 
-      <div class="glass-panel">
-        <div class="panel-toolbar">
-          <div>
-            <h2>Simulation Case Studies &amp; Reference Policies</h2>
-            <p class="text-muted">Browse Philippine Labor Code references, HR SOP templates, and simulation briefs.</p>
+      <!-- Sub-Navigation Tabs: HR Case Library vs HR Feed -->
+      <nav class="office-subnav" aria-label="HR Library Sections">
+        <button type="button" class="subnav-tab active" data-tab="panel-case-library">
+          <i class="fas fa-book"></i>
+          <span>HR Case Library &amp; E-Modules</span>
+        </button>
+        <button type="button" class="subnav-tab" data-tab="panel-hr-feed">
+          <i class="fas fa-comments"></i>
+          <span>HR Feed (Workplace Conflict Forum)</span>
+        </button>
+      </nav>
+
+      <!-- ============================================================== -->
+      <!-- SUB-FEATURE 1: PUBLIC HR CASE LIBRARY & E-MODULES              -->
+      <!-- ============================================================== -->
+      <section id="panel-case-library" class="tab-panel active">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div>
+              <h2>Company Cases, HR E-Modules &amp; Practice Cases</h2>
+              <p class="text-muted">Review learning e-modules, download reference materials, and solve practice cases with verified answer keys.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <select id="library-type-filter" class="form-select" style="max-width: 180px;">
+                <option value="all">All Materials</option>
+                <option value="Company Case">Company Cases</option>
+                <option value="HR E-Module">HR E-Modules</option>
+                <option value="Practice Case">Practice Cases</option>
+              </select>
+              <input type="text" id="library-search" class="form-control" placeholder="Search cases or topics..." style="max-width: 220px;" />
+              <button type="button" id="btn-open-case-modal" class="btn-primary" style="display: none;">
+                <i class="fas fa-upload"></i> Upload Case / E-Module
+              </button>
+            </div>
           </div>
-          <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <input type="text" id="library-search" class="form-control" placeholder="Filter cases..." style="max-width: 240px;" />
-            <button type="button" id="btn-open-case-modal" class="btn-primary" style="display: none;">
-              <i class="fas fa-plus"></i> Publish Case
-            </button>
+
+          <div id="library-grid" class="cards-grid">
+            <div class="empty-state">
+              <i class="fas fa-spinner fa-spin"></i>
+              <h3>Loading HR Case Library...</h3>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div id="library-grid" class="cards-grid"></div>
-      </div>
+      <!-- ============================================================== -->
+      <!-- SUB-FEATURE 2: HR FEED (FACULTY & STUDENTS EQUAL ACCESS)       -->
+      <!-- ============================================================== -->
+      <section id="panel-hr-feed" class="tab-panel">
+        <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
+          <!-- Conflict Scenario Composer (Available to Both Faculty & Students) -->
+          <div class="glass-panel">
+            <div class="card-header">
+              <i class="fas fa-exclamation-circle"></i>
+              <div>
+                <h3>Post Real-World Workplace Conflict Scenario</h3>
+                <p class="text-muted">Document workplace concerns, outline an investigation plan, and propose HR resolutions for community discussion.</p>
+              </div>
+            </div>
+
+            <form id="form-create-feed-post">
+              <div class="form-group">
+                <label for="feed-title" class="form-label">Conflict Scenario Headline</label>
+                <input type="text" id="feed-title" class="form-control" placeholder="e.g., Interdepartmental Grievance Over Hybrid Shift Scheduling" required />
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="feed-concerns" class="form-label">1. Documented Workplace Concerns</label>
+                  <textarea id="feed-concerns" class="form-control" rows="3" placeholder="Describe the facts, affected parties, and policy/labor implications..." required></textarea>
+                </div>
+                <div class="form-group">
+                  <label for="feed-investigation" class="form-label">2. Investigation Plan</label>
+                  <textarea id="feed-investigation" class="form-control" rows="3" placeholder="Outline fact-finding steps, interviews, evidence gathering, and due process..." required></textarea>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="feed-resolution" class="form-label">3. Recommended HR Resolution</label>
+                <textarea id="feed-resolution" class="form-control" rows="2" placeholder="Propose corrective measures, mediation steps, or policy updates..." required></textarea>
+              </div>
+
+              <button type="submit" id="btn-submit-feed-post" class="btn-primary">
+                <i class="fas fa-paper-plane"></i> Publish Conflict Scenario to HR Feed
+              </button>
+            </form>
+          </div>
+
+          <!-- Community HR Feed Stream -->
+          <div id="hr-feed-stream" style="display: flex; flex-direction: column; gap: 1.25rem;"></div>
+        </div>
+      </section>
     </main>
   </div>
 
-  <!-- Modal: Publish Case (Faculty) -->
+  <!-- ================================================================== -->
+  <!-- MODALS                                                             -->
+  <!-- ================================================================== -->
+
+  <!-- Modal 1: Faculty Create/Upload Company Case, E-Module, or Practice Case with Answer Key -->
   <div class="modal-backdrop" id="modal-case" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 680px;">
       <div class="modal-header">
-        <h3>Publish HR Case Study</h3>
+        <h3>Upload Company Case, E-Module, or Practice Case</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-case">&times;</button>
       </div>
       <form id="form-create-case">
-        <div class="form-group">
-          <label for="case-title" class="form-label">Case Title</label>
-          <input type="text" id="case-title" class="form-control" required />
+        <div class="form-row">
+          <div class="form-group">
+            <label for="case-type" class="form-label">Material Type</label>
+            <select id="case-type" class="form-select" required>
+              <option value="Company Case">Company Case</option>
+              <option value="HR E-Module">HR E-Module</option>
+              <option value="Practice Case">Practice Case (With Answer Key)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="case-category" class="form-label">HR Domain</label>
+            <select id="case-category" class="form-select" required>
+              <option value="Labor Law & Compliance">Labor Law &amp; Compliance</option>
+              <option value="Recruitment & Selection">Recruitment &amp; Selection</option>
+              <option value="Employee Relations">Employee Relations</option>
+              <option value="Compensation & Benefits">Compensation &amp; Benefits</option>
+              <option value="Organizational Development">Organizational Development</option>
+            </select>
+          </div>
         </div>
+
         <div class="form-group">
-          <label for="case-category" class="form-label">Category</label>
-          <select id="case-category" class="form-select">
-            <option value="Labor Law & Compliance">Labor Law &amp; Compliance</option>
-            <option value="Recruitment & Selection">Recruitment &amp; Selection</option>
-            <option value="Employee Relations">Employee Relations</option>
-            <option value="Compensation Design">Compensation Design</option>
-          </select>
+          <label for="case-title" class="form-label">Title</label>
+          <input type="text" id="case-title" class="form-control" placeholder="e.g., Case Study 04: Constructive Dismissal & Due Process" required />
         </div>
+
         <div class="form-group">
-          <label for="case-body" class="form-label">Case Scenario &amp; Guidelines</label>
-          <textarea id="case-body" class="form-control" rows="5" required></textarea>
+          <label for="case-download-url" class="form-label">Downloadable Material Link (PDF / Doc URL - Optional)</label>
+          <input type="url" id="case-download-url" class="form-control" placeholder="https://..." />
         </div>
+
+        <div class="form-group">
+          <label for="case-body" class="form-label">Case Scenario / E-Module Content &amp; Questions</label>
+          <textarea id="case-body" class="form-control" rows="4" placeholder="Enter full case narrative, e-module lesson, or practice questions..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="case-answer-key" class="form-label">Key to Correct (Answer Key for Practice Cases / Rubrics)</label>
+          <textarea id="case-answer-key" class="form-control" rows="3" placeholder="Provide the official answer key, legal basis, or recommended resolution..."></textarea>
+        </div>
+
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-case">Cancel</button>
-          <button type="submit" class="btn-primary">Publish to Library</button>
+          <button type="submit" class="btn-primary" id="btn-submit-case">
+            <i class="fas fa-cloud-upload-alt"></i> Publish to HR Library
+          </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Modal: Read Case -->
+  <!-- Modal 2: Interactive Case / E-Module Reader & Practice Answer Key Checker -->
   <div class="modal-backdrop" id="modal-read-case" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 720px;">
       <div class="modal-header">
         <h3 id="read-case-title">Case Study</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-read-case">&times;</button>
       </div>
-      <span id="read-case-cat" class="badge-pill" style="margin-bottom: 1rem; display: inline-block;">Category</span>
-      <p id="read-case-body" style="white-space: pre-wrap; line-height: 1.65; color: var(--text-secondary);"></p>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <span id="read-case-type" class="badge-pill">Type</span>
+          <span id="read-case-cat" class="badge-pill" style="background: var(--bg-surface-elevated);">Domain</span>
+          <span id="read-case-author" class="text-muted" style="font-size: 0.8rem;"></span>
+        </div>
+        <a id="read-case-download-btn" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; display: none;">
+          <i class="fas fa-download"></i> Download Material
+        </a>
+      </div>
+
+      <div id="read-case-body" style="white-space: pre-wrap; line-height: 1.65; color: var(--text-primary); background: var(--bg-surface); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-bottom: 1.25rem;"></div>
+
+      <!-- Practice Case Response & Answer Key Section -->
+      <div id="practice-case-interactive-box" style="display: none;">
+        <div class="form-group">
+          <label for="practice-student-answer" class="form-label">Your Practice Case Analysis / Answer</label>
+          <textarea id="practice-student-answer" class="form-control" rows="3" placeholder="Draft your answer before checking the official Key to Correct..."></textarea>
+        </div>
+
+        <div style="display: flex; gap: 0.65rem; flex-wrap: wrap; margin-bottom: 1rem;">
+          <button type="button" id="btn-submit-practice-answer" class="btn-primary" style="padding: 0.45rem 0.9rem; font-size: 0.82rem;">
+            <i class="fas fa-check-double"></i> Submit &amp; Reveal Key to Correct
+          </button>
+        </div>
+
+        <div id="answer-key-reveal-box" style="display: none; padding: 1rem; border-radius: var(--radius-sm); background: rgba(16, 185, 129, 0.12); border: 1px solid var(--success);">
+          <h4 style="margin-bottom: 0.4rem; color: var(--success);"><i class="fas fa-key"></i> Official Key to Correct</h4>
+          <p id="read-case-answer-key" style="white-space: pre-wrap; line-height: 1.6; color: var(--text-primary); margin: 0;"></p>
+        </div>
+      </div>
     </div>
   </div>
 

@@ -10,6 +10,7 @@
 </head>
 <body>
   <div class="dashboard-layout">
+    <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">
@@ -55,18 +56,19 @@
       </div>
     </aside>
 
+    <!-- Main Workspace -->
     <main class="main-workspace">
       <header class="workspace-header">
         <div class="header-left">
           <h1 class="page-title">Project Planner</h1>
-          <select id="planner-team-select" class="form-select" style="max-width: 240px; padding: 0.45rem 0.85rem;">
-            <option value="">Loading Teams...</option>
+          <select id="planner-team-select" class="form-select" style="max-width: 250px; padding: 0.45rem 0.85rem;" aria-label="Select Team Room">
+            <option value="">Loading Team Rooms...</option>
           </select>
           <button type="button" id="btn-open-team-modal" class="btn-secondary" style="padding: 0.45rem 0.85rem; font-size: 0.8125rem;">
-            <i class="fas fa-users"></i> New / Join Team
+            <i class="fas fa-users"></i> Create / Join Team
           </button>
           <button type="button" id="btn-open-task-modal" class="btn-primary" style="padding: 0.45rem 0.85rem; font-size: 0.8125rem;">
-            <i class="fas fa-plus"></i> Add Task
+            <i class="fas fa-plus"></i> Assign Task
           </button>
         </div>
 
@@ -81,105 +83,272 @@
         </div>
       </header>
 
-      <!-- Kanban Board Grid -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; align-items: start;">
-        <section class="glass-panel">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: var(--text-tertiary); font-size: 0.6rem; margin-right: 0.4rem;"></i> To Do</h3>
-            <span id="count-todo" class="badge-pill">0</span>
-          </div>
-          <div id="col-todo" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 220px;"></div>
-        </section>
+      <!-- Team Room Telemetry & Capacity Row (15 Users Max) -->
+      <section class="stats-row">
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Team Room Code</span>
+          <h3 id="team-invite-code">—</h3>
+        </div>
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Team Capacity (15 Max)</span>
+          <h3 id="team-member-count">0 / 15</h3>
+        </div>
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Active Tasks</span>
+          <h3 id="team-task-count">0</h3>
+        </div>
+        <div class="glass-panel stat-card">
+          <span class="stat-label">Onboarding Progress</span>
+          <h3 id="team-onboarding-pct">0%</h3>
+        </div>
+      </section>
 
-        <section class="glass-panel">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: #38bdf8; font-size: 0.6rem; margin-right: 0.4rem;"></i> In Progress</h3>
-            <span id="count-inprogress" class="badge-pill">0</span>
-          </div>
-          <div id="col-inprogress" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 220px;"></div>
-        </section>
+      <!-- Sub-Navigation Tabs -->
+      <nav class="office-subnav" aria-label="Project Planner Sub-Features">
+        <button type="button" class="subnav-tab active" data-tab="panel-kanban">
+          <i class="fas fa-columns"></i>
+          <span>Progress Columns &amp; Deadlines</span>
+        </button>
+        <button type="button" class="subnav-tab" data-tab="panel-hierarchy">
+          <i class="fas fa-sitemap"></i>
+          <span>Positions, Hierarchy &amp; Responsibilities</span>
+        </button>
+        <button type="button" class="subnav-tab" data-tab="panel-onboarding">
+          <i class="fas fa-clipboard-check"></i>
+          <span>Onboarding Projects &amp; Checklists</span>
+        </button>
+      </nav>
 
-        <section class="glass-panel">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: var(--warning); font-size: 0.6rem; margin-right: 0.4rem;"></i> Under Review</h3>
-            <span id="count-review" class="badge-pill">0</span>
+      <!-- ============================================================== -->
+      <!-- PANEL 1: KANBAN PROGRESS COLUMNS & DEADLINES                   -->
+      <!-- ============================================================== -->
+      <section id="panel-kanban" class="tab-panel active">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; align-items: start;">
+          <div class="glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: var(--text-tertiary); font-size: 0.6rem; margin-right: 0.4rem;"></i> To Do</h3>
+              <span id="count-todo" class="badge-pill">0</span>
+            </div>
+            <div id="col-todo" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 240px;"></div>
           </div>
-          <div id="col-review" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 220px;"></div>
-        </section>
 
-        <section class="glass-panel">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: var(--success); font-size: 0.6rem; margin-right: 0.4rem;"></i> Completed</h3>
-            <span id="count-done" class="badge-pill">0</span>
+          <div class="glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: #38bdf8; font-size: 0.6rem; margin-right: 0.4rem;"></i> In Progress</h3>
+              <span id="count-inprogress" class="badge-pill">0</span>
+            </div>
+            <div id="col-inprogress" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 240px;"></div>
           </div>
-          <div id="col-done" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 220px;"></div>
-        </section>
-      </div>
+
+          <div class="glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: var(--warning); font-size: 0.6rem; margin-right: 0.4rem;"></i> Under Review</h3>
+              <span id="count-review" class="badge-pill">0</span>
+            </div>
+            <div id="col-review" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 240px;"></div>
+          </div>
+
+          <div class="glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h3 style="font-size: 0.95rem; margin: 0;"><i class="fas fa-circle" style="color: var(--success); font-size: 0.6rem; margin-right: 0.4rem;"></i> Completed</h3>
+              <span id="count-done" class="badge-pill">0</span>
+            </div>
+            <div id="col-done" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 240px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- PANEL 2: POSITIONS, PROJECT HIERARCHY & RESPONSIBILITIES         -->
+      <!-- ============================================================== -->
+      <section id="panel-hierarchy" class="tab-panel">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div>
+              <h2>Team Structure, Positions &amp; Responsibilities</h2>
+              <p class="text-muted">Assign organizational positions, hierarchy tiers, and specific project responsibilities across up to 15 team members.</p>
+            </div>
+          </div>
+
+          <div id="hierarchy-members-grid" class="cards-grid"></div>
+        </div>
+      </section>
+
+      <!-- ============================================================== -->
+      <!-- PANEL 3: ONBOARDING PROJECTS & CHECKLISTS                      -->
+      <!-- ============================================================== -->
+      <section id="panel-onboarding" class="tab-panel">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div>
+              <h2>Onboarding Projects &amp; Action Checklists</h2>
+              <p class="text-muted">Coordinate new-hire onboarding workflows, orientation milestones, and team readiness checklists.</p>
+            </div>
+            <button type="button" id="btn-open-onboarding-modal" class="btn-primary">
+              <i class="fas fa-plus-circle"></i> Add Onboarding Step
+            </button>
+          </div>
+
+          <div id="onboarding-checklist-container" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
+        </div>
+      </section>
     </main>
   </div>
 
-  <!-- Modal: Create / Join Team -->
+  <!-- ================================================================== -->
+  <!-- MODALS                                                             -->
+  <!-- ================================================================== -->
+
+  <!-- Modal 1: Create / Join Team Room (15 Users Max: 1 Leader + 14 Members) -->
   <div class="modal-backdrop" id="modal-team" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Team Workspace Setup</h3>
+        <h3>Team Workspace Room (15 Members Max)</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-team">&times;</button>
       </div>
 
       <form id="form-create-team" style="margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-subtle);">
         <div class="form-group">
-          <label for="new-team-name" class="form-label">Create New HR Project Team</label>
-          <input type="text" id="new-team-name" class="form-control" placeholder="e.g., Team Vanguard HR" required />
+          <label for="new-team-name" class="form-label">Create Team Room (You become Team Leader)</label>
+          <input type="text" id="new-team-name" class="form-control" placeholder="e.g., Apex HR Operations Team" required />
+        </div>
+        <div class="form-group">
+          <label for="new-team-project" class="form-label">Onboarding / Simulation Project Scope</label>
+          <input type="text" id="new-team-project" class="form-control" placeholder="e.g., Q4 Corporate Onboarding & Policy Rollout" required />
         </div>
         <button type="submit" class="btn-primary" style="width: 100%;">
-          <i class="fas fa-plus"></i> Create Team
+          <i class="fas fa-plus"></i> Create Team &amp; Generate Room Code
         </button>
       </form>
 
       <form id="form-join-team">
         <div class="form-group">
-          <label for="join-team-code" class="form-label">Or Join Existing Team via Invite Code</label>
+          <label for="join-team-code" class="form-label">Join Existing Team Room via Code (Up to 14 Members + 1 Leader)</label>
           <input type="text" id="join-team-code" class="form-control" placeholder="e.g., TM-94A2" style="text-transform: uppercase; font-family: var(--font-mono);" required />
         </div>
         <button type="submit" class="btn-secondary" style="width: 100%;">
-          <i class="fas fa-sign-in-alt"></i> Join Team
+          <i class="fas fa-sign-in-alt"></i> Join Team Room
         </button>
       </form>
     </div>
   </div>
 
-  <!-- Modal: Add Task -->
+  <!-- Modal 2: Assign Task with Position, Responsibility & Deadline -->
   <div class="modal-backdrop" id="modal-task" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Create Sprint Task</h3>
+        <h3>Assign Project Task &amp; Deadline</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-task">&times;</button>
       </div>
 
       <form id="form-create-task">
         <div class="form-group">
-          <label for="task-title" class="form-label">Task Title</label>
-          <input type="text" id="task-title" class="form-control" placeholder="e.g., Draft Employee Handbook Section 2" required />
+          <label for="task-title" class="form-label">Task / Deliverable Title</label>
+          <input type="text" id="task-title" class="form-control" placeholder="e.g., Finalize New-Hire Orientation Packet" required />
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="task-priority" class="form-label">Priority</label>
+            <label for="task-assignee" class="form-label">Assigned Member</label>
+            <select id="task-assignee" class="form-select" required></select>
+          </div>
+          <div class="form-group">
+            <label for="task-deadline" class="form-label">Deadline</label>
+            <input type="date" id="task-deadline" class="form-control" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="task-position-tag" class="form-label">Target Position / Unit</label>
+            <input type="text" id="task-position-tag" class="form-control" placeholder="e.g., HR Onboarding Lead" required />
+          </div>
+          <div class="form-group">
+            <label for="task-priority" class="form-label">Priority Level</label>
             <select id="task-priority" class="form-select">
               <option value="Normal">Normal</option>
               <option value="High">High</option>
               <option value="Urgent">Urgent</option>
             </select>
           </div>
-          <div class="form-group">
-            <label for="task-assignee" class="form-label">Assignee</label>
-            <input type="text" id="task-assignee" class="form-control" placeholder="Member name" />
-          </div>
+        </div>
+        <div class="form-group">
+          <label for="task-responsibility" class="form-label">Specific Responsibilities</label>
+          <textarea id="task-responsibility" class="form-control" rows="2" placeholder="Detail expected responsibilities and acceptance criteria..."></textarea>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-task">Cancel</button>
           <button type="submit" class="btn-primary">
-            <i class="fas fa-plus"></i> Add to Board
+            <i class="fas fa-plus"></i> Add Task
           </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: Assign Member Position, Hierarchy & Responsibilities -->
+  <div class="modal-backdrop" id="modal-assign-position" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Assign Position &amp; Hierarchy</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-assign-position">&times;</button>
+      </div>
+      <form id="form-assign-position">
+        <input type="hidden" id="pos-member-uid" />
+        <div class="form-group">
+          <label class="form-label">Team Member</label>
+          <input type="text" id="pos-member-name" class="form-control" disabled />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="pos-hierarchy-tier" class="form-label">Project Hierarchy Tier</label>
+            <select id="pos-hierarchy-tier" class="form-select" required>
+              <option value="1 - Team Leader">Tier 1: Team Leader</option>
+              <option value="2 - Department Lead">Tier 2: Department Lead</option>
+              <option value="3 - HR Specialist">Tier 3: HR Specialist</option>
+              <option value="4 - Project Associate">Tier 4: Project Associate</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="pos-job-title" class="form-label">Assigned HR Position</label>
+            <input type="text" id="pos-job-title" class="form-control" placeholder="e.g., Talent Acquisition Officer" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="pos-responsibilities" class="form-label">Assigned Responsibilities</label>
+          <textarea id="pos-responsibilities" class="form-control" rows="3" placeholder="Outline core duties, reporting lines, and deliverables..." required></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close-modal="modal-assign-position">Cancel</button>
+          <button type="submit" class="btn-primary">Save Role Assignment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 4: Add Onboarding Project Checklist Item -->
+  <div class="modal-backdrop" id="modal-onboarding-item" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Add Onboarding Checklist Item</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-onboarding-item">&times;</button>
+      </div>
+      <form id="form-add-onboarding">
+        <div class="form-group">
+          <label for="onb-step-title" class="form-label">Checklist Milestone / Onboarding Requirement</label>
+          <input type="text" id="onb-step-title" class="form-control" placeholder="e.g., Day 1: Statutory Benefits & Payroll Enrollment" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="onb-owner" class="form-label">Responsible Position / Member</label>
+            <input type="text" id="onb-owner" class="form-control" placeholder="e.g., HR Generalist" required />
+          </div>
+          <div class="form-group">
+            <label for="onb-due-date" class="form-label">Target Completion Date</label>
+            <input type="date" id="onb-due-date" class="form-control" required />
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close-modal="modal-onboarding-item">Cancel</button>
+          <button type="submit" class="btn-primary">Add Checklist Step</button>
         </div>
       </form>
     </div>
