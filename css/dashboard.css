@@ -1,4 +1,4 @@
-/* css/dashboard.css - Workspace Grid, Sidebar Navigation, KPIs & Sub-Tabs */
+/* css/dashboard.css - Workspace Grid, White Dark-Mode Side Nav, KPIs & Sub-Tabs */
 
 .dashboard-layout {
   display: grid;
@@ -24,7 +24,7 @@
   margin-top: 1.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.35rem;
 }
 
 .nav-section-label {
@@ -36,31 +36,65 @@
   padding: 0.65rem 0.75rem 0.25rem;
 }
 
-.nav-item {
+/* Reset native <button> & <a> styles uniformly */
+.sidebar .nav-item,
+button.nav-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  width: 100%;
   padding: 0.65rem 0.85rem;
   border-radius: var(--radius-sm);
+  background: transparent;
+  background-color: transparent;
+  border: 1px solid transparent;
   color: var(--text-secondary);
   text-decoration: none;
+  text-align: left;
+  font-family: var(--font-sans);
   font-size: 0.88rem;
   font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  box-shadow: none;
   transition: all var(--ease-fast);
 }
 
-.nav-item i {
+.sidebar .nav-item i {
   width: 18px;
   text-align: center;
+  color: inherit;
 }
 
-.nav-item:hover {
+.sidebar .nav-item:hover {
   background: var(--bg-surface-elevated);
   color: var(--text-primary);
 }
 
-.nav-item.active {
+/* Crisp White Side Nav Text & Icons in Dark Mode */
+html[data-theme="dark"] .sidebar .nav-item,
+html.dark-theme .sidebar .nav-item {
+  background: transparent;
+  background-color: transparent;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .sidebar .nav-item:hover,
+html.dark-theme .sidebar .nav-item:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+/* Highlighted Active Tab State in Both Light & Dark Modes */
+.sidebar .nav-item.active,
+html[data-theme="dark"] .sidebar .nav-item.active,
+html.dark-theme .sidebar .nav-item.active,
+html[data-theme="light"] .sidebar .nav-item.active {
   background: linear-gradient(135deg, var(--aimser-blue-700), var(--aimser-blue-500));
+  border-color: rgba(56, 189, 248, 0.55);
+  box-shadow: 0 4px 14px rgba(43, 124, 176, 0.35), inset 3px 0 0 #38bdf8;
   color: #ffffff;
   font-weight: 600;
 }
@@ -239,6 +273,7 @@
   background: var(--bg-surface-elevated);
   border-color: var(--aimser-blue-500);
   color: var(--text-primary);
+  box-shadow: 0 2px 10px rgba(43, 124, 176, 0.2);
 }
 
 .tab-panel:not(.active) {
@@ -324,6 +359,11 @@
     flex-direction: row;
     flex-wrap: wrap;
     margin-top: 1rem;
+  }
+
+  .sidebar .nav-item,
+  button.nav-item {
+    width: auto;
   }
 
   .nav-section-label {

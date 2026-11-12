@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Console | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=4" />
-  <link rel="stylesheet" href="css/dashboard.css?v=4" />
+  <link rel="stylesheet" href="css/style.css?v=6" />
+  <link rel="stylesheet" href="css/dashboard.css?v=6" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -23,19 +23,19 @@
 
         <nav class="sidebar-nav" aria-label="Admin Navigation">
           <div class="nav-section-label">Administration</div>
-          <button type="button" class="nav-item subnav-link active" data-target="panel-telemetry" data-nav-key="overview" style="width: 100%; border: none; font-family: inherit; text-align: left; cursor: pointer;">
+          <button type="button" class="nav-item subnav-link active" data-target="panel-telemetry" data-nav-key="overview">
             <i class="fas fa-chart-line"></i>
             <span>Overview &amp; Telemetry</span>
           </button>
-          <button type="button" class="nav-item subnav-link" data-target="panel-users" data-nav-key="users" style="width: 100%; border: none; font-family: inherit; text-align: left; cursor: pointer;">
+          <button type="button" class="nav-item subnav-link" data-target="panel-users" data-nav-key="users">
             <i class="fas fa-users-cog"></i>
             <span>Accounts &amp; Roles</span>
           </button>
-          <button type="button" class="nav-item subnav-link" data-target="panel-sections" data-nav-key="sections" style="width: 100%; border: none; font-family: inherit; text-align: left; cursor: pointer;">
+          <button type="button" class="nav-item subnav-link" data-target="panel-sections" data-nav-key="sections">
             <i class="fas fa-chalkboard-teacher"></i>
             <span>Classroom Sections</span>
           </button>
-          <button type="button" class="nav-item subnav-link" data-target="panel-telemetry" data-nav-key="audit" style="width: 100%; border: none; font-family: inherit; text-align: left; cursor: pointer;">
+          <button type="button" class="nav-item subnav-link" data-target="panel-telemetry" data-nav-key="audit">
             <i class="fas fa-shield-alt"></i>
             <span>Audit Trail</span>
           </button>
@@ -184,7 +184,7 @@
 
       <!-- Panel 3: Security & Activity Telemetry (Audit Trail) -->
       <section id="panel-telemetry" class="tab-panel active">
-        <div class="glass-panel">
+        <div class="glass-panel" id="audit-trail-card">
           <div class="panel-toolbar">
             <div>
               <h2>Platform Activity &amp; Audit Trail</h2>
@@ -244,9 +244,9 @@
     </div>
   </div>
 
-  <script type="module" src="js/theme.js?v=4"></script>
-  <script type="module" src="js/ui-bridge.js?v=4"></script>
-  <script type="module" src="js/auth-guard.js?v=4"></script>
-  <script type="module" src="js/admin-dashboard.js?v=4"></script>
+  <script type="module" src="js/theme.js?v=6"></script>
+  <script type="module" src="js/ui-bridge.js?v=6"></script>
+  <script type="module" src="js/auth-guard.js?v=6"></script>
+  <script type="module" src="js/admin-dashboard.js?v=6"></script>
 </body>
 </html>

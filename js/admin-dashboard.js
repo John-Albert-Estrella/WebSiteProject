@@ -1,4 +1,4 @@
-// js/admin-dashboard.js - Administrator Management & Telemetry Engine
+// js/admin-dashboard.js - Complete Administrator Management, Sidebar Sync & Telemetry Engine
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -19,8 +19,17 @@ let currentAdminUser = null;
 let cachedUsers = [];
 let cachedSections = [];
 let cachedLogs = [];
+let editingUserEmail = "";
 
-// 1. Authenticate & Enforce Clearance
+// 1. Initialize Navigation & Modals Immediately on DOM Load
+document.addEventListener("DOMContentLoaded", () => {
+  setupTabs();
+  applyInitialHashRoute();
+  setupSearchAndFilters();
+  setupRoleModal();
+});
+
+// 2. Authenticate & Enforce Administrator Clearance
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.replace("login.html");
@@ -29,14 +38,15 @@ onAuthStateChanged(auth, async (user) => {
 
   try {
     const cachedProfile = FastCache.get("user_profile");
-    if (cachedProfile && cachedProfile.role === "admin") {
+    if (cachedProfile && (cachedProfile.role || "").toLowerCase() === "admin") {
       renderAdminIdentity(user, cachedProfile);
     }
 
     const userSnap = await getDoc(doc(db, "users", user.uid));
     const userData = userSnap.exists() ? userSnap.data() : {};
+    const role = (userData.role || "").toLowerCase();
 
-    if ((userData.role || "").toLowerCase() !== "admin") {
+    if (role !== "admin") {
       alert("Unauthorized Access: Administrator clearance required.");
       window.location.replace("office.html");
       return;
@@ -44,10 +54,6 @@ onAuthStateChanged(auth, async (user) => {
 
     currentAdminUser = user;
     renderAdminIdentity(user, userData);
-    setupTabs();
-    applyInitialHashRoute();
-    setupSearchAndFilters();
-    setupRoleModal();
 
     // Hydrate from FastCache immediately for 0ms render
     const snapMetrics = FastCache.get("admin_metrics");
@@ -65,7 +71,7 @@ onAuthStateChanged(auth, async (user) => {
       renderAuditLogsList(cachedLogs);
     }
 
-    // Revalidate live Firestore data concurrently
+    // Revalidate all live Firestore collections concurrently
     await Promise.allSettled([loadMetrics(), loadUsers(), loadSections(), loadAuditLogs()]);
   } catch (err) {
     console.error("Admin initialization error:", err);
@@ -86,7 +92,7 @@ function renderAdminIdentity(user, data) {
   if (headerAvatar) headerAvatar.src = avatar;
 }
 
-// 2. Multi-Collection Telemetry Metrics
+// 3. Multi-Collection Telemetry Metrics
 async function loadMetrics() {
   const getSafeCount = async (collName) => {
     try {
@@ -128,7 +134,7 @@ function applyMetricsToDOM(metrics) {
   if (elLogs) elLogs.textContent = (metrics.logsCount ?? 0).toLocaleString();
 }
 
-// 3. Telemetry & Platform Audit Trail
+// 4. Telemetry & Platform Audit Trail
 async function loadAuditLogs() {
   const container = document.getElementById("admin-logs-container");
   const elLogs = document.getElementById("stat-total-logs");
@@ -226,7 +232,7 @@ function renderAuditLogsList(logs) {
     .join("");
 }
 
-// 4. User Directory Pipeline
+// 5. User Directory Pipeline
 async function loadUsers() {
   const tbody = document.getElementById("admin-users-table-body");
   if (!tbody) return;
@@ -245,7 +251,7 @@ async function loadUsers() {
     applyUserFilters();
   } catch (err) {
     console.error("Failed to load users:", err);
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--danger);">Failed to load user directory.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--danger);">Failed to load user directory: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -263,7 +269,7 @@ function renderUsersTable(users) {
       const role = (u.role || "student").toLowerCase();
       const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.fullName || "User")}&background=1b5375&color=faf2dd`;
       const avatar = sanitizeUrl(u.avatarUrl, fallback);
-      const isSelf = u.uid === currentAdminUser.uid;
+      const isSelf = currentAdminUser && u.uid === currentAdminUser.uid;
 
       let roleBadgeColor = "var(--text-secondary)";
       let roleBg = "var(--bg-surface-elevated)";
@@ -309,7 +315,7 @@ function renderUsersTable(users) {
   });
 }
 
-// 5. Classroom Audit Pipeline
+// 6. Classroom Audit Pipeline
 async function loadSections() {
   const container = document.getElementById("admin-sections-grid");
   if (!container) return;
@@ -398,20 +404,19 @@ async function loadSections() {
   }
 }
 
-// 6. Role Modifier Modal Engine
-let editingUserEmail = "";
-
+// 7. Role Modifier Modal Engine
 function setupRoleModal() {
   const modal = document.getElementById("modal-role-editor");
   const form = document.getElementById("form-update-role");
   const closeBtn = document.getElementById("btn-close-role-modal");
   const cancelBtn = document.getElementById("btn-cancel-role-modal");
 
+  if (!modal || modal.dataset.bound) return;
+  modal.dataset.bound = "true";
+
   const closeModal = () => {
-    if (modal) {
-      modal.classList.remove("is-open");
-      modal.setAttribute("aria-hidden", "true");
-    }
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
   };
 
   if (closeBtn) closeBtn.addEventListener("click", closeModal);
@@ -465,7 +470,7 @@ function openRoleModal(uid, name, email, role) {
   }
 }
 
-// 7. Synchronized Tabs, Sidebar Active State & Hash Routing
+// 8. Synchronized Tabs, Sidebar Active Highlight & Hash Routing
 function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
   const tabs = document.querySelectorAll(".subnav-tab");
   const panels = document.querySelectorAll(".tab-panel");
@@ -474,15 +479,21 @@ function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
   tabs.forEach((t) => t.classList.toggle("active", t.dataset.tab === targetPanelId));
   panels.forEach((p) => p.classList.toggle("active", p.id === targetPanelId));
 
+  const resolvedKey =
+    clickedSidebarKey ||
+    (targetPanelId === "panel-users"
+      ? "users"
+      : targetPanelId === "panel-sections"
+        ? "sections"
+        : "overview");
+
   sidebarBtns.forEach((btn) => {
-    if (clickedSidebarKey) {
-      btn.classList.toggle("active", btn.dataset.navKey === clickedSidebarKey);
-    } else {
-      const defaultKey =
-        targetPanelId === "panel-users" ? "users" : targetPanelId === "panel-sections" ? "sections" : "overview";
-      btn.classList.toggle("active", btn.dataset.navKey === defaultKey);
-    }
+    btn.classList.toggle("active", btn.dataset.navKey === resolvedKey);
   });
+
+  if (resolvedKey === "audit") {
+    document.getElementById("audit-trail-card")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 }
 
 function applyInitialHashRoute() {
@@ -500,12 +511,16 @@ function applyInitialHashRoute() {
 
 function setupTabs() {
   document.querySelectorAll(".subnav-tab").forEach((tab) => {
+    if (tab.dataset.bound) return;
+    tab.dataset.bound = "true";
     tab.addEventListener("click", () => {
       activateAdminTab(tab.dataset.tab);
     });
   });
 
   document.querySelectorAll(".subnav-link").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
     btn.addEventListener("click", () => {
       activateAdminTab(btn.dataset.target, btn.dataset.navKey);
     });
@@ -518,7 +533,7 @@ function setupTabs() {
   });
 }
 
-// 8. Search & Role Filtering
+// 9. Search & Role Filtering
 function applyUserFilters() {
   const term = (document.getElementById("admin-user-search")?.value || "").toLowerCase().trim();
   const roleFilter = (document.getElementById("admin-role-filter")?.value || "all").toLowerCase();

@@ -32,9 +32,9 @@ html.dark-theme {
   --bg-canvas: #09111a;
   --bg-surface: #0f1c2b;
   --bg-surface-elevated: #16283d;
-  --bg-glass: rgba(15, 28, 43, 0.82);
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
+  --bg-glass: rgba(15, 28, 43, 0.85);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
   --text-tertiary: #64748b;
   --border-subtle: rgba(148, 163, 184, 0.14);
   --border-medium: rgba(148, 163, 184, 0.25);
@@ -46,7 +46,7 @@ html[data-theme="light"] {
   --bg-canvas: #f4f7fa;
   --bg-surface: #ffffff;
   --bg-surface-elevated: #eef3f8;
-  --bg-glass: rgba(255, 255, 255, 0.92);
+  --bg-glass: rgba(255, 255, 255, 0.94);
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-tertiary: #64748b;
@@ -98,9 +98,9 @@ h1, h2, h3, h4 {
   border-radius: 9999px;
   font-size: 0.74rem;
   font-weight: 600;
-  background: rgba(27, 83, 117, 0.25);
+  background: rgba(27, 83, 117, 0.28);
   color: var(--aimser-blue-400);
-  border: 1px solid rgba(56, 189, 248, 0.22);
+  border: 1px solid rgba(56, 189, 248, 0.25);
 }
 
 html[data-theme="light"] .badge-pill {
@@ -128,7 +128,7 @@ html[data-theme="light"] .badge-pill {
 .btn-primary {
   background: linear-gradient(135deg, var(--aimser-blue-700), var(--aimser-blue-500));
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .btn-primary:hover:not(:disabled) {
