@@ -13,10 +13,12 @@ import {
   limit,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { FastCache, escapeHtml, sanitizeUrl, logAuditEvent } from "./security-utils.js";
 
 let currentAdminUser = null;
 let cachedUsers = [];
 let cachedSections = [];
+let cachedLogs = [];
 
 // 1. Authenticate & Enforce Clearance
 onAuthStateChanged(auth, async (user) => {
@@ -26,10 +28,15 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   try {
+    const cachedProfile = FastCache.get("user_profile");
+    if (cachedProfile && cachedProfile.role === "admin") {
+      renderAdminIdentity(user, cachedProfile);
+    }
+
     const userSnap = await getDoc(doc(db, "users", user.uid));
     const userData = userSnap.exists() ? userSnap.data() : {};
 
-    if (userData.role !== "admin") {
+    if ((userData.role || "").toLowerCase() !== "admin") {
       alert("Unauthorized Access: Administrator clearance required.");
       window.location.replace("office.html");
       return;
@@ -38,29 +45,48 @@ onAuthStateChanged(auth, async (user) => {
     currentAdminUser = user;
     renderAdminIdentity(user, userData);
     setupTabs();
-    setupSearch();
+    applyInitialHashRoute();
+    setupSearchAndFilters();
     setupRoleModal();
 
-    // Fetch metrics and collections concurrently
+    // Hydrate from FastCache immediately for 0ms render
+    const snapMetrics = FastCache.get("admin_metrics");
+    if (snapMetrics) applyMetricsToDOM(snapMetrics);
+
+    const snapUsers = FastCache.get("admin_users");
+    if (snapUsers) {
+      cachedUsers = snapUsers;
+      renderUsersTable(cachedUsers);
+    }
+
+    const snapLogs = FastCache.get("admin_logs");
+    if (snapLogs) {
+      cachedLogs = snapLogs;
+      renderAuditLogsList(cachedLogs);
+    }
+
+    // Revalidate live Firestore data concurrently
     await Promise.allSettled([loadMetrics(), loadUsers(), loadSections(), loadAuditLogs()]);
   } catch (err) {
-    console.error("Initialization error:", err);
-    window.location.replace("office.html");
+    console.error("Admin initialization error:", err);
   }
 });
 
 function renderAdminIdentity(user, data) {
   const headerName = document.getElementById("header-user-name");
+  const headerRole = document.getElementById("header-user-role");
   const headerAvatar = document.getElementById("header-user-avatar");
 
   const name = data.fullName || user.displayName || "Administrator";
-  const avatar = data.avatarUrl || user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1b5375&color=faf2dd`;
+  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1b5375&color=faf2dd`;
+  const avatar = sanitizeUrl(data.avatarUrl || user.photoURL, fallback);
 
   if (headerName) headerName.textContent = name;
+  if (headerRole) headerRole.textContent = "SYSTEM ADMIN";
   if (headerAvatar) headerAvatar.src = avatar;
 }
 
-// 2. Safe Multi-Collection KPI Metrics
+// 2. Multi-Collection Telemetry Metrics
 async function loadMetrics() {
   const getSafeCount = async (collName) => {
     try {
@@ -72,30 +98,34 @@ async function loadMetrics() {
   };
 
   const usersCount = await getSafeCount("users");
-  
-  // Try classrooms first, then sections
+
   let sectionsCount = await getSafeCount("classrooms");
   if (sectionsCount === 0) {
     sectionsCount = await getSafeCount("sections");
   }
 
   const teamsCount = await getSafeCount("teams");
-  
-  // Try audit_logs first, then logs
+
   let logsCount = await getSafeCount("audit_logs");
   if (logsCount === 0) {
     logsCount = await getSafeCount("logs");
   }
 
+  const metrics = { usersCount, sectionsCount, teamsCount, logsCount };
+  FastCache.set("admin_metrics", metrics);
+  applyMetricsToDOM(metrics);
+}
+
+function applyMetricsToDOM(metrics) {
   const elUsers = document.getElementById("stat-total-users");
   const elSections = document.getElementById("stat-total-sections");
   const elTeams = document.getElementById("stat-total-teams");
   const elLogs = document.getElementById("stat-total-logs");
 
-  if (elUsers) elUsers.textContent = usersCount.toLocaleString();
-  if (elSections) elSections.textContent = sectionsCount.toLocaleString();
-  if (elTeams) elTeams.textContent = teamsCount.toLocaleString();
-  if (elLogs) elLogs.textContent = logsCount.toLocaleString();
+  if (elUsers) elUsers.textContent = (metrics.usersCount ?? 0).toLocaleString();
+  if (elSections) elSections.textContent = (metrics.sectionsCount ?? 0).toLocaleString();
+  if (elTeams) elTeams.textContent = (metrics.teamsCount ?? 0).toLocaleString();
+  if (elLogs) elLogs.textContent = (metrics.logsCount ?? 0).toLocaleString();
 }
 
 // 3. Telemetry & Platform Audit Trail
@@ -107,14 +137,12 @@ async function loadAuditLogs() {
   try {
     let logsSnap = null;
 
-    // Attempt ordered fetch on 'audit_logs'
     try {
-      const q = query(collection(db, "audit_logs"), orderBy("timestamp", "desc"), limit(50));
+      const q = query(collection(db, "audit_logs"), orderBy("timestamp", "desc"), limit(100));
       logsSnap = await getDocs(q);
-    } catch (primaryErr) {
-      console.warn("Primary audit_logs query error, attempting fallbacks...", primaryErr);
+    } catch {
       try {
-        logsSnap = await getDocs(query(collection(db, "logs"), orderBy("timestamp", "desc"), limit(50)));
+        logsSnap = await getDocs(query(collection(db, "logs"), orderBy("timestamp", "desc"), limit(100)));
       } catch {
         try {
           logsSnap = await getDocs(collection(db, "audit_logs"));
@@ -125,52 +153,77 @@ async function loadAuditLogs() {
     }
 
     if (!logsSnap || logsSnap.empty) {
+      cachedLogs = [];
       if (elLogs) elLogs.textContent = "0";
-      container.innerHTML = `
-        <div class="empty-state" style="padding: 2.5rem 1.5rem;">
-          <i class="fas fa-clipboard-list" style="font-size: 2rem; color: var(--text-tertiary); margin-bottom: 0.5rem; display: block;"></i>
-          <h3 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 0.25rem;">No Telemetry Events Logged</h3>
-          <p style="font-size: 0.8rem; color: var(--text-secondary);">User registrations, classroom join requests, and role promotions will stream here automatically.</p>
-        </div>`;
+      renderAuditLogsList([]);
       return;
     }
 
-    if (elLogs) elLogs.textContent = logsSnap.size.toLocaleString();
+    cachedLogs = logsSnap.docs
+      .map((d) => {
+        const data = d.data();
+        const tsMillis = data.timestamp?.toMillis
+          ? data.timestamp.toMillis()
+          : data.timestamp
+            ? new Date(data.timestamp).getTime()
+            : 0;
+        return {
+          id: d.id,
+          message: data.message || data.action || data.event || data.details || "System Event Recorded",
+          category: data.category || "EVENT",
+          tsMillis
+        };
+      })
+      .sort((a, b) => b.tsMillis - a.tsMillis);
 
-    container.innerHTML = logsSnap.docs.map((docSnap) => {
-      const data = docSnap.data();
-      const message = data.message || data.action || data.event || data.details || "System Event Recorded";
-      
-      let formattedDate = "Recent";
-      if (data.timestamp?.toDate) {
-        const d = data.timestamp.toDate();
-        formattedDate = `${d.toLocaleDateString()}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-      } else if (data.timestamp) {
-        const d = new Date(data.timestamp);
-        formattedDate = `${d.toLocaleDateString()}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
-      }
+    FastCache.set("admin_logs", cachedLogs);
+    if (elLogs) elLogs.textContent = cachedLogs.length.toLocaleString();
+    renderAuditLogsList(cachedLogs);
+  } catch (err) {
+    console.error("Error loading audit logs:", err);
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 2.5rem 1.5rem;">
+        <i class="fas fa-exclamation-triangle" style="color: var(--warning);"></i>
+        <h3>Audit Trail Unavailable</h3>
+        <p style="font-size: 0.8rem;">${escapeHtml(err.message)}</p>
+      </div>`;
+  }
+}
+
+function renderAuditLogsList(logs) {
+  const container = document.getElementById("admin-logs-container");
+  if (!container) return;
+
+  if (!logs || logs.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 2.5rem 1.5rem;">
+        <i class="fas fa-clipboard-list"></i>
+        <h3>No Telemetry Events Logged</h3>
+        <p style="font-size: 0.8rem;">User registrations, classroom join requests, and role adjustments will stream here automatically.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = logs
+    .map((item) => {
+      const formattedDate = item.tsMillis
+        ? `${new Date(item.tsMillis).toLocaleDateString()}, ${new Date(item.tsMillis).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          })}`
+        : "Recent";
 
       return `
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: 0.8125rem;">
           <div style="display: flex; align-items: center; gap: 0.65rem; word-break: break-word;">
             <span style="color: var(--danger); font-weight: 700;">[EVENT]</span>
-            <span style="color: var(--text-primary);">${escapeHtml(message)}</span>
+            <span style="color: var(--text-primary);">${escapeHtml(item.message)}</span>
           </div>
           <span style="color: var(--text-tertiary); font-size: 0.75rem; white-space: nowrap; margin-left: 1rem;">${formattedDate}</span>
-        </div>
-      `;
-    }).join("");
-
-  } catch (err) {
-    console.error("Error loading audit logs:", err);
-    if (elLogs) elLogs.textContent = "0";
-    container.innerHTML = `
-      <div class="empty-state" style="padding: 2.5rem 1.5rem;">
-        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: var(--warning); margin-bottom: 0.5rem; display: block;"></i>
-        <h3 style="font-size: 1rem; color: var(--text-primary); margin-bottom: 0.25rem;">Audit Trail Unavailable</h3>
-        <p style="font-size: 0.8rem; color: var(--text-secondary);">${escapeHtml(err.message)}</p>
-      </div>`;
-  }
+        </div>`;
+    })
+    .join("");
 }
 
 // 4. User Directory Pipeline
@@ -188,7 +241,8 @@ async function loadUsers() {
     }
 
     cachedUsers = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
-    renderUsersTable(cachedUsers);
+    FastCache.set("admin_users", cachedUsers);
+    applyUserFilters();
   } catch (err) {
     console.error("Failed to load users:", err);
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--danger);">Failed to load user directory.</td></tr>`;
@@ -200,52 +254,57 @@ function renderUsersTable(users) {
   if (!tbody) return;
 
   if (users.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">No user records found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">No user records found matching your filter.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = users.map((u) => {
-    const role = (u.role || "student").toLowerCase();
-    const avatar = u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.fullName || "User")}&background=1b5375&color=faf2dd`;
-    const isSelf = u.uid === currentAdminUser.uid;
+  tbody.innerHTML = users
+    .map((u) => {
+      const role = (u.role || "student").toLowerCase();
+      const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.fullName || "User")}&background=1b5375&color=faf2dd`;
+      const avatar = sanitizeUrl(u.avatarUrl, fallback);
+      const isSelf = u.uid === currentAdminUser.uid;
 
-    let roleBadgeColor = "var(--text-secondary)";
-    let roleBg = "var(--bg-surface-elevated)";
-    if (role === "admin") {
-      roleBadgeColor = "var(--aimser-cream)";
-      roleBg = "var(--aimser-blue-700)";
-    } else if (role === "faculty") {
-      roleBadgeColor = "#38bdf8";
-      roleBg = "rgba(56, 189, 248, 0.15)";
-    }
+      let roleBadgeColor = "var(--text-secondary)";
+      let roleBg = "var(--bg-surface-elevated)";
+      if (role === "admin") {
+        roleBadgeColor = "#ffffff";
+        roleBg = "var(--aimser-blue-700)";
+      } else if (role === "faculty") {
+        roleBadgeColor = "#38bdf8";
+        roleBg = "rgba(56, 189, 248, 0.16)";
+      } else {
+        roleBadgeColor = "#10b981";
+        roleBg = "rgba(16, 185, 129, 0.16)";
+      }
 
-    return `
-      <tr style="border-bottom: 1px solid var(--border-subtle);">
-        <td style="padding: 0.75rem 1rem;">
-          <div style="display: flex; align-items: center; gap: 0.65rem;">
-            <img src="${avatar}" alt="" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-medium);" />
-            <span style="font-weight: 600; color: var(--text-primary);">${escapeHtml(u.fullName || "Unnamed User")} ${isSelf ? '<small style="color: var(--aimser-blue-400);">(You)</small>' : ""}</span>
-          </div>
-        </td>
-        <td style="padding: 0.75rem 1rem; color: var(--text-secondary);">${escapeHtml(u.email || "N/A")}</td>
-        <td style="padding: 0.75rem 1rem; color: var(--text-secondary);">${escapeHtml(u.department || "—")}</td>
-        <td style="padding: 0.75rem 1rem;">
-          <span style="display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; background: ${roleBg}; color: ${roleBadgeColor};">
-            ${role}
-          </span>
-        </td>
-        <td style="padding: 0.75rem 1rem; text-align: right;">
-          <button type="button" class="btn-secondary btn-edit-role" data-uid="${u.uid}" data-name="${escapeHtml(u.fullName || u.email)}" data-role="${role}" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;" ${isSelf ? "disabled title='Root Administrator'" : ""}>
-            <i class="fas fa-user-tag"></i> Edit Role
-          </button>
-        </td>
-      </tr>
-    `;
-  }).join("");
+      return `
+        <tr style="border-bottom: 1px solid var(--border-subtle);">
+          <td style="padding: 0.75rem 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <img src="${avatar}" alt="" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-medium);" />
+              <span style="font-weight: 600; color: var(--text-primary);">${escapeHtml(u.fullName || "Unnamed User")} ${isSelf ? '<small style="color: var(--aimser-blue-400);">(You)</small>' : ""}</span>
+            </div>
+          </td>
+          <td style="padding: 0.75rem 1rem; color: var(--text-secondary);">${escapeHtml(u.email || "N/A")}</td>
+          <td style="padding: 0.75rem 1rem; color: var(--text-secondary);">${escapeHtml(u.department || "—")}</td>
+          <td style="padding: 0.75rem 1rem;">
+            <span style="display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; background: ${roleBg}; color: ${roleBadgeColor};">
+              ${escapeHtml(role)}
+            </span>
+          </td>
+          <td style="padding: 0.75rem 1rem; text-align: right;">
+            <button type="button" class="btn-secondary btn-edit-role" data-uid="${u.uid}" data-name="${escapeHtml(u.fullName || u.email)}" data-email="${escapeHtml(u.email || u.uid)}" data-role="${role}" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;" ${isSelf ? "disabled title='Root Administrator'" : ""}>
+              <i class="fas fa-user-tag"></i> Edit Role
+            </button>
+          </td>
+        </tr>`;
+    })
+    .join("");
 
   tbody.querySelectorAll(".btn-edit-role").forEach((btn) => {
     btn.addEventListener("click", () => {
-      openRoleModal(btn.dataset.uid, btn.dataset.name, btn.dataset.role);
+      openRoleModal(btn.dataset.uid, btn.dataset.name, btn.dataset.email, btn.dataset.role);
     });
   });
 }
@@ -281,46 +340,53 @@ async function loadSections() {
       return;
     }
 
-    container.innerHTML = cachedSections.map((sec) => `
-      <div class="glass-panel" style="display: flex; flex-direction: column; justify-content: space-between;">
-        <div>
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">
-            <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">${escapeHtml(sec.name || sec.title || "Untitled Section")}</h3>
-            <span class="badge-pill">${escapeHtml(sec.sectionCode || sec.code || "NO-CODE")}</span>
-          </div>
-          <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 0.85rem;">
-            <strong>Instructor:</strong> ${escapeHtml(sec.instructorEmail || sec.facultyEmail || sec.createdByName || "Unknown")}
-          </p>
-          <div style="font-size: 0.78rem; color: var(--text-secondary); line-height: 1.6;">
-            <div><i class="fas fa-users" style="width: 16px;"></i> Students Enrolled: <strong>${(sec.students || sec.enrolled || []).length}</strong></div>
-            <div><i class="fas fa-tasks" style="width: 16px;"></i> Activities Created: <strong>${sec.activityCount || (sec.activities || []).length || 0}</strong></div>
-          </div>
-        </div>
+    container.innerHTML = cachedSections
+      .map((sec) => {
+        const code = sec.sectionCode || sec.code || "NO-CODE";
+        const enrolledCount = (sec.students || sec.enrolled || []).length;
+        const maxCap = sec.maxStudents || 100;
 
-        <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end;">
-          <button type="button" class="btn-sidebar-action btn-logout btn-delete-section" data-id="${sec.id}" data-coll="${collectionUsed}" style="width: auto; padding: 0.35rem 0.65rem; font-size: 0.75rem;">
-            <i class="fas fa-trash"></i> Purge Section
-          </button>
-        </div>
-      </div>
-    `).join("");
+        return `
+          <div class="glass-panel" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; gap: 0.5rem;">
+                <h3 style="margin: 0; font-size: 1.05rem; color: var(--text-primary);">${escapeHtml(sec.name || sec.title || "Untitled Section")}</h3>
+                <span class="badge-pill">${escapeHtml(code)}</span>
+              </div>
+              <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 0.85rem;">
+                <strong>Instructor:</strong> ${escapeHtml(sec.instructorEmail || sec.facultyEmail || sec.createdByName || "Unknown")}
+              </p>
+              <div style="font-size: 0.78rem; color: var(--text-secondary); line-height: 1.65;">
+                <div><i class="fas fa-users" style="width: 16px;"></i> Students Enrolled: <strong>${enrolledCount} / ${maxCap}</strong></div>
+                <div><i class="fas fa-tasks" style="width: 16px;"></i> Activities Published: <strong>${sec.activityCount || (sec.activities || []).length || 0}</strong></div>
+              </div>
+            </div>
+
+            <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end;">
+              <button type="button" class="btn-sidebar-action btn-logout btn-delete-section" data-id="${sec.id}" data-code="${escapeHtml(code)}" data-coll="${collectionUsed}" style="width: auto; padding: 0.35rem 0.65rem; font-size: 0.75rem;">
+                <i class="fas fa-trash"></i> Purge Section
+              </button>
+            </div>
+          </div>`;
+      })
+      .join("");
 
     container.querySelectorAll(".btn-delete-section").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const id = btn.dataset.id;
         const coll = btn.dataset.coll;
-        if (confirm("Are you sure you want to purge this classroom section?")) {
+        const code = btn.dataset.code;
+        if (confirm(`Are you sure you want to permanently purge classroom section "${code}"?`)) {
           try {
             await deleteDoc(doc(db, coll, id));
-            await loadSections();
-            await loadMetrics();
+            await logAuditEvent(`Admin purged classroom section ${code}`, "CLASSROOM", currentAdminUser.email);
+            await Promise.all([loadSections(), loadMetrics(), loadAuditLogs()]);
           } catch (err) {
             alert("Failed to delete section: " + err.message);
           }
         }
       });
     });
-
   } catch (err) {
     console.error("Error loading sections:", err);
     container.innerHTML = `
@@ -333,6 +399,8 @@ async function loadSections() {
 }
 
 // 6. Role Modifier Modal Engine
+let editingUserEmail = "";
+
 function setupRoleModal() {
   const modal = document.getElementById("modal-role-editor");
   const form = document.getElementById("form-update-role");
@@ -366,8 +434,14 @@ function setupRoleModal() {
           roleModifiedBy: currentAdminUser.email
         });
 
+        await logAuditEvent(
+          `Admin updated role for ${editingUserEmail || uid} to [${newRole}]`,
+          "ROLE_CHANGE",
+          currentAdminUser.email
+        );
+
         closeModal();
-        await loadUsers();
+        await Promise.all([loadUsers(), loadAuditLogs()]);
       } catch (err) {
         alert("Failed to update role: " + err.message);
       } finally {
@@ -378,10 +452,11 @@ function setupRoleModal() {
   }
 }
 
-function openRoleModal(uid, name, role) {
+function openRoleModal(uid, name, email, role) {
+  editingUserEmail = email;
   const modal = document.getElementById("modal-role-editor");
   document.getElementById("edit-user-uid").value = uid;
-  document.getElementById("edit-user-display").value = name;
+  document.getElementById("edit-user-display").value = `${name} (${email})`;
   document.getElementById("edit-user-role-select").value = role;
 
   if (modal) {
@@ -390,65 +465,89 @@ function openRoleModal(uid, name, role) {
   }
 }
 
-// 7. Navigation Tabs & Search Handlers
-function setupTabs() {
+// 7. Synchronized Tabs, Sidebar Active State & Hash Routing
+function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
   const tabs = document.querySelectorAll(".subnav-tab");
   const panels = document.querySelectorAll(".tab-panel");
+  const sidebarBtns = document.querySelectorAll(".subnav-link");
 
-  tabs.forEach((tab) => {
+  tabs.forEach((t) => t.classList.toggle("active", t.dataset.tab === targetPanelId));
+  panels.forEach((p) => p.classList.toggle("active", p.id === targetPanelId));
+
+  sidebarBtns.forEach((btn) => {
+    if (clickedSidebarKey) {
+      btn.classList.toggle("active", btn.dataset.navKey === clickedSidebarKey);
+    } else {
+      const defaultKey =
+        targetPanelId === "panel-users" ? "users" : targetPanelId === "panel-sections" ? "sections" : "overview";
+      btn.classList.toggle("active", btn.dataset.navKey === defaultKey);
+    }
+  });
+}
+
+function applyInitialHashRoute() {
+  const hash = window.location.hash.toLowerCase();
+  if (hash === "#users") {
+    activateAdminTab("panel-users", "users");
+  } else if (hash === "#sections") {
+    activateAdminTab("panel-sections", "sections");
+  } else if (hash === "#audit") {
+    activateAdminTab("panel-telemetry", "audit");
+  } else {
+    activateAdminTab("panel-telemetry", "overview");
+  }
+}
+
+function setupTabs() {
+  document.querySelectorAll(".subnav-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
-      const targetId = tab.dataset.tab;
-
-      tabs.forEach((t) => t.classList.remove("active"));
-      panels.forEach((p) => p.classList.remove("active"));
-
-      tab.classList.add("active");
-      const targetPanel = document.getElementById(targetId);
-      if (targetPanel) targetPanel.classList.add("active");
+      activateAdminTab(tab.dataset.tab);
     });
   });
 
   document.querySelectorAll(".subnav-link").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const targetId = btn.dataset.target;
-      const matchingTab = document.querySelector(`.subnav-tab[data-tab="${targetId}"]`);
-      if (matchingTab) matchingTab.click();
+      activateAdminTab(btn.dataset.target, btn.dataset.navKey);
     });
   });
 
   document.getElementById("btn-refresh-users")?.addEventListener("click", loadUsers);
   document.getElementById("btn-refresh-sections")?.addEventListener("click", loadSections);
-  document.getElementById("btn-refresh-logs")?.addEventListener("click", loadAuditLogs);
-}
-
-function setupSearch() {
-  const searchInput = document.getElementById("admin-user-search");
-  if (!searchInput) return;
-
-  searchInput.addEventListener("input", (e) => {
-    const term = e.target.value.toLowerCase().trim();
-    if (!term) {
-      renderUsersTable(cachedUsers);
-      return;
-    }
-
-    const filtered = cachedUsers.filter((u) => 
-      (u.fullName && u.fullName.toLowerCase().includes(term)) ||
-      (u.email && u.email.toLowerCase().includes(term)) ||
-      (u.department && u.department.toLowerCase().includes(term)) ||
-      (u.role && u.role.toLowerCase().includes(term))
-    );
-
-    renderUsersTable(filtered);
+  document.getElementById("btn-refresh-logs")?.addEventListener("click", async () => {
+    await Promise.all([loadAuditLogs(), loadMetrics()]);
   });
 }
 
-function escapeHtml(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+// 8. Search & Role Filtering
+function applyUserFilters() {
+  const term = (document.getElementById("admin-user-search")?.value || "").toLowerCase().trim();
+  const roleFilter = (document.getElementById("admin-role-filter")?.value || "all").toLowerCase();
+
+  const filtered = cachedUsers.filter((u) => {
+    const uRole = (u.role || "student").toLowerCase();
+    const matchesRole = roleFilter === "all" || uRole === roleFilter;
+    const matchesTerm =
+      !term ||
+      (u.fullName && u.fullName.toLowerCase().includes(term)) ||
+      (u.email && u.email.toLowerCase().includes(term)) ||
+      (u.department && u.department.toLowerCase().includes(term));
+    return matchesRole && matchesTerm;
+  });
+
+  renderUsersTable(filtered);
+}
+
+function setupSearchAndFilters() {
+  document.getElementById("admin-user-search")?.addEventListener("input", applyUserFilters);
+  document.getElementById("admin-role-filter")?.addEventListener("change", applyUserFilters);
+
+  document.getElementById("admin-log-search")?.addEventListener("input", (e) => {
+    const q = e.target.value.toLowerCase().trim();
+    if (!q) {
+      renderAuditLogsList(cachedLogs);
+      return;
+    }
+    const filtered = cachedLogs.filter((l) => (l.message || "").toLowerCase().includes(q));
+    renderAuditLogsList(filtered);
+  });
 }

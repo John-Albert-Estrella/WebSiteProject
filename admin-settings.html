@@ -5,41 +5,45 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin System Settings | AIMSER</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/style.css?v=4" />
+  <link rel="stylesheet" href="css/dashboard.css?v=4" />
 </head>
 <body>
   <div class="dashboard-layout">
-    <!-- Admin Sidebar (Identical Isolation) -->
+    <!-- Admin Isolated Sidebar -->
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">
           <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
           <div class="brand-text">
             <h2>AIMSER</h2>
-            <span>Admin Console</span>
+            <span>Admin Control</span>
           </div>
         </div>
 
-        <nav class="sidebar-nav">
-          <div class="nav-section-label">Management Console</div>
+        <nav class="sidebar-nav" aria-label="Admin Navigation">
+          <div class="nav-section-label">Administration</div>
           <a href="admin-dashboard.html" class="nav-item" id="nav-admin-dashboard">
-            <i class="fas fa-chart-pie"></i>
-            <span>Overview &amp; Metrics</span>
+            <i class="fas fa-chart-line"></i>
+            <span>Overview &amp; Telemetry</span>
           </a>
           <a href="admin-dashboard.html#users" class="nav-item" id="nav-admin-users">
             <i class="fas fa-users-cog"></i>
-            <span>User Directory</span>
+            <span>Accounts &amp; Roles</span>
           </a>
           <a href="admin-dashboard.html#sections" class="nav-item" id="nav-admin-sections">
             <i class="fas fa-chalkboard-teacher"></i>
-            <span>Classroom Audit</span>
+            <span>Classroom Sections</span>
+          </a>
+          <a href="admin-dashboard.html#audit" class="nav-item" id="nav-admin-audit">
+            <i class="fas fa-shield-alt"></i>
+            <span>Audit Trail</span>
           </a>
 
-          <div class="nav-section-label">System Control</div>
+          <div class="nav-section-label">Admin System</div>
           <a href="admin-settings.html" class="nav-item active" id="nav-admin-settings">
             <i class="fas fa-sliders-h"></i>
-            <span>System Settings</span>
+            <span>Admin Settings</span>
           </a>
         </nav>
       </div>
@@ -69,7 +73,7 @@
             <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=1b5375&color=faf2dd" alt="Admin Avatar" class="avatar-sm" />
             <div class="user-meta">
               <span id="header-user-name" class="user-name">Loading...</span>
-              <span id="header-user-role" class="user-role">Administrator</span>
+              <span id="header-user-role" class="user-role">System Admin</span>
             </div>
           </div>
         </div>
@@ -126,7 +130,7 @@
             <i class="fas fa-cogs"></i>
             <div>
               <h3>Global Simulation Policies</h3>
-              <p class="text-muted">Control institutional constraints, max student team capacity, and active academic terms.</p>
+              <p class="text-muted">Control institutional constraints, team room capacity (15 max), and registration access.</p>
             </div>
           </div>
 
@@ -135,8 +139,8 @@
           <form id="system-config-form">
             <div class="form-row">
               <div class="form-group">
-                <label for="config-max-teamsize" class="form-label">Max Members per Team</label>
-                <input type="number" id="config-max-teamsize" class="form-control" min="1" max="25" value="6" required />
+                <label for="config-max-teamsize" class="form-label">Max Members per Team Room</label>
+                <input type="number" id="config-max-teamsize" class="form-control" min="2" max="15" value="15" required />
               </div>
               <div class="form-group">
                 <label for="config-academic-term" class="form-label">Active Academic Term</label>
@@ -148,7 +152,7 @@
               <label for="config-registration-mode" class="form-label">Registration Access Mode</label>
               <select id="config-registration-mode" class="form-select">
                 <option value="open">Open (Anyone with an institutional email can register)</option>
-                <option value="faculty-only">Restricted (Only Faculty can add student rosters)</option>
+                <option value="faculty-only">Restricted (Only Faculty can register directly)</option>
                 <option value="locked">Locked (System Closed to New Accounts)</option>
               </select>
             </div>
@@ -212,9 +216,9 @@
     </main>
   </div>
 
-  <script type="module" src="js/theme.js"></script>
-  <script type="module" src="js/ui-bridge.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
-  <script type="module" src="js/admin-settings.js"></script>
+  <script type="module" src="js/theme.js?v=4"></script>
+  <script type="module" src="js/ui-bridge.js?v=4"></script>
+  <script type="module" src="js/auth-guard.js?v=4"></script>
+  <script type="module" src="js/admin-settings.js?v=4"></script>
 </body>
 </html>

@@ -15,6 +15,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { uploadToCloudinary } from "./cloudinary-config.js";
+import { FastCache, sanitizeUrl, logAuditEvent } from "./security-utils.js";
 
 let currentAdminUser = null;
 
@@ -26,11 +27,16 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   try {
+    const cachedProfile = FastCache.get("user_profile");
+    if (cachedProfile && cachedProfile.role === "admin") {
+      populateAdminUI(user, cachedProfile);
+    }
+
     const userDocRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userDocRef);
     const userData = userSnap.exists() ? userSnap.data() : {};
 
-    if (userData.role !== "admin") {
+    if ((userData.role || "").toLowerCase() !== "admin") {
       alert("Unauthorized Access: Administrator clearance required.");
       window.location.replace("office.html");
       return;
@@ -39,15 +45,13 @@ onAuthStateChanged(auth, async (user) => {
     currentAdminUser = user;
 
     populateAdminUI(user, userData);
-    loadSystemConfig();
+    await loadSystemConfig();
     setupAvatarPreview();
     setupAdminProfileSubmit();
     setupSystemConfigSubmit();
     setupAdminPasswordSubmit();
-
   } catch (err) {
     console.error("Admin settings bootstrap error:", err);
-    window.location.replace("office.html");
   }
 });
 
@@ -57,17 +61,19 @@ function populateAdminUI(user, data) {
   const emailInput = document.getElementById("admin-email");
   const avatarPreview = document.getElementById("admin-avatar-preview");
   const headerName = document.getElementById("header-user-name");
+  const headerRole = document.getElementById("header-user-role");
   const headerAvatar = document.getElementById("header-user-avatar");
 
   const resolvedName = data.fullName || user.displayName || "Administrator";
   const defaultFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedName)}&background=1b5375&color=faf2dd`;
-  const resolvedAvatar = data.avatarUrl || user.photoURL || defaultFallback;
+  const resolvedAvatar = sanitizeUrl(data.avatarUrl || user.photoURL, defaultFallback);
 
   if (nameInput) nameInput.value = resolvedName;
   if (emailInput) emailInput.value = user.email || "";
   if (avatarPreview) avatarPreview.src = resolvedAvatar;
 
   if (headerName) headerName.textContent = resolvedName;
+  if (headerRole) headerRole.textContent = "SYSTEM ADMIN";
   if (headerAvatar) headerAvatar.src = resolvedAvatar;
 }
 
@@ -148,7 +154,7 @@ function setupAdminProfileSubmit() {
       submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating System Records...';
 
       const firestorePayload = {
-        fullName: fullName,
+        fullName,
         updatedAt: serverTimestamp()
       };
 
@@ -156,15 +162,21 @@ function setupAdminProfileSubmit() {
         firestorePayload.avatarUrl = finalAvatarUrl;
       }
 
-      const updates = [
+      await Promise.all([
         updateDoc(doc(db, "users", currentAdminUser.uid), firestorePayload),
         updateProfile(currentAdminUser, {
           displayName: fullName,
           ...(finalAvatarUrl ? { photoURL: finalAvatarUrl } : {})
         })
-      ];
+      ]);
 
-      await Promise.all(updates);
+      // Sync FastCache
+      const cached = FastCache.get("user_profile") || {};
+      FastCache.set("user_profile", {
+        ...cached,
+        fullName,
+        ...(finalAvatarUrl ? { avatarUrl: finalAvatarUrl } : {})
+      });
 
       const headerName = document.getElementById("header-user-name");
       const headerAvatar = document.getElementById("header-user-avatar");
@@ -177,8 +189,8 @@ function setupAdminProfileSubmit() {
       }
 
       if (fileInput) fileInput.value = "";
+      await logAuditEvent(`Administrator updated profile identity (${fullName})`, "ADMIN_PROFILE", currentAdminUser.email);
       showStatus(statusMsg, "Administrator profile updated successfully!", "success");
-
     } catch (err) {
       console.error("Admin profile error:", err);
       showStatus(statusMsg, err.message || "Failed to update admin profile.", "error");
@@ -201,7 +213,7 @@ function setupSystemConfigSubmit() {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const maxTeamSize = parseInt(document.getElementById("config-max-teamsize").value, 10);
+    const maxTeamSize = Math.min(15, Math.max(2, parseInt(document.getElementById("config-max-teamsize").value, 10) || 15));
     const academicTerm = document.getElementById("config-academic-term").value.trim();
     const registrationMode = document.getElementById("config-registration-mode").value;
 
@@ -210,18 +222,27 @@ function setupSystemConfigSubmit() {
     showStatus(statusMsg, "", "clear");
 
     try {
-      await setDoc(doc(db, "system", "config"), {
-        maxTeamSize: maxTeamSize || 6,
-        academicTerm: academicTerm || "Active Term",
-        registrationMode: registrationMode || "open",
-        updatedAt: serverTimestamp(),
-        updatedBy: currentAdminUser.email
-      }, { merge: true });
+      await setDoc(
+        doc(db, "system", "config"),
+        {
+          maxTeamSize,
+          academicTerm: academicTerm || "Active Term",
+          registrationMode: registrationMode || "open",
+          updatedAt: serverTimestamp(),
+          updatedBy: currentAdminUser.email
+        },
+        { merge: true }
+      );
 
+      await logAuditEvent(
+        `Admin updated global policy: mode=[${registrationMode}], maxTeamSize=[${maxTeamSize}]`,
+        "SYSTEM_CONFIG",
+        currentAdminUser.email
+      );
       showStatus(statusMsg, "Global policies saved and enforced across simulator instances!", "success");
     } catch (err) {
       console.error("Config save error:", err);
-      showStatus(statusMsg, err.message || "Failed to save global configuration.", "error");
+      showStatus(statusMsg, err.message || "Failed to save global configurations.", "error");
     } finally {
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-sliders-h"></i> Update Global Policies';
@@ -264,13 +285,15 @@ function setupAdminPasswordSubmit() {
       await reauthenticateWithCredential(currentAdminUser, credential);
       await updatePassword(currentAdminUser, newPw);
 
+      await logAuditEvent("Administrator rotated master login password", "SECURITY", currentAdminUser.email);
       showStatus(statusMsg, "Master administrator password changed successfully!", "success");
       form.reset();
     } catch (err) {
       console.error("Admin password error:", err);
-      const friendly = (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential")
-        ? "Current administrator password entered is incorrect."
-        : err.message || "Failed to update password.";
+      const friendly =
+        err.code === "auth/wrong-password" || err.code === "auth/invalid-credential"
+          ? "Current administrator password is incorrect."
+          : err.message || "Failed to update password.";
       showStatus(statusMsg, friendly, "error");
     } finally {
       submitBtn.disabled = false;
