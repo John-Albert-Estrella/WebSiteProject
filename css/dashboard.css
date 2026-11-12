@@ -379,3 +379,72 @@ html[data-theme="light"] .sidebar .nav-item.active {
     padding: 1.25rem;
   }
 }
+
+/* Admin User Registry Master-Detail Split Layout */
+.user-registry-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.user-registry-layout.has-inspector {
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, 410px);
+}
+
+.admin-user-row {
+  cursor: pointer;
+  transition: background-color var(--ease-fast);
+}
+
+.admin-user-row:hover {
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.admin-user-row.is-selected {
+  background: rgba(43, 124, 176, 0.16);
+  box-shadow: inset 3px 0 0 var(--aimser-blue-400);
+}
+
+.user-inspector-panel {
+  position: sticky;
+  top: 1.25rem;
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.inspector-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
+  padding: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.78rem;
+}
+
+.inspector-meta-item span {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-bottom: 0.15rem;
+}
+
+.inspector-meta-item strong {
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+@media (max-width: 1120px) {
+  .user-registry-layout.has-inspector {
+    grid-template-columns: 1fr;
+  }
+
+  .user-inspector-panel {
+    position: static;
+  }
+}

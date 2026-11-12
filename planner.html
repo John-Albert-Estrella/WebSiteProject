@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Project Planner | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/style.css?v=6" />
+  <link rel="stylesheet" href="css/dashboard.css?v=6" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -61,15 +61,6 @@
       <header class="workspace-header">
         <div class="header-left">
           <h1 class="page-title">Project Planner</h1>
-          <select id="planner-team-select" class="form-select" style="max-width: 250px; padding: 0.45rem 0.85rem;" aria-label="Select Team Room">
-            <option value="">Loading Team Rooms...</option>
-          </select>
-          <button type="button" id="btn-open-team-modal" class="btn-secondary" style="padding: 0.45rem 0.85rem; font-size: 0.8125rem;">
-            <i class="fas fa-users"></i> Create / Join Team
-          </button>
-          <button type="button" id="btn-open-task-modal" class="btn-primary" style="padding: 0.45rem 0.85rem; font-size: 0.8125rem;">
-            <i class="fas fa-plus"></i> Assign Task
-          </button>
         </div>
 
         <div class="header-right">
@@ -82,6 +73,19 @@
           </div>
         </div>
       </header>
+
+      <!-- Team Room Selector & Action Bar (Under the Line) -->
+      <div class="workspace-action-bar" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.35rem;">
+        <select id="planner-team-select" class="form-select" style="max-width: 260px; padding: 0.5rem 0.85rem;" aria-label="Select Team Room">
+          <option value="">Loading Team Rooms...</option>
+        </select>
+        <button type="button" id="btn-open-team-modal" class="btn-secondary" style="padding: 0.5rem 0.9rem; font-size: 0.83rem;">
+          <i class="fas fa-users"></i> Create / Join Team
+        </button>
+        <button type="button" id="btn-open-task-modal" class="btn-primary" style="padding: 0.5rem 0.95rem; font-size: 0.83rem;">
+          <i class="fas fa-plus"></i> Assign Task
+        </button>
+      </div>
 
       <!-- Team Room Telemetry & Capacity Row (15 Users Max) -->
       <section class="stats-row">
@@ -119,9 +123,7 @@
         </button>
       </nav>
 
-      <!-- ============================================================== -->
-      <!-- PANEL 1: KANBAN PROGRESS COLUMNS & DEADLINES                   -->
-      <!-- ============================================================== -->
+      <!-- PANEL 1: KANBAN PROGRESS COLUMNS & DEADLINES -->
       <section id="panel-kanban" class="tab-panel active">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; align-items: start;">
           <div class="glass-panel">
@@ -158,9 +160,7 @@
         </div>
       </section>
 
-      <!-- ============================================================== -->
-      <!-- PANEL 2: POSITIONS, PROJECT HIERARCHY & RESPONSIBILITIES         -->
-      <!-- ============================================================== -->
+      <!-- PANEL 2: POSITIONS, PROJECT HIERARCHY & RESPONSIBILITIES -->
       <section id="panel-hierarchy" class="tab-panel">
         <div class="glass-panel">
           <div class="panel-toolbar">
@@ -174,9 +174,7 @@
         </div>
       </section>
 
-      <!-- ============================================================== -->
-      <!-- PANEL 3: ONBOARDING PROJECTS & CHECKLISTS                      -->
-      <!-- ============================================================== -->
+      <!-- PANEL 3: ONBOARDING PROJECTS & CHECKLISTS -->
       <section id="panel-onboarding" class="tab-panel">
         <div class="glass-panel">
           <div class="panel-toolbar">
@@ -195,11 +193,7 @@
     </main>
   </div>
 
-  <!-- ================================================================== -->
-  <!-- MODALS                                                             -->
-  <!-- ================================================================== -->
-
-  <!-- Modal 1: Create / Join Team Room (15 Users Max: 1 Leader + 14 Members) -->
+  <!-- MODALS -->
   <div class="modal-backdrop" id="modal-team" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -233,7 +227,6 @@
     </div>
   </div>
 
-  <!-- Modal 2: Assign Task with Position, Responsibility & Deadline -->
   <div class="modal-backdrop" id="modal-task" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -284,7 +277,6 @@
     </div>
   </div>
 
-  <!-- Modal 3: Assign Member Position, Hierarchy & Responsibilities -->
   <div class="modal-backdrop" id="modal-assign-position" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -324,7 +316,6 @@
     </div>
   </div>
 
-  <!-- Modal 4: Add Onboarding Project Checklist Item -->
   <div class="modal-backdrop" id="modal-onboarding-item" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -354,9 +345,9 @@
     </div>
   </div>
 
-  <script type="module" src="js/theme.js"></script>
-  <script type="module" src="js/ui-bridge.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
-  <script type="module" src="js/planner.js"></script>
+  <script type="module" src="js/theme.js?v=6"></script>
+  <script type="module" src="js/ui-bridge.js?v=6"></script>
+  <script type="module" src="js/auth-guard.js?v=6"></script>
+  <script type="module" src="js/planner.js?v=6"></script>
 </body>
 </html>

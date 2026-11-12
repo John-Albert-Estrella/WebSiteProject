@@ -1,6 +1,6 @@
-// js/admin-dashboard.js - Complete Administrator Management, Sidebar Sync & Telemetry Engine
+// js/admin-dashboard.js - Administrator Management, User Profile Inspector & Telemetry Engine
 import { auth, db } from "./firebase-init.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
   collection,
   doc,
@@ -13,20 +13,23 @@ import {
   limit,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { uploadToCloudinary } from "./cloudinary-config.js";
 import { FastCache, escapeHtml, sanitizeUrl, logAuditEvent } from "./security-utils.js";
 
 let currentAdminUser = null;
 let cachedUsers = [];
 let cachedSections = [];
+let cachedTeams = [];
 let cachedLogs = [];
-let editingUserEmail = "";
+let selectedUserUid = null;
+let resetAvatarRequested = false;
 
-// 1. Initialize Navigation & Modals Immediately on DOM Load
+// 1. Initialize Navigation & Inspector Controls Immediately
 document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   applyInitialHashRoute();
   setupSearchAndFilters();
-  setupRoleModal();
+  setupUserInspectorPanel();
 });
 
 // 2. Authenticate & Enforce Administrator Clearance
@@ -62,7 +65,7 @@ onAuthStateChanged(auth, async (user) => {
     const snapUsers = FastCache.get("admin_users");
     if (snapUsers) {
       cachedUsers = snapUsers;
-      renderUsersTable(cachedUsers);
+      applyUserFilters();
     }
 
     const snapLogs = FastCache.get("admin_logs");
@@ -72,7 +75,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     // Revalidate all live Firestore collections concurrently
-    await Promise.allSettled([loadMetrics(), loadUsers(), loadSections(), loadAuditLogs()]);
+    await Promise.allSettled([loadMetrics(), loadUsers(), loadSections(), loadTeamsCache(), loadAuditLogs()]);
   } catch (err) {
     console.error("Admin initialization error:", err);
   }
@@ -132,6 +135,19 @@ function applyMetricsToDOM(metrics) {
   if (elSections) elSections.textContent = (metrics.sectionsCount ?? 0).toLocaleString();
   if (elTeams) elTeams.textContent = (metrics.teamsCount ?? 0).toLocaleString();
   if (elLogs) elLogs.textContent = (metrics.logsCount ?? 0).toLocaleString();
+}
+
+async function loadTeamsCache() {
+  try {
+    const snap = await getDocs(collection(db, "teams"));
+    cachedTeams = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    if (selectedUserUid) {
+      const activeUser = cachedUsers.find((u) => u.uid === selectedUserUid);
+      if (activeUser) updateInspectorEnrollmentStats(activeUser);
+    }
+  } catch {
+    cachedTeams = [];
+  }
 }
 
 // 4. Telemetry & Platform Audit Trail
@@ -205,7 +221,7 @@ function renderAuditLogsList(logs) {
       <div class="empty-state" style="padding: 2.5rem 1.5rem;">
         <i class="fas fa-clipboard-list"></i>
         <h3>No Telemetry Events Logged</h3>
-        <p style="font-size: 0.8rem;">User registrations, classroom join requests, and role adjustments will stream here automatically.</p>
+        <p style="font-size: 0.8rem;">User registrations, classroom join requests, and profile edits will stream here automatically.</p>
       </div>`;
     return;
   }
@@ -249,6 +265,12 @@ async function loadUsers() {
     cachedUsers = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
     FastCache.set("admin_users", cachedUsers);
     applyUserFilters();
+
+    // Refresh inspector if a user is currently selected
+    if (selectedUserUid) {
+      const refreshedUser = cachedUsers.find((u) => u.uid === selectedUserUid);
+      if (refreshedUser) openUserInspector(refreshedUser.uid);
+    }
   } catch (err) {
     console.error("Failed to load users:", err);
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--danger);">Failed to load user directory: ${escapeHtml(err.message)}</td></tr>`;
@@ -270,6 +292,7 @@ function renderUsersTable(users) {
       const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.fullName || "User")}&background=1b5375&color=faf2dd`;
       const avatar = sanitizeUrl(u.avatarUrl, fallback);
       const isSelf = currentAdminUser && u.uid === currentAdminUser.uid;
+      const isSelected = selectedUserUid === u.uid;
 
       let roleBadgeColor = "var(--text-secondary)";
       let roleBg = "var(--bg-surface-elevated)";
@@ -285,10 +308,10 @@ function renderUsersTable(users) {
       }
 
       return `
-        <tr style="border-bottom: 1px solid var(--border-subtle);">
+        <tr class="admin-user-row ${isSelected ? "is-selected" : ""}" data-uid="${u.uid}" style="border-bottom: 1px solid var(--border-subtle);">
           <td style="padding: 0.75rem 1rem;">
             <div style="display: flex; align-items: center; gap: 0.65rem;">
-              <img src="${avatar}" alt="" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-medium);" />
+              <img src="${avatar}" alt="" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-medium);" />
               <span style="font-weight: 600; color: var(--text-primary);">${escapeHtml(u.fullName || "Unnamed User")} ${isSelf ? '<small style="color: var(--aimser-blue-400);">(You)</small>' : ""}</span>
             </div>
           </td>
@@ -300,22 +323,266 @@ function renderUsersTable(users) {
             </span>
           </td>
           <td style="padding: 0.75rem 1rem; text-align: right;">
-            <button type="button" class="btn-secondary btn-edit-role" data-uid="${u.uid}" data-name="${escapeHtml(u.fullName || u.email)}" data-email="${escapeHtml(u.email || u.uid)}" data-role="${role}" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;" ${isSelf ? "disabled title='Root Administrator'" : ""}>
-              <i class="fas fa-user-tag"></i> Edit Role
+            <button type="button" class="btn-secondary btn-inspect-user" data-uid="${u.uid}" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;">
+              <i class="fas fa-user-edit"></i> Inspect &amp; Edit
             </button>
           </td>
         </tr>`;
     })
     .join("");
 
-  tbody.querySelectorAll(".btn-edit-role").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      openRoleModal(btn.dataset.uid, btn.dataset.name, btn.dataset.email, btn.dataset.role);
+  tbody.querySelectorAll(".admin-user-row").forEach((row) => {
+    row.addEventListener("click", () => {
+      openUserInspector(row.dataset.uid);
     });
   });
 }
 
-// 6. Classroom Audit Pipeline
+// 6. User Profile & Details Inspector Panel
+function openUserInspector(uid) {
+  const userObj = cachedUsers.find((u) => u.uid === uid);
+  if (!userObj) return;
+
+  selectedUserUid = uid;
+  resetAvatarRequested = false;
+
+  const layout = document.getElementById("user-registry-layout");
+  const panel = document.getElementById("user-inspector-panel");
+  const statusMsg = document.getElementById("inspector-status-msg");
+
+  if (layout) layout.classList.add("has-inspector");
+  if (panel) panel.style.display = "block";
+  if (statusMsg) {
+    statusMsg.style.display = "none";
+    statusMsg.textContent = "";
+  }
+
+  // Highlight selected row in table
+  document.querySelectorAll(".admin-user-row").forEach((r) => {
+    r.classList.toggle("is-selected", r.dataset.uid === uid);
+  });
+
+  const fullName = userObj.fullName || "Unnamed User";
+  const email = userObj.email || "N/A";
+  const role = (userObj.role || "student").toLowerCase();
+  const department = userObj.department || "";
+  const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=1b5375&color=faf2dd`;
+  const avatarUrl = sanitizeUrl(userObj.avatarUrl, fallbackAvatar);
+  const isSelf = currentAdminUser && uid === currentAdminUser.uid;
+
+  document.getElementById("inspector-user-uid").value = uid;
+  document.getElementById("inspector-avatar-preview").src = avatarUrl;
+  document.getElementById("inspector-header-name").textContent = fullName;
+  document.getElementById("inspector-header-role-badge").textContent = role.toUpperCase();
+  document.getElementById("inspector-header-email").textContent = email;
+  document.getElementById("inspector-uid-text").textContent = uid;
+
+  // Format registration date
+  let createdStr = "Recorded";
+  if (userObj.createdAt?.toDate) {
+    createdStr = userObj.createdAt.toDate().toLocaleDateString();
+  } else if (userObj.createdAt) {
+    createdStr = new Date(userObj.createdAt).toLocaleDateString();
+  }
+  document.getElementById("inspector-created-text").textContent = createdStr;
+
+  // Populate editable fields
+  document.getElementById("inspector-fullname").value = userObj.fullName || "";
+  document.getElementById("inspector-department").value = department;
+
+  const roleSelect = document.getElementById("inspector-role-select");
+  const selfNote = document.getElementById("inspector-self-note");
+  roleSelect.value = role;
+  roleSelect.disabled = Boolean(isSelf);
+  if (selfNote) selfNote.style.display = isSelf ? "block" : "none";
+
+  const fileInput = document.getElementById("inspector-avatar-input");
+  if (fileInput) fileInput.value = "";
+
+  updateInspectorEnrollmentStats(userObj);
+}
+
+function updateInspectorEnrollmentStats(userObj) {
+  const uid = userObj.uid;
+  const email = (userObj.email || "").toLowerCase();
+  const role = (userObj.role || "student").toLowerCase();
+
+  const matchingClasses = cachedSections.filter((sec) => {
+    if (role === "faculty") {
+      return sec.instructorId === uid || (sec.instructorEmail || "").toLowerCase() === email;
+    }
+    const students = sec.students || sec.enrolled || [];
+    return students.some((s) =>
+      typeof s === "string" ? s === uid || s.toLowerCase() === email : s.uid === uid
+    );
+  });
+
+  const matchingTeams = cachedTeams.filter((t) => (t.members || []).includes(uid));
+
+  const classLabels = matchingClasses.map((c) => c.sectionCode || c.code || c.name).join(", ");
+  const teamLabels = matchingTeams.map((t) => t.name).join(", ");
+
+  document.getElementById("inspector-classes-text").textContent =
+    matchingClasses.length > 0 ? `${matchingClasses.length} (${classLabels})` : "0";
+  document.getElementById("inspector-teams-text").textContent =
+    matchingTeams.length > 0 ? `${matchingTeams.length} (${teamLabels})` : "0";
+}
+
+function closeUserInspector() {
+  selectedUserUid = null;
+  resetAvatarRequested = false;
+  document.getElementById("user-registry-layout")?.classList.remove("has-inspector");
+  const panel = document.getElementById("user-inspector-panel");
+  if (panel) panel.style.display = "none";
+  document.querySelectorAll(".admin-user-row").forEach((r) => r.classList.remove("is-selected"));
+}
+
+function setupUserInspectorPanel() {
+  const closeBtn = document.getElementById("btn-close-inspector");
+  const fileInput = document.getElementById("inspector-avatar-input");
+  const resetPhotoBtn = document.getElementById("btn-reset-user-avatar");
+  const previewImg = document.getElementById("inspector-avatar-preview");
+  const form = document.getElementById("form-admin-edit-user");
+  const statusMsg = document.getElementById("inspector-status-msg");
+
+  if (closeBtn && !closeBtn.dataset.bound) {
+    closeBtn.dataset.bound = "true";
+    closeBtn.addEventListener("click", closeUserInspector);
+  }
+
+  // Instant Local Image Preview
+  if (fileInput && !fileInput.dataset.bound) {
+    fileInput.dataset.bound = "true";
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        alert("Please select a valid image file (PNG, JPG, or WebP).");
+        fileInput.value = "";
+        return;
+      }
+      resetAvatarRequested = false;
+      previewImg.src = URL.createObjectURL(file);
+    });
+  }
+
+  // Reset Photo to Default Initials
+  if (resetPhotoBtn && !resetPhotoBtn.dataset.bound) {
+    resetPhotoBtn.dataset.bound = "true";
+    resetPhotoBtn.addEventListener("click", () => {
+      const nameVal = document.getElementById("inspector-fullname").value.trim() || "User";
+      if (fileInput) fileInput.value = "";
+      resetAvatarRequested = true;
+      previewImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameVal)}&background=1b5375&color=faf2dd`;
+    });
+  }
+
+  // Save User Profile, Picture & Role Changes
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = "true";
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const uid = document.getElementById("inspector-user-uid").value;
+      const targetUser = cachedUsers.find((u) => u.uid === uid);
+      if (!targetUser) return;
+
+      const fullName = document.getElementById("inspector-fullname").value.trim();
+      const department = document.getElementById("inspector-department").value.trim();
+      const newRole = document.getElementById("inspector-role-select").value;
+      const saveBtn = document.getElementById("btn-save-inspector-user");
+
+      if (!fullName) {
+        showInspectorStatus(statusMsg, "Full name is required.", "error");
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+      showInspectorStatus(statusMsg, "", "clear");
+
+      try {
+        let updatedAvatarUrl = null;
+
+        if (fileInput && fileInput.files.length > 0) {
+          saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Photo...';
+          const uploadedUrl = await uploadToCloudinary(fileInput.files[0], "aimser/avatars");
+          updatedAvatarUrl = `${uploadedUrl}?t=${Date.now()}`;
+        } else if (resetAvatarRequested) {
+          updatedAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=1b5375&color=faf2dd`;
+        }
+
+        const isSelf = currentAdminUser && uid === currentAdminUser.uid;
+        const effectiveRole = isSelf ? (targetUser.role || "admin").toLowerCase() : newRole;
+
+        const payload = {
+          fullName,
+          department,
+          role: effectiveRole,
+          updatedAt: serverTimestamp(),
+          modifiedBy: currentAdminUser.email
+        };
+
+        if (updatedAvatarUrl) {
+          payload.avatarUrl = updatedAvatarUrl;
+        }
+
+        await updateDoc(doc(db, "users", uid), payload);
+
+        // If admin edited their own account, sync Firebase Auth + FastCache + Top Header immediately
+        if (isSelf) {
+          await updateProfile(currentAdminUser, {
+            displayName: fullName,
+            ...(updatedAvatarUrl ? { photoURL: updatedAvatarUrl } : {})
+          });
+          const cachedMe = FastCache.get("user_profile") || {};
+          FastCache.set("user_profile", {
+            ...cachedMe,
+            fullName,
+            department,
+            ...(updatedAvatarUrl ? { avatarUrl: updatedAvatarUrl } : {})
+          });
+          renderAdminIdentity(currentAdminUser, {
+            fullName,
+            avatarUrl: updatedAvatarUrl || targetUser.avatarUrl
+          });
+        }
+
+        await logAuditEvent(
+          `Admin updated profile & details for ${targetUser.email || uid} (Name: "${fullName}", Role: [${effectiveRole}])`,
+          "USER_PROFILE_EDIT",
+          currentAdminUser.email
+        );
+
+        if (fileInput) fileInput.value = "";
+        resetAvatarRequested = false;
+
+        await Promise.all([loadUsers(), loadAuditLogs()]);
+        showInspectorStatus(statusMsg, "User profile and details updated successfully!", "success");
+      } catch (err) {
+        console.error("Failed updating user profile:", err);
+        showInspectorStatus(statusMsg, err.message || "Failed to save user details.", "error");
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save User Details';
+      }
+    });
+  }
+}
+
+function showInspectorStatus(el, msg, type) {
+  if (!el) return;
+  if (type === "clear" || !msg) {
+    el.style.display = "none";
+    el.textContent = "";
+    el.className = "status-msg";
+    return;
+  }
+  el.textContent = msg;
+  el.className = `status-msg ${type}`;
+  el.style.display = "block";
+}
+
+// 7. Classroom Audit Pipeline
 async function loadSections() {
   const container = document.getElementById("admin-sections-grid");
   if (!container) return;
@@ -335,6 +602,11 @@ async function loadSections() {
     }
 
     cachedSections = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    if (selectedUserUid) {
+      const activeUser = cachedUsers.find((u) => u.uid === selectedUserUid);
+      if (activeUser) updateInspectorEnrollmentStats(activeUser);
+    }
 
     if (cachedSections.length === 0) {
       container.innerHTML = `
@@ -401,72 +673,6 @@ async function loadSections() {
         <h3>Failed to load sections.</h3>
         <p style="font-size: 0.8rem;">${escapeHtml(err.message)}</p>
       </div>`;
-  }
-}
-
-// 7. Role Modifier Modal Engine
-function setupRoleModal() {
-  const modal = document.getElementById("modal-role-editor");
-  const form = document.getElementById("form-update-role");
-  const closeBtn = document.getElementById("btn-close-role-modal");
-  const cancelBtn = document.getElementById("btn-cancel-role-modal");
-
-  if (!modal || modal.dataset.bound) return;
-  modal.dataset.bound = "true";
-
-  const closeModal = () => {
-    modal.classList.remove("is-open");
-    modal.setAttribute("aria-hidden", "true");
-  };
-
-  if (closeBtn) closeBtn.addEventListener("click", closeModal);
-  if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
-
-  if (form) {
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const uid = document.getElementById("edit-user-uid").value;
-      const newRole = document.getElementById("edit-user-role-select").value;
-      const submitBtn = document.getElementById("btn-submit-role");
-
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-
-      try {
-        await updateDoc(doc(db, "users", uid), {
-          role: newRole,
-          updatedAt: serverTimestamp(),
-          roleModifiedBy: currentAdminUser.email
-        });
-
-        await logAuditEvent(
-          `Admin updated role for ${editingUserEmail || uid} to [${newRole}]`,
-          "ROLE_CHANGE",
-          currentAdminUser.email
-        );
-
-        closeModal();
-        await Promise.all([loadUsers(), loadAuditLogs()]);
-      } catch (err) {
-        alert("Failed to update role: " + err.message);
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Clearance';
-      }
-    });
-  }
-}
-
-function openRoleModal(uid, name, email, role) {
-  editingUserEmail = email;
-  const modal = document.getElementById("modal-role-editor");
-  document.getElementById("edit-user-uid").value = uid;
-  document.getElementById("edit-user-display").value = `${name} (${email})`;
-  document.getElementById("edit-user-role-select").value = role;
-
-  if (modal) {
-    modal.classList.add("is-open");
-    modal.setAttribute("aria-hidden", "false");
   }
 }
 

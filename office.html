@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Office Workspace | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/style.css?v=6" />
+  <link rel="stylesheet" href="css/dashboard.css?v=6" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -61,12 +61,6 @@
       <header class="workspace-header">
         <div class="header-left">
           <h1 class="page-title">Office</h1>
-          <select id="active-classroom-select" class="form-select" style="max-width: 260px; padding: 0.45rem 0.85rem;" aria-label="Select Active Classroom">
-            <option value="">Loading Classrooms...</option>
-          </select>
-          <button type="button" id="btn-open-classroom-action" class="btn-primary" style="padding: 0.45rem 0.9rem; font-size: 0.8125rem;">
-            <i class="fas fa-plus"></i> <span id="classroom-action-label">Join / Create Class</span>
-          </button>
         </div>
 
         <div class="header-right" style="display: flex; align-items: center; gap: 0.85rem;">
@@ -85,6 +79,16 @@
           </div>
         </div>
       </header>
+
+      <!-- Classroom Selector & Action Bar (Under the Line) -->
+      <div class="workspace-action-bar" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.35rem;">
+        <select id="active-classroom-select" class="form-select" style="max-width: 280px; padding: 0.5rem 0.85rem;" aria-label="Select Active Classroom">
+          <option value="">Loading Classrooms...</option>
+        </select>
+        <button type="button" id="btn-open-classroom-action" class="btn-primary" style="padding: 0.5rem 0.95rem; font-size: 0.83rem;">
+          <i class="fas fa-plus"></i> <span id="classroom-action-label">Join / Create Class</span>
+        </button>
+      </div>
 
       <!-- Workspace KPI Summary Row -->
       <section class="stats-row">
@@ -126,9 +130,7 @@
         </button>
       </nav>
 
-      <!-- ============================================================== -->
-      <!-- SUB-FEATURE 1: OFFICE DASHBOARD                                -->
-      <!-- ============================================================== -->
+      <!-- SUB-FEATURE 1: OFFICE DASHBOARD -->
       <section id="panel-dashboard" class="tab-panel active">
         <div class="glass-panel">
           <div class="panel-toolbar">
@@ -149,10 +151,8 @@
             </div>
           </div>
 
-          <!-- Upcoming Deadline Reminder Strip -->
           <div id="deadline-reminders-banner" style="display: none; margin-bottom: 1.25rem; padding: 0.85rem 1rem; border-radius: var(--radius-sm); background: rgba(245, 158, 11, 0.12); border: 1px solid var(--warning); color: var(--text-primary); font-size: 0.85rem;"></div>
 
-          <!-- Activities & Assignments Grid -->
           <div id="activities-container" class="cards-grid">
             <div class="empty-state">
               <i class="fas fa-spinner fa-spin"></i>
@@ -162,11 +162,8 @@
         </div>
       </section>
 
-      <!-- ============================================================== -->
-      <!-- SUB-FEATURE 2: OFFICE ANALYTICS                                -->
-      <!-- ============================================================== -->
+      <!-- SUB-FEATURE 2: OFFICE ANALYTICS -->
       <section id="panel-analytics" class="tab-panel">
-        <!-- Faculty Analytics View: Class Performance & Completion Rates -->
         <div id="faculty-analytics-view" class="glass-panel" style="display: none;">
           <div class="panel-toolbar">
             <div>
@@ -206,7 +203,6 @@
           </div>
         </div>
 
-        <!-- Student Analytics View: Personal Performance + HR Metrics Analyzer -->
         <div id="student-analytics-view" style="display: none; flex-direction: column; gap: 1.5rem;">
           <div class="glass-panel">
             <div class="panel-toolbar">
@@ -231,7 +227,6 @@
             </div>
           </div>
 
-          <!-- HR Data Analytics Lab: Turnover, Absenteeism, Training Cost & Recruitment -->
           <div class="glass-panel">
             <div class="panel-toolbar">
               <div>
@@ -306,11 +301,8 @@
         </div>
       </section>
 
-      <!-- ============================================================== -->
-      <!-- SUB-FEATURE 3: OFFICE PORTFOLIO                                -->
-      <!-- ============================================================== -->
+      <!-- SUB-FEATURE 3: OFFICE PORTFOLIO -->
       <section id="panel-portfolio" class="tab-panel">
-        <!-- Faculty Portfolio View: Set KPIs/Appraisal Periods & Grade Class Portfolios -->
         <div id="faculty-portfolio-view" class="glass-panel" style="display: none;">
           <div class="panel-toolbar">
             <div>
@@ -330,7 +322,6 @@
           <div id="class-portfolios-grid" class="cards-grid"></div>
         </div>
 
-        <!-- Student Portfolio View: Goals, Development Plans & Digital HR Portfolio -->
         <div id="student-portfolio-view" style="display: none; flex-direction: column; gap: 1.5rem;">
           <div class="glass-panel">
             <div class="panel-toolbar">
@@ -381,9 +372,7 @@
         </div>
       </section>
 
-      <!-- ============================================================== -->
-      <!-- SUB-FEATURE 4: CLASS ROSTER & JOIN APPROVALS (100 MAX)         -->
-      <!-- ============================================================== -->
+      <!-- SUB-FEATURE 4: CLASS ROSTER & JOIN APPROVALS (100 MAX) -->
       <section id="panel-roster" class="tab-panel">
         <div class="glass-panel">
           <div class="panel-toolbar">
@@ -406,11 +395,7 @@
     </main>
   </div>
 
-  <!-- ================================================================== -->
-  <!-- MODALS                                                             -->
-  <!-- ================================================================== -->
-
-  <!-- Modal 1: Create / Join Classroom (100 Students Limit) -->
+  <!-- MODALS -->
   <div class="modal-backdrop" id="modal-classroom" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -450,7 +435,6 @@
     </div>
   </div>
 
-  <!-- Modal 2: Faculty Post Activity with Deadline & Rubric -->
   <div class="modal-backdrop" id="modal-activity" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -501,7 +485,6 @@
     </div>
   </div>
 
-  <!-- Modal 3: Activity Workspace (Student Submit / Faculty Review Submissions & Rubric Grade) -->
   <div class="modal-backdrop" id="modal-activity-detail" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card" style="max-width: 720px;">
       <div class="modal-header">
@@ -518,7 +501,6 @@
       </div>
       <p id="detail-act-desc" style="white-space: pre-wrap; line-height: 1.6; color: var(--text-secondary); margin-bottom: 1.25rem;"></p>
 
-      <!-- Student Submission & Grade View -->
       <div id="student-submission-section" style="display: none;">
         <div id="student-grade-feedback-box" style="display: none; margin-bottom: 1rem; padding: 0.85rem; border-radius: var(--radius-sm); background: rgba(16, 185, 129, 0.12); border: 1px solid var(--success);">
           <div><strong>Score Awarded:</strong> <span id="student-awarded-score">—</span></div>
@@ -540,7 +522,6 @@
         </form>
       </div>
 
-      <!-- Faculty Submissions & Rubric Scoring Panel -->
       <div id="faculty-submissions-section" style="display: none;">
         <h4 style="margin-bottom: 0.75rem;">Student Submissions &amp; Rubric Grading</h4>
         <div id="faculty-submissions-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 320px; overflow-y: auto;"></div>
@@ -548,7 +529,6 @@
     </div>
   </div>
 
-  <!-- Modal 4: Faculty Set KPIs & Appraisal Period -->
   <div class="modal-backdrop" id="modal-kpi-setup" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -572,7 +552,6 @@
     </div>
   </div>
 
-  <!-- Modal 5: Add Output to Digital HR Portfolio -->
   <div class="modal-backdrop" id="modal-portfolio-artifact" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -596,7 +575,6 @@
     </div>
   </div>
 
-  <!-- Modal 6: Notifications & Deadline Reminders -->
   <div class="modal-backdrop" id="modal-notifications" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -607,9 +585,9 @@
     </div>
   </div>
 
-  <script type="module" src="js/theme.js"></script>
-  <script type="module" src="js/ui-bridge.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
-  <script type="module" src="js/office.js"></script>
+  <script type="module" src="js/theme.js?v=6"></script>
+  <script type="module" src="js/ui-bridge.js?v=6"></script>
+  <script type="module" src="js/auth-guard.js?v=6"></script>
+  <script type="module" src="js/office.js?v=6"></script>
 </body>
 </html>

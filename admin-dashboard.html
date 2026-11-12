@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Console | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=6" />
-  <link rel="stylesheet" href="css/dashboard.css?v=6" />
+  <link rel="stylesheet" href="css/style.css?v=7" />
+  <link rel="stylesheet" href="css/dashboard.css?v=7" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -115,48 +115,138 @@
         </button>
       </nav>
 
-      <!-- Panel 1: User Directory & Role Assignment -->
+      <!-- Panel 1: User Directory + Click-to-Inspect Profile & Details Panel -->
       <section id="panel-users" class="tab-panel">
-        <div class="glass-panel">
-          <div class="panel-toolbar">
-            <div>
-              <h2>User Registry</h2>
-              <p class="text-muted">Inspect registered accounts, verify role clearance, and promote or restrict platform access.</p>
+        <div id="user-registry-layout" class="user-registry-layout">
+          <!-- Left: User Directory Table -->
+          <div class="glass-panel">
+            <div class="panel-toolbar">
+              <div>
+                <h2>User Registry</h2>
+                <p class="text-muted">Click any user row to inspect their full profile, avatar, enrollments, and edit account details.</p>
+              </div>
+              <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <select id="admin-role-filter" class="form-select" style="max-width: 150px;" aria-label="Filter by Role">
+                  <option value="all">All Roles</option>
+                  <option value="student">Students</option>
+                  <option value="faculty">Faculty</option>
+                  <option value="admin">Admins</option>
+                </select>
+                <input type="text" id="admin-user-search" class="form-control" placeholder="Search name, email, dept..." style="max-width: 230px;" />
+                <button type="button" id="btn-refresh-users" class="btn-secondary" title="Refresh Users">
+                  <i class="fas fa-sync-alt"></i>
+                </button>
+              </div>
             </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-              <select id="admin-role-filter" class="form-select" style="max-width: 150px;" aria-label="Filter by Role">
-                <option value="all">All Roles</option>
-                <option value="student">Students</option>
-                <option value="faculty">Faculty</option>
-                <option value="admin">Admins</option>
-              </select>
-              <input type="text" id="admin-user-search" class="form-control" placeholder="Search name, email, dept..." style="max-width: 240px;" />
-              <button type="button" id="btn-refresh-users" class="btn-secondary" title="Refresh Users">
-                <i class="fas fa-sync-alt"></i>
-              </button>
+
+            <div style="overflow-x: auto;">
+              <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem;">
+                <thead>
+                  <tr style="border-bottom: 1px solid var(--border-medium); color: var(--text-tertiary);">
+                    <th style="padding: 0.75rem 1rem;">User</th>
+                    <th style="padding: 0.75rem 1rem;">Institutional Email</th>
+                    <th style="padding: 0.75rem 1rem;">Department</th>
+                    <th style="padding: 0.75rem 1rem;">Role</th>
+                    <th style="padding: 0.75rem 1rem; text-align: right;">Profile</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-users-table-body">
+                  <tr>
+                    <td colspan="5" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
+                      <i class="fas fa-spinner fa-spin" style="margin-right: 0.5rem;"></i> Loading user directory...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem;">
-              <thead>
-                <tr style="border-bottom: 1px solid var(--border-medium); color: var(--text-tertiary);">
-                  <th style="padding: 0.75rem 1rem;">User</th>
-                  <th style="padding: 0.75rem 1rem;">Institutional Email</th>
-                  <th style="padding: 0.75rem 1rem;">Department</th>
-                  <th style="padding: 0.75rem 1rem;">Role</th>
-                  <th style="padding: 0.75rem 1rem; text-align: right;">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="admin-users-table-body">
-                <tr>
-                  <td colspan="5" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
-                    <i class="fas fa-spinner fa-spin" style="margin-right: 0.5rem;"></i> Loading user directory...
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <!-- Right: User Profile & Details Inspector Panel (Opens on Row Click) -->
+          <aside id="user-inspector-panel" class="glass-panel user-inspector-panel" style="display: none;" aria-label="User Profile Inspector">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.15rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-subtle);">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-id-card" style="color: var(--aimser-blue-400);"></i>
+                <h3 style="margin: 0; font-size: 1.05rem;">User Profile &amp; Details</h3>
+              </div>
+              <button type="button" id="btn-close-inspector" class="btn-close-modal" aria-label="Close User Profile Panel">&times;</button>
+            </div>
+
+            <div id="inspector-status-msg" class="status-msg" aria-live="polite"></div>
+
+            <!-- Avatar & Identity Header -->
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.15rem;">
+              <img id="inspector-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Selected User Avatar" class="avatar-preview" style="width: 74px; height: 74px;" />
+              <div style="min-width: 0; flex: 1;">
+                <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 0.2rem;">
+                  <strong id="inspector-header-name" style="font-size: 1.05rem; color: var(--text-primary);">User Name</strong>
+                  <span id="inspector-header-role-badge" class="badge-pill" style="font-size: 0.68rem;">STUDENT</span>
+                </div>
+                <div id="inspector-header-email" class="text-muted" style="font-size: 0.8rem; word-break: break-all;">user@institution.edu.ph</div>
+                <div style="margin-top: 0.45rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                  <label for="inspector-avatar-input" class="btn-secondary" style="padding: 0.3rem 0.65rem; font-size: 0.74rem; cursor: pointer;">
+                    <i class="fas fa-camera"></i> Change Photo
+                  </label>
+                  <button type="button" id="btn-reset-user-avatar" class="btn-secondary" style="padding: 0.3rem 0.65rem; font-size: 0.74rem;">
+                    <i class="fas fa-undo"></i> Reset Photo
+                  </button>
+                  <input type="file" id="inspector-avatar-input" accept="image/png,image/jpeg,image/webp" style="display: none;" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Account Telemetry Metadata -->
+            <div class="inspector-meta-grid">
+              <div class="inspector-meta-item">
+                <span>Account UID</span>
+                <strong id="inspector-uid-text" style="font-family: var(--font-mono); font-size: 0.72rem;">—</strong>
+              </div>
+              <div class="inspector-meta-item">
+                <span>Registered On</span>
+                <strong id="inspector-created-text">—</strong>
+              </div>
+              <div class="inspector-meta-item">
+                <span>Classrooms</span>
+                <strong id="inspector-classes-text">0</strong>
+              </div>
+              <div class="inspector-meta-item">
+                <span>Project Teams</span>
+                <strong id="inspector-teams-text">0</strong>
+              </div>
+            </div>
+
+            <!-- Editable User Profile Form -->
+            <form id="form-admin-edit-user">
+              <input type="hidden" id="inspector-user-uid" />
+
+              <div class="form-group">
+                <label for="inspector-fullname" class="form-label">Full Name</label>
+                <input type="text" id="inspector-fullname" class="form-control" placeholder="Enter full name" required />
+              </div>
+
+              <div class="form-group">
+                <label for="inspector-department" class="form-label">Department / Program</label>
+                <input type="text" id="inspector-department" class="form-control" placeholder="e.g., BSBA - Human Resource Management" />
+              </div>
+
+              <div class="form-group">
+                <label for="inspector-role-select" class="form-label">System Role Clearance</label>
+                <select id="inspector-role-select" class="form-select" required>
+                  <option value="student">Student (Classroom &amp; Team Participant)</option>
+                  <option value="faculty">Faculty (Creates &amp; Grades Classrooms/Cases)</option>
+                  <option value="admin">Administrator (Full Platform Authority)</option>
+                </select>
+                <small id="inspector-self-note" class="text-muted" style="display: none; font-size: 0.73rem; margin-top: 0.25rem;">
+                  Root administrator role cannot be downgraded here.
+                </small>
+              </div>
+
+              <div style="display: flex; gap: 0.5rem; margin-top: 1.15rem;">
+                <button type="submit" id="btn-save-inspector-user" class="btn-primary" style="flex: 1; justify-content: center;">
+                  <i class="fas fa-save"></i> Save User Details
+                </button>
+              </div>
+            </form>
+          </aside>
         </div>
       </section>
 
@@ -209,44 +299,9 @@
     </main>
   </div>
 
-  <!-- Role Edit Modal -->
-  <div class="modal-backdrop" id="modal-role-editor" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3>Modify Account Clearance</h3>
-        <button type="button" class="btn-close-modal" id="btn-close-role-modal" aria-label="Close modal">&times;</button>
-      </div>
-
-      <form id="form-update-role">
-        <input type="hidden" id="edit-user-uid" />
-
-        <div class="form-group">
-          <label class="form-label">User Identifier</label>
-          <input type="text" id="edit-user-display" class="form-control" disabled />
-        </div>
-
-        <div class="form-group">
-          <label for="edit-user-role-select" class="form-label">System Role Clearance</label>
-          <select id="edit-user-role-select" class="form-select" required>
-            <option value="student">Student (Participant in assigned classrooms and teams)</option>
-            <option value="faculty">Faculty (Creates and grades classrooms, activities, cases)</option>
-            <option value="admin">Administrator (Complete platform authority and configuration)</option>
-          </select>
-        </div>
-
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" id="btn-cancel-role-modal">Cancel</button>
-          <button type="submit" class="btn-primary" id="btn-submit-role">
-            <i class="fas fa-save"></i> Save Clearance
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script type="module" src="js/theme.js?v=6"></script>
-  <script type="module" src="js/ui-bridge.js?v=6"></script>
-  <script type="module" src="js/auth-guard.js?v=6"></script>
-  <script type="module" src="js/admin-dashboard.js?v=6"></script>
+  <script type="module" src="js/theme.js?v=7"></script>
+  <script type="module" src="js/ui-bridge.js?v=7"></script>
+  <script type="module" src="js/auth-guard.js?v=7"></script>
+  <script type="module" src="js/admin-dashboard.js?v=7"></script>
 </body>
 </html>
