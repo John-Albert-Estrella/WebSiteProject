@@ -1,27 +1,29 @@
-// js/auth-guard.js - Zero-Buffer Route Protection & Role Isolation
+// js/auth-guard.js - Zero-Buffer Route Protection & Role Isolation (Clean URL + .html Compatible)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { FastCache } from "./security-utils.js";
 
-const currentPath = window.location.pathname.toLowerCase();
+const rawPath = window.location.pathname.toLowerCase();
+const cleanPath = rawPath.replace(/\.html$/, "").replace(/\/$/, "") || "/";
 
+// Matches both Vercel clean URLs (/login) and GitHub Pages URLs (/repo/login.html)
 const isAuthLanding =
-  currentPath.endsWith("login.html") ||
-  currentPath.endsWith("register.html") ||
-  currentPath.endsWith("index.html") ||
-  currentPath === "/" ||
-  currentPath.endsWith("/");
+  rawPath.endsWith("/") ||
+  cleanPath === "/" ||
+  cleanPath.endsWith("/login") ||
+  cleanPath.endsWith("/register") ||
+  cleanPath.endsWith("/index");
 
 const isParticipantWorkspace =
-  currentPath.includes("office.html") ||
-  currentPath.includes("planner.html") ||
-  currentPath.includes("hr-library.html") ||
-  (currentPath.includes("settings.html") && !currentPath.includes("admin-settings.html"));
+  cleanPath.endsWith("/office") ||
+  cleanPath.endsWith("/planner") ||
+  cleanPath.endsWith("/hr-library") ||
+  (cleanPath.endsWith("/settings") && !cleanPath.endsWith("/admin-settings"));
 
 const isAdminWorkspace =
-  currentPath.includes("admin-dashboard.html") ||
-  currentPath.includes("admin-settings.html");
+  cleanPath.endsWith("/admin-dashboard") ||
+  cleanPath.endsWith("/admin-settings");
 
 // 1. Synchronous Fast-Path Check (Eliminates redirect flicker)
 const cachedProfile = FastCache.get("user_profile");
@@ -61,7 +63,7 @@ onAuthStateChanged(auth, async (user) => {
     FastCache.set("user_profile", profileSnapshot);
     window.dispatchEvent(new CustomEvent("aimser:profile-ready", { detail: profileSnapshot }));
 
-    if (isAuthLanding && !currentPath.endsWith("index.html")) {
+    if (isAuthLanding && !cleanPath.endsWith("/index") && cleanPath !== "/" && !rawPath.endsWith("/")) {
       window.location.replace(userRole === "admin" ? "admin-dashboard.html" : "office.html");
       return;
     }
