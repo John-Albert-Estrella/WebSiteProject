@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Console | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=7" />
-  <link rel="stylesheet" href="css/dashboard.css?v=7" />
+  <link rel="stylesheet" href="css/style.css?v=10" />
+  <link rel="stylesheet" href="css/dashboard.css?v=10" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -34,6 +34,10 @@
           <button type="button" class="nav-item subnav-link" data-target="panel-sections" data-nav-key="sections">
             <i class="fas fa-chalkboard-teacher"></i>
             <span>Classroom Sections</span>
+          </button>
+          <button type="button" class="nav-item subnav-link" data-target="panel-feed" data-nav-key="feed">
+            <i class="fas fa-comments"></i>
+            <span>HR Feed Moderation</span>
           </button>
           <button type="button" class="nav-item subnav-link" data-target="panel-telemetry" data-nav-key="audit">
             <i class="fas fa-shield-alt"></i>
@@ -109,16 +113,19 @@
           <i class="fas fa-chalkboard"></i>
           <span>Classroom Sections</span>
         </button>
+        <button type="button" class="subnav-tab" data-tab="panel-feed">
+          <i class="fas fa-comments"></i>
+          <span>HR Feed Moderation</span>
+        </button>
         <button type="button" class="subnav-tab active" data-tab="panel-telemetry">
           <i class="fas fa-shield-alt"></i>
           <span>Security &amp; Activity Telemetry</span>
         </button>
       </nav>
 
-      <!-- Panel 1: User Directory + Click-to-Inspect Profile & Details Panel -->
+      <!-- Panel 1: User Directory & Profile Inspector -->
       <section id="panel-users" class="tab-panel">
         <div id="user-registry-layout" class="user-registry-layout">
-          <!-- Left: User Directory Table -->
           <div class="glass-panel">
             <div class="panel-toolbar">
               <div>
@@ -161,7 +168,7 @@
             </div>
           </div>
 
-          <!-- Right: User Profile & Details Inspector Panel (Opens on Row Click) -->
+          <!-- User Profile & Details Inspector Panel -->
           <aside id="user-inspector-panel" class="glass-panel user-inspector-panel" style="display: none;" aria-label="User Profile Inspector">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.15rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-subtle);">
               <div style="display: flex; align-items: center; gap: 0.5rem;">
@@ -173,7 +180,6 @@
 
             <div id="inspector-status-msg" class="status-msg" aria-live="polite"></div>
 
-            <!-- Avatar & Identity Header -->
             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.15rem;">
               <img id="inspector-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Selected User Avatar" class="avatar-preview" style="width: 74px; height: 74px;" />
               <div style="min-width: 0; flex: 1;">
@@ -194,7 +200,6 @@
               </div>
             </div>
 
-            <!-- Account Telemetry Metadata -->
             <div class="inspector-meta-grid">
               <div class="inspector-meta-item">
                 <span>Account UID</span>
@@ -214,7 +219,6 @@
               </div>
             </div>
 
-            <!-- Editable User Profile Form -->
             <form id="form-admin-edit-user">
               <input type="hidden" id="inspector-user-uid" />
 
@@ -272,7 +276,40 @@
         </div>
       </section>
 
-      <!-- Panel 3: Security & Activity Telemetry (Audit Trail) -->
+      <!-- Panel 3: HR Feed Moderation (Archive, Unarchive & Delete Posts) -->
+      <section id="panel-feed" class="tab-panel">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div>
+              <h2>HR Feed Moderation</h2>
+              <p class="text-muted">Inspect, archive, restore, or permanently delete workplace conflict scenarios posted in the public HR Feed.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <select id="admin-feed-filter" class="form-select" style="max-width: 165px;" aria-label="Filter Feed Status">
+                <option value="all">All Posts</option>
+                <option value="active">Active Only</option>
+                <option value="archived">Archived Only</option>
+              </select>
+              <input type="text" id="admin-feed-search" class="form-control" placeholder="Search title, author, text..." style="max-width: 240px;" />
+              <a href="hr-library.html" class="btn-secondary" style="padding: 0.5rem 0.85rem; font-size: 0.8rem;" title="Open Live HR Library">
+                <i class="fas fa-external-link-alt"></i> Open Feed
+              </a>
+              <button type="button" id="btn-refresh-feed" class="btn-secondary" title="Refresh HR Feed">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+          </div>
+
+          <div id="admin-feed-container" style="display: flex; flex-direction: column; gap: 0.9rem;">
+            <div class="empty-state">
+              <i class="fas fa-spinner fa-spin"></i>
+              <h3>Loading HR Feed posts...</h3>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel 4: Security & Activity Telemetry (Audit Trail) -->
       <section id="panel-telemetry" class="tab-panel active">
         <div class="glass-panel" id="audit-trail-card">
           <div class="panel-toolbar">
@@ -299,9 +336,9 @@
     </main>
   </div>
 
-  <script type="module" src="js/theme.js?v=7"></script>
-  <script type="module" src="js/ui-bridge.js?v=7"></script>
-  <script type="module" src="js/auth-guard.js?v=7"></script>
-  <script type="module" src="js/admin-dashboard.js?v=7"></script>
+  <script type="module" src="js/theme.js?v=10"></script>
+  <script type="module" src="js/ui-bridge.js?v=10"></script>
+  <script type="module" src="js/auth-guard.js?v=10"></script>
+  <script type="module" src="js/admin-dashboard.js?v=10"></script>
 </body>
 </html>

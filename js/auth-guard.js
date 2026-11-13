@@ -14,17 +14,15 @@ const isAuthLanding =
   cleanPath.endsWith("/register") ||
   cleanPath.endsWith("/index");
 
-const isParticipantWorkspace =
+const isStudentFacultyOnlyWorkspace =
   cleanPath.endsWith("/office") ||
   cleanPath.endsWith("/planner") ||
-  cleanPath.endsWith("/hr-library") ||
   (cleanPath.endsWith("/settings") && !cleanPath.endsWith("/admin-settings"));
 
 const isAdminWorkspace =
   cleanPath.endsWith("/admin-dashboard") ||
   cleanPath.endsWith("/admin-settings");
 
-// Circuit breaker: prevents infinite navigation loops from freezing the tab
 function safeRedirect(targetUrl) {
   try {
     const now = Date.now();
@@ -50,7 +48,7 @@ function safeRedirect(targetUrl) {
 const cachedProfile = FastCache.get("user_profile");
 if (cachedProfile && cachedProfile.role) {
   const role = cachedProfile.role.toLowerCase();
-  if (role === "admin" && isParticipantWorkspace) {
+  if (role === "admin" && isStudentFacultyOnlyWorkspace) {
     safeRedirect("admin-dashboard.html");
   } else if (role !== "admin" && isAdminWorkspace) {
     safeRedirect("office.html");
@@ -89,7 +87,7 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
 
-    if (userRole === "admin" && isParticipantWorkspace) {
+    if (userRole === "admin" && isStudentFacultyOnlyWorkspace) {
       safeRedirect("admin-dashboard.html");
       return;
     }

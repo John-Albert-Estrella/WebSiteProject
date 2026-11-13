@@ -1,4 +1,4 @@
-// js/hr-library.js - Public HR Case Library, E-Modules, Practice Answer Keys & Workplace Conflict HR Feed
+// js/hr-library.js - Public HR Case Library, E-Modules, Answer Keys & HR Feed (Poster/Admin Archive & Delete)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -57,6 +57,7 @@ let userProfile = null;
 let allLibraryItems = [];
 let activeCaseItem = null;
 let allFeedPosts = [];
+let currentFeedView = "active"; // "active" | "archived"
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
@@ -75,9 +76,16 @@ onAuthStateChanged(auth, async (user) => {
     FastCache.set("user_profile", userProfile);
   }
 
-  if (userProfile.role === "faculty") {
+  const role = (userProfile.role || "student").toLowerCase();
+
+  if (role === "faculty" || role === "admin") {
     const uploadBtn = document.getElementById("btn-open-case-modal");
     if (uploadBtn) uploadBtn.style.display = "inline-flex";
+  }
+
+  if (role === "admin") {
+    const adminBackLink = document.getElementById("nav-back-admin");
+    if (adminBackLink) adminBackLink.style.display = "flex";
   }
 
   bindLibraryAndFeedEvents();
@@ -99,12 +107,16 @@ onAuthStateChanged(auth, async (user) => {
 
 function renderRoleBadge(role) {
   const normalized = (role || "student").toLowerCase();
+  if (normalized === "admin") {
+    return `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:var(--aimser-blue-700);color:#ffffff;letter-spacing:0.04em;">ADMIN</span>`;
+  }
   const isFac = normalized === "faculty";
   const bg = isFac ? "rgba(56, 189, 248, 0.16)" : "rgba(16, 185, 129, 0.16)";
   const color = isFac ? "#38bdf8" : "#10b981";
   return `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:${bg};color:${color};letter-spacing:0.04em;">${escapeHtml(normalized)}</span>`;
 }
 
+// 1. Public HR Case Library, E-Modules & Practice Cases
 async function loadLibraryItems() {
   try {
     const snap = await getDocs(collection(db, "cases"));
@@ -132,6 +144,7 @@ function renderFilteredLibrary() {
 
   const typeFilter = document.getElementById("library-type-filter")?.value || "all";
   const searchTerm = (document.getElementById("library-search")?.value || "").toLowerCase().trim();
+  const role = (userProfile?.role || "student").toLowerCase();
 
   const filtered = allLibraryItems.filter((item) => {
     const matchesType = typeFilter === "all" || (item.type || "Company Case") === typeFilter;
@@ -152,7 +165,7 @@ function renderFilteredLibrary() {
     .map((item) => {
       const itemType = item.type || "Company Case";
       const hasAnswerKey = itemType === "Practice Case" && Boolean(item.answerKey);
-      const canDelete = !item.id.startsWith("builtin-") && userProfile.role === "faculty";
+      const canDelete = !item.id.startsWith("builtin-") && (role === "faculty" || role === "admin");
 
       return `
         <article class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;">
@@ -203,6 +216,7 @@ function renderFilteredLibrary() {
 function openCaseReaderModal(item) {
   activeCaseItem = item;
   const itemType = item.type || "Company Case";
+  const role = (userProfile?.role || "student").toLowerCase();
 
   document.getElementById("read-case-title").textContent = item.title || "Case Study";
   document.getElementById("read-case-type").textContent = itemType;
@@ -230,7 +244,7 @@ function openCaseReaderModal(item) {
     practiceBox.style.display = "block";
     answerInput.value = "";
     keyText.textContent = item.answerKey;
-    revealBox.style.display = userProfile.role === "faculty" ? "block" : "none";
+    revealBox.style.display = role === "faculty" || role === "admin" ? "block" : "none";
   } else {
     practiceBox.style.display = "none";
     revealBox.style.display = "none";
@@ -239,6 +253,7 @@ function openCaseReaderModal(item) {
   openModal("modal-read-case");
 }
 
+// 2. HR Feed: Workplace Conflict Scenarios (ONLY Poster or Admin Can Archive or Delete)
 async function loadHrFeed() {
   try {
     let snap;
@@ -265,36 +280,91 @@ async function loadHrFeed() {
 
 function renderFeedStream() {
   const stream = document.getElementById("hr-feed-stream");
-  if (!stream) return;
+  if (!stream || !currentUser) return;
 
-  if (allFeedPosts.length === 0) {
+  const isAdmin = (userProfile?.role || "").toLowerCase() === "admin";
+  const searchQuery = (document.getElementById("feed-search-input")?.value || "").toLowerCase().trim();
+
+  const visiblePosts = allFeedPosts.filter((post) => {
+    const isPoster = post.authorUid === currentUser.uid;
+    const isArchived = Boolean(post.archived);
+
+    // View tab filter:
+    // - "active": visible to all users
+    // - "archived": only visible to the original poster or an admin
+    if (currentFeedView === "archived") {
+      if (!isArchived) return false;
+      if (!isPoster && !isAdmin) return false;
+    } else {
+      if (isArchived) return false;
+    }
+
+    if (!searchQuery) return true;
+    return (
+      (post.title || "").toLowerCase().includes(searchQuery) ||
+      (post.concerns || "").toLowerCase().includes(searchQuery) ||
+      (post.investigation || "").toLowerCase().includes(searchQuery) ||
+      (post.resolution || "").toLowerCase().includes(searchQuery) ||
+      (post.authorName || "").toLowerCase().includes(searchQuery)
+    );
+  });
+
+  if (visiblePosts.length === 0) {
+    const emptyTitle =
+      currentFeedView === "archived"
+        ? "No Archived Conflict Scenarios"
+        : "No Active Workplace Conflict Scenarios";
+    const emptyDesc =
+      currentFeedView === "archived"
+        ? "Archived posts you authored (or all archived posts for Admins) appear here."
+        : "Use the form above to share a workplace conflict case, investigation plan, and resolution recommendation.";
+
     stream.innerHTML = `
       <div class="glass-panel empty-state">
-        <i class="fas fa-comments"></i>
-        <h3>No Workplace Conflict Scenarios Posted Yet</h3>
-        <p>Use the form above to share a workplace conflict case, investigation plan, and resolution recommendation.</p>
+        <i class="fas ${currentFeedView === "archived" ? "fa-archive" : "fa-comments"}"></i>
+        <h3>${emptyTitle}</h3>
+        <p>${emptyDesc}</p>
       </div>`;
     return;
   }
 
-  stream.innerHTML = allFeedPosts
+  stream.innerHTML = visiblePosts
     .map((post) => {
       const comments = post.comments || [];
       const ts = post.createdAt?.toDate ? post.createdAt.toDate().toLocaleString() : "Recent";
-      const canDeletePost = post.authorUid === currentUser.uid || userProfile.role === "faculty";
+      const isPoster = post.authorUid === currentUser.uid;
+      const isArchived = Boolean(post.archived);
+
+      // STRICT RULE: Only the original poster OR an Admin can archive or delete the post
+      const canModeratePost = isPoster || isAdmin;
+
+      const moderationControlsHtml = canModeratePost
+        ? `
+          <div style="display:flex;align-items:center;gap:0.45rem;">
+            <button type="button" class="btn-secondary btn-archive-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}" style="padding:0.32rem 0.7rem;font-size:0.75rem;" title="${isArchived ? "Restore to Active Feed" : "Archive Post"}">
+              <i class="fas ${isArchived ? "fa-box-open" : "fa-archive"}"></i> ${isArchived ? "Unarchive" : "Archive"}
+            </button>
+            <button type="button" class="btn-sidebar-action btn-logout btn-del-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" style="width:auto;padding:0.32rem 0.7rem;font-size:0.75rem;" title="Permanently Delete Post">
+              <i class="fas fa-trash-alt"></i> Delete
+            </button>
+          </div>`
+        : "";
 
       return `
-        <article class="glass-panel">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.85rem;">
+        <article class="glass-panel" style="${isArchived ? "border-color: var(--warning); opacity: 0.92;" : ""}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.65rem;margin-bottom:0.85rem;">
             <div>
-              <h3 style="font-size:1.1rem;margin-bottom:0.25rem;color:var(--text-primary);">${escapeHtml(post.title)}</h3>
+              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.25rem;">
+                <h3 style="font-size:1.1rem;margin:0;color:var(--text-primary);">${escapeHtml(post.title)}</h3>
+                ${isArchived ? `<span class="badge-pill" style="background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);">ARCHIVED</span>` : ""}
+              </div>
               <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--text-secondary);">
                 <strong>${escapeHtml(post.authorName || "Participant")}</strong>
                 ${renderRoleBadge(post.authorRole || "student")}
                 <span>• ${escapeHtml(ts)}</span>
               </div>
             </div>
-            ${canDeletePost ? `<button type="button" class="btn-del-feed-post" data-id="${post.id}" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;" title="Delete Scenario"><i class="fas fa-trash-alt"></i></button>` : ""}
+            ${moderationControlsHtml}
           </div>
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0.85rem;margin-bottom:1.15rem;">
@@ -332,25 +402,91 @@ function renderFeedStream() {
                 .join("")}
             </div>
 
-            <form class="form-feed-comment" data-post-id="${post.id}" style="display:flex;gap:0.5rem;">
-              <input type="text" class="form-control input-feed-comment" placeholder="Share your HR analysis, legal perspective, or opinion..." required style="font-size:0.83rem;" />
-              <button type="submit" class="btn-secondary" style="padding:0.45rem 0.9rem;font-size:0.8rem;white-space:nowrap;">
-                <i class="fas fa-reply"></i> Comment
-              </button>
-            </form>
+            ${
+              isArchived
+                ? `<div class="text-muted" style="font-size:0.78rem;font-style:italic;">This post is archived. Unarchive it to reopen comments.</div>`
+                : `<form class="form-feed-comment" data-post-id="${post.id}" style="display:flex;gap:0.5rem;">
+                     <input type="text" class="form-control input-feed-comment" placeholder="Share your HR analysis, legal perspective, or opinion..." required style="font-size:0.83rem;" />
+                     <button type="submit" class="btn-secondary" style="padding:0.45rem 0.9rem;font-size:0.8rem;white-space:nowrap;">
+                       <i class="fas fa-reply"></i> Comment
+                     </button>
+                   </form>`
+            }
           </div>
         </article>`;
     })
     .join("");
 
-  stream.querySelectorAll(".btn-del-feed-post").forEach((btn) => {
+  // Archive / Unarchive Handler (Poster or Admin only)
+  stream.querySelectorAll(".btn-archive-feed-post").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      if (!confirm("Delete this workplace conflict scenario?")) return;
-      await deleteDoc(doc(db, "hr_feed", btn.dataset.id));
-      await loadHrFeed();
+      const postId = btn.dataset.id;
+      const postTitle = btn.dataset.title;
+      const currentlyArchived = btn.dataset.archived === "true";
+      const targetPost = allFeedPosts.find((p) => p.id === postId);
+
+      if (!targetPost) return;
+      if (targetPost.authorUid !== currentUser.uid && (userProfile?.role || "").toLowerCase() !== "admin") {
+        alert("Permission denied: Only the original poster or an Administrator can archive this post.");
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        const nextArchivedState = !currentlyArchived;
+        await updateDoc(doc(db, "hr_feed", postId), {
+          archived: nextArchivedState,
+          archivedAt: nextArchivedState ? serverTimestamp() : null,
+          archivedBy: nextArchivedState ? currentUser.email : null
+        });
+
+        await logAuditEvent(
+          `${nextArchivedState ? "Archived" : "Unarchived"} HR Feed post "${postTitle}" [${userProfile.role}]`,
+          "HR_FEED",
+          currentUser.email
+        );
+        await loadHrFeed();
+      } catch (err) {
+        alert("Unable to update archive status: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
     });
   });
 
+  // Delete Handler (Poster or Admin only)
+  stream.querySelectorAll(".btn-del-feed-post").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const postId = btn.dataset.id;
+      const postTitle = btn.dataset.title;
+      const targetPost = allFeedPosts.find((p) => p.id === postId);
+
+      if (!targetPost) return;
+      if (targetPost.authorUid !== currentUser.uid && (userProfile?.role || "").toLowerCase() !== "admin") {
+        alert("Permission denied: Only the original poster or an Administrator can delete this post.");
+        return;
+      }
+
+      if (!confirm(`Permanently delete "${postTitle}"? This action cannot be undone.`)) return;
+
+      btn.disabled = true;
+      try {
+        await deleteDoc(doc(db, "hr_feed", postId));
+        await logAuditEvent(
+          `Deleted HR Feed post "${postTitle}" [${userProfile.role}]`,
+          "HR_FEED",
+          currentUser.email
+        );
+        await loadHrFeed();
+      } catch (err) {
+        alert("Unable to delete post: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // Comment Handler
   stream.querySelectorAll(".form-feed-comment").forEach((form) => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -382,6 +518,7 @@ function renderFeedStream() {
   });
 }
 
+// 3. Event Bindings
 function bindLibraryAndFeedEvents() {
   document.querySelectorAll(".subnav-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -398,6 +535,21 @@ function bindLibraryAndFeedEvents() {
 
   document.getElementById("library-type-filter")?.addEventListener("change", renderFilteredLibrary);
   document.getElementById("library-search")?.addEventListener("input", renderFilteredLibrary);
+
+  // Active vs Archived Feed View Toggle
+  document.querySelectorAll(".feed-view-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      currentFeedView = btn.dataset.feedView;
+      document.querySelectorAll(".feed-view-btn").forEach((b) => {
+        const isCurrent = b.dataset.feedView === currentFeedView;
+        b.classList.toggle("active", isCurrent);
+        b.style.borderColor = isCurrent ? "var(--aimser-blue-500)" : "var(--border-medium)";
+      });
+      renderFeedStream();
+    });
+  });
+
+  document.getElementById("feed-search-input")?.addEventListener("input", renderFeedStream);
 
   document.getElementById("btn-open-case-modal")?.addEventListener("click", () => openModal("modal-case"));
 
@@ -482,12 +634,14 @@ function bindLibraryAndFeedEvents() {
         authorName: userProfile.fullName,
         authorEmail: currentUser.email,
         authorRole: userProfile.role,
+        archived: false,
         comments: [],
         createdAt: serverTimestamp()
       });
 
       await logAuditEvent(`Posted workplace conflict scenario "${title}" [${userProfile.role}]`, "HR_FEED", currentUser.email);
       e.target.reset();
+      currentFeedView = "active";
       await loadHrFeed();
     } catch (err) {
       alert(err.message);

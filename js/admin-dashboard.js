@@ -1,4 +1,4 @@
-// js/admin-dashboard.js - Administrator Management, User Profile Inspector & Telemetry Engine
+// js/admin-dashboard.js - Administrator Management, User Profile Inspector, HR Feed Moderation & Telemetry
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -20,6 +20,7 @@ let currentAdminUser = null;
 let cachedUsers = [];
 let cachedSections = [];
 let cachedTeams = [];
+let cachedFeedPosts = [];
 let cachedLogs = [];
 let selectedUserUid = null;
 let resetAvatarRequested = false;
@@ -68,6 +69,12 @@ onAuthStateChanged(auth, async (user) => {
       applyUserFilters();
     }
 
+    const snapFeed = FastCache.get("admin_feed_posts");
+    if (snapFeed) {
+      cachedFeedPosts = snapFeed;
+      applyFeedFilters();
+    }
+
     const snapLogs = FastCache.get("admin_logs");
     if (snapLogs) {
       cachedLogs = snapLogs;
@@ -75,7 +82,14 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     // Revalidate all live Firestore collections concurrently
-    await Promise.allSettled([loadMetrics(), loadUsers(), loadSections(), loadTeamsCache(), loadAuditLogs()]);
+    await Promise.allSettled([
+      loadMetrics(),
+      loadUsers(),
+      loadSections(),
+      loadTeamsCache(),
+      loadHrFeedAdmin(),
+      loadAuditLogs()
+    ]);
   } catch (err) {
     console.error("Admin initialization error:", err);
   }
@@ -150,7 +164,205 @@ async function loadTeamsCache() {
   }
 }
 
-// 4. Telemetry & Platform Audit Trail
+// 4. HR Feed Moderation Pipeline (Archive, Unarchive & Delete Any Post)
+async function loadHrFeedAdmin() {
+  const container = document.getElementById("admin-feed-container");
+  if (!container) return;
+
+  try {
+    let snap;
+    try {
+      snap = await getDocs(query(collection(db, "hr_feed"), orderBy("createdAt", "desc")));
+    } catch {
+      snap = await getDocs(collection(db, "hr_feed"));
+    }
+
+    cachedFeedPosts = snap.docs
+      .map((d) => {
+        const data = d.data();
+        const tsMillis = data.createdAt?.toMillis
+          ? data.createdAt.toMillis()
+          : data.createdAt
+            ? new Date(data.createdAt).getTime()
+            : 0;
+        return { id: d.id, ...data, tsMillis };
+      })
+      .sort((a, b) => b.tsMillis - a.tsMillis);
+
+    FastCache.set("admin_feed_posts", cachedFeedPosts);
+    applyFeedFilters();
+  } catch (err) {
+    console.error("Failed loading HR Feed for admin:", err);
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+        <h3>Failed to load HR Feed posts.</h3>
+        <p style="font-size: 0.8rem;">${escapeHtml(err.message)}</p>
+      </div>`;
+  }
+}
+
+function applyFeedFilters() {
+  const statusFilter = (document.getElementById("admin-feed-filter")?.value || "all").toLowerCase();
+  const term = (document.getElementById("admin-feed-search")?.value || "").toLowerCase().trim();
+
+  const filtered = cachedFeedPosts.filter((post) => {
+    const isArchived = Boolean(post.archived);
+    if (statusFilter === "active" && isArchived) return false;
+    if (statusFilter === "archived" && !isArchived) return false;
+
+    if (!term) return true;
+    return (
+      (post.title || "").toLowerCase().includes(term) ||
+      (post.authorName || "").toLowerCase().includes(term) ||
+      (post.authorEmail || "").toLowerCase().includes(term) ||
+      (post.concerns || "").toLowerCase().includes(term) ||
+      (post.investigation || "").toLowerCase().includes(term) ||
+      (post.resolution || "").toLowerCase().includes(term)
+    );
+  });
+
+  renderAdminFeedList(filtered);
+}
+
+function renderAdminFeedList(posts) {
+  const container = document.getElementById("admin-feed-container");
+  if (!container) return;
+
+  if (!posts || posts.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-comments"></i>
+        <h3>No HR Feed Posts Found</h3>
+        <p>No workplace conflict scenarios match the selected filter.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = posts
+    .map((post) => {
+      const isArchived = Boolean(post.archived);
+      const authorRole = (post.authorRole || "student").toLowerCase();
+      const commentsCount = (post.comments || []).length;
+      const dateStr = post.tsMillis ? new Date(post.tsMillis).toLocaleString() : "Recent";
+
+      const roleBadge =
+        authorRole === "admin"
+          ? `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:var(--aimser-blue-700);color:#ffffff;">ADMIN</span>`
+          : authorRole === "faculty"
+            ? `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:rgba(56,189,248,0.16);color:#38bdf8;">FACULTY</span>`
+            : `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:rgba(16,185,129,0.16);color:#10b981;">STUDENT</span>`;
+
+      const statusBadge = isArchived
+        ? `<span class="badge-pill" style="background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);">ARCHIVED</span>`
+        : `<span class="badge-pill" style="background:rgba(16,185,129,0.14);color:var(--success);border-color:rgba(16,185,129,0.35);">ACTIVE</span>`;
+
+      return `
+        <div class="glass-panel" style="background: var(--bg-surface); ${isArchived ? "border-color: rgba(245, 158, 11, 0.45);" : ""}">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
+                <h3 style="margin: 0; font-size: 1.02rem; color: var(--text-primary);">${escapeHtml(post.title || "Untitled Scenario")}</h3>
+                ${statusBadge}
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.78rem; color: var(--text-secondary);">
+                <strong>${escapeHtml(post.authorName || "Unknown")}</strong>
+                ${roleBadge}
+                <span>(${escapeHtml(post.authorEmail || "No email")})</span>
+                <span>• ${escapeHtml(dateStr)}</span>
+                <span>• <i class="far fa-comment-dots"></i> ${commentsCount} comment(s)</span>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.45rem;">
+              <button type="button" class="btn-secondary btn-admin-archive-feed" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}" style="padding: 0.36rem 0.75rem; font-size: 0.78rem;">
+                <i class="fas ${isArchived ? "fa-box-open" : "fa-archive"}"></i> ${isArchived ? "Unarchive" : "Archive"}
+              </button>
+              <button type="button" class="btn-sidebar-action btn-logout btn-admin-del-feed" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" style="width: auto; padding: 0.36rem 0.75rem; font-size: 0.78rem;">
+                <i class="fas fa-trash-alt"></i> Delete
+              </button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.65rem; font-size: 0.8rem;">
+            <div style="padding: 0.65rem 0.8rem; border-radius: var(--radius-xs); background: var(--bg-canvas); border: 1px solid var(--border-subtle);">
+              <strong style="color: var(--warning); display: block; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.2rem;">Concerns</strong>
+              <span style="color: var(--text-secondary);">${escapeHtml(post.concerns || "—")}</span>
+            </div>
+            <div style="padding: 0.65rem 0.8rem; border-radius: var(--radius-xs); background: var(--bg-canvas); border: 1px solid var(--border-subtle);">
+              <strong style="color: #38bdf8; display: block; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.2rem;">Investigation</strong>
+              <span style="color: var(--text-secondary);">${escapeHtml(post.investigation || "—")}</span>
+            </div>
+            <div style="padding: 0.65rem 0.8rem; border-radius: var(--radius-xs); background: var(--bg-canvas); border: 1px solid var(--border-subtle);">
+              <strong style="color: var(--success); display: block; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.2rem;">Resolution</strong>
+              <span style="color: var(--text-secondary);">${escapeHtml(post.resolution || "—")}</span>
+            </div>
+          </div>
+        </div>`;
+    })
+    .join("");
+
+  // Admin Archive / Unarchive Feed Post
+  container.querySelectorAll(".btn-admin-archive-feed").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const postId = btn.dataset.id;
+      const postTitle = btn.dataset.title;
+      const currentlyArchived = btn.dataset.archived === "true";
+      const nextState = !currentlyArchived;
+
+      btn.disabled = true;
+      try {
+        await updateDoc(doc(db, "hr_feed", postId), {
+          archived: nextState,
+          archivedAt: nextState ? serverTimestamp() : null,
+          archivedBy: nextState ? currentAdminUser.email : null
+        });
+
+        await logAuditEvent(
+          `Admin ${nextState ? "archived" : "unarchived"} HR Feed post "${postTitle}"`,
+          "HR_FEED_MODERATION",
+          currentAdminUser.email
+        );
+
+        sessionStorage.removeItem("aimser_v2_hr_feed_posts");
+        await Promise.all([loadHrFeedAdmin(), loadAuditLogs()]);
+      } catch (err) {
+        alert("Failed to update archive state: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  // Admin Delete Feed Post
+  container.querySelectorAll(".btn-admin-del-feed").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const postId = btn.dataset.id;
+      const postTitle = btn.dataset.title;
+
+      if (!confirm(`Permanently delete HR Feed post "${postTitle}"? This cannot be undone.`)) return;
+
+      btn.disabled = true;
+      try {
+        await deleteDoc(doc(db, "hr_feed", postId));
+        await logAuditEvent(
+          `Admin permanently deleted HR Feed post "${postTitle}"`,
+          "HR_FEED_MODERATION",
+          currentAdminUser.email
+        );
+
+        sessionStorage.removeItem("aimser_v2_hr_feed_posts");
+        await Promise.all([loadHrFeedAdmin(), loadAuditLogs()]);
+      } catch (err) {
+        alert("Failed to delete post: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+// 5. Telemetry & Platform Audit Trail
 async function loadAuditLogs() {
   const container = document.getElementById("admin-logs-container");
   const elLogs = document.getElementById("stat-total-logs");
@@ -221,7 +433,7 @@ function renderAuditLogsList(logs) {
       <div class="empty-state" style="padding: 2.5rem 1.5rem;">
         <i class="fas fa-clipboard-list"></i>
         <h3>No Telemetry Events Logged</h3>
-        <p style="font-size: 0.8rem;">User registrations, classroom join requests, and profile edits will stream here automatically.</p>
+        <p style="font-size: 0.8rem;">User registrations, classroom join requests, and moderation events will stream here automatically.</p>
       </div>`;
     return;
   }
@@ -248,7 +460,7 @@ function renderAuditLogsList(logs) {
     .join("");
 }
 
-// 5. User Directory Pipeline
+// 6. User Directory Pipeline
 async function loadUsers() {
   const tbody = document.getElementById("admin-users-table-body");
   if (!tbody) return;
@@ -266,7 +478,6 @@ async function loadUsers() {
     FastCache.set("admin_users", cachedUsers);
     applyUserFilters();
 
-    // Refresh inspector if a user is currently selected
     if (selectedUserUid) {
       const refreshedUser = cachedUsers.find((u) => u.uid === selectedUserUid);
       if (refreshedUser) openUserInspector(refreshedUser.uid);
@@ -338,7 +549,7 @@ function renderUsersTable(users) {
   });
 }
 
-// 6. User Profile & Details Inspector Panel
+// 7. User Profile & Details Inspector Panel
 function openUserInspector(uid) {
   const userObj = cachedUsers.find((u) => u.uid === uid);
   if (!userObj) return;
@@ -357,7 +568,6 @@ function openUserInspector(uid) {
     statusMsg.textContent = "";
   }
 
-  // Highlight selected row in table
   document.querySelectorAll(".admin-user-row").forEach((r) => {
     r.classList.toggle("is-selected", r.dataset.uid === uid);
   });
@@ -377,7 +587,6 @@ function openUserInspector(uid) {
   document.getElementById("inspector-header-email").textContent = email;
   document.getElementById("inspector-uid-text").textContent = uid;
 
-  // Format registration date
   let createdStr = "Recorded";
   if (userObj.createdAt?.toDate) {
     createdStr = userObj.createdAt.toDate().toLocaleDateString();
@@ -386,7 +595,6 @@ function openUserInspector(uid) {
   }
   document.getElementById("inspector-created-text").textContent = createdStr;
 
-  // Populate editable fields
   document.getElementById("inspector-fullname").value = userObj.fullName || "";
   document.getElementById("inspector-department").value = department;
 
@@ -450,7 +658,6 @@ function setupUserInspectorPanel() {
     closeBtn.addEventListener("click", closeUserInspector);
   }
 
-  // Instant Local Image Preview
   if (fileInput && !fileInput.dataset.bound) {
     fileInput.dataset.bound = "true";
     fileInput.addEventListener("change", () => {
@@ -466,7 +673,6 @@ function setupUserInspectorPanel() {
     });
   }
 
-  // Reset Photo to Default Initials
   if (resetPhotoBtn && !resetPhotoBtn.dataset.bound) {
     resetPhotoBtn.dataset.bound = "true";
     resetPhotoBtn.addEventListener("click", () => {
@@ -477,7 +683,6 @@ function setupUserInspectorPanel() {
     });
   }
 
-  // Save User Profile, Picture & Role Changes
   if (form && !form.dataset.bound) {
     form.dataset.bound = "true";
     form.addEventListener("submit", async (e) => {
@@ -528,7 +733,6 @@ function setupUserInspectorPanel() {
 
         await updateDoc(doc(db, "users", uid), payload);
 
-        // If admin edited their own account, sync Firebase Auth + FastCache + Top Header immediately
         if (isSelf) {
           await updateProfile(currentAdminUser, {
             displayName: fullName,
@@ -582,7 +786,7 @@ function showInspectorStatus(el, msg, type) {
   el.style.display = "block";
 }
 
-// 7. Classroom Audit Pipeline
+// 8. Classroom Audit Pipeline
 async function loadSections() {
   const container = document.getElementById("admin-sections-grid");
   if (!container) return;
@@ -676,7 +880,7 @@ async function loadSections() {
   }
 }
 
-// 8. Synchronized Tabs, Sidebar Active Highlight & Hash Routing
+// 9. Synchronized Tabs, Sidebar Active Highlight & Hash Routing
 function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
   const tabs = document.querySelectorAll(".subnav-tab");
   const panels = document.querySelectorAll(".tab-panel");
@@ -691,7 +895,9 @@ function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
       ? "users"
       : targetPanelId === "panel-sections"
         ? "sections"
-        : "overview");
+        : targetPanelId === "panel-feed"
+          ? "feed"
+          : "overview");
 
   sidebarBtns.forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.navKey === resolvedKey);
@@ -708,6 +914,8 @@ function applyInitialHashRoute() {
     activateAdminTab("panel-users", "users");
   } else if (hash === "#sections") {
     activateAdminTab("panel-sections", "sections");
+  } else if (hash === "#feed") {
+    activateAdminTab("panel-feed", "feed");
   } else if (hash === "#audit") {
     activateAdminTab("panel-telemetry", "audit");
   } else {
@@ -734,12 +942,13 @@ function setupTabs() {
 
   document.getElementById("btn-refresh-users")?.addEventListener("click", loadUsers);
   document.getElementById("btn-refresh-sections")?.addEventListener("click", loadSections);
+  document.getElementById("btn-refresh-feed")?.addEventListener("click", loadHrFeedAdmin);
   document.getElementById("btn-refresh-logs")?.addEventListener("click", async () => {
     await Promise.all([loadAuditLogs(), loadMetrics()]);
   });
 }
 
-// 9. Search & Role Filtering
+// 10. Search & Role Filtering
 function applyUserFilters() {
   const term = (document.getElementById("admin-user-search")?.value || "").toLowerCase().trim();
   const roleFilter = (document.getElementById("admin-role-filter")?.value || "all").toLowerCase();
@@ -761,6 +970,9 @@ function applyUserFilters() {
 function setupSearchAndFilters() {
   document.getElementById("admin-user-search")?.addEventListener("input", applyUserFilters);
   document.getElementById("admin-role-filter")?.addEventListener("change", applyUserFilters);
+
+  document.getElementById("admin-feed-filter")?.addEventListener("change", applyFeedFilters);
+  document.getElementById("admin-feed-search")?.addEventListener("input", applyFeedFilters);
 
   document.getElementById("admin-log-search")?.addEventListener("input", (e) => {
     const q = e.target.value.toLowerCase().trim();
