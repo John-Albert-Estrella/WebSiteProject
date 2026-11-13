@@ -1,6 +1,10 @@
 // js/admin-dashboard.js - Administrator Management, User Inspector, Case Library, HR Feed & Telemetry
 import { auth, db } from "./firebase-init.js";
-import { onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import {
+  onAuthStateChanged,
+  updateProfile,
+  sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
   collection,
   doc,
@@ -758,7 +762,7 @@ function renderUsersTable(users) {
   });
 }
 
-// 8. User Profile & Details Inspector Panel
+// 8. User Profile & Details Inspector Panel (With Password Reset & Account Removal)
 function openUserInspector(uid) {
   const userObj = cachedUsers.find((u) => u.uid === uid);
   if (!userObj) return;
@@ -809,9 +813,16 @@ function openUserInspector(uid) {
 
   const roleSelect = document.getElementById("inspector-role-select");
   const selfNote = document.getElementById("inspector-self-note");
+  const deleteUserBtn = document.getElementById("btn-inspector-delete-user");
+
   roleSelect.value = role;
   roleSelect.disabled = Boolean(isSelf);
   if (selfNote) selfNote.style.display = isSelf ? "block" : "none";
+  if (deleteUserBtn) {
+    deleteUserBtn.disabled = Boolean(isSelf);
+    deleteUserBtn.style.opacity = isSelf ? "0.45" : "1";
+    deleteUserBtn.title = isSelf ? "Root administrator account cannot be deleted" : "Remove user profile record";
+  }
 
   const fileInput = document.getElementById("inspector-avatar-input");
   if (fileInput) fileInput.value = "";
@@ -858,6 +869,8 @@ function setupUserInspectorPanel() {
   const closeBtn = document.getElementById("btn-close-inspector");
   const fileInput = document.getElementById("inspector-avatar-input");
   const resetPhotoBtn = document.getElementById("btn-reset-user-avatar");
+  const resetPwBtn = document.getElementById("btn-inspector-reset-pw");
+  const deleteUserBtn = document.getElementById("btn-inspector-delete-user");
   const previewImg = document.getElementById("inspector-avatar-preview");
   const form = document.getElementById("form-admin-edit-user");
   const statusMsg = document.getElementById("inspector-status-msg");
@@ -889,6 +902,74 @@ function setupUserInspectorPanel() {
       if (fileInput) fileInput.value = "";
       resetAvatarRequested = true;
       previewImg.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nameVal)}&background=1b5375&color=faf2dd`;
+    });
+  }
+
+  // Trigger Firebase Password Reset Email for Selected User
+  if (resetPwBtn && !resetPwBtn.dataset.bound) {
+    resetPwBtn.dataset.bound = "true";
+    resetPwBtn.addEventListener("click", async () => {
+      const uid = document.getElementById("inspector-user-uid").value;
+      const targetUser = cachedUsers.find((u) => u.uid === uid);
+      if (!targetUser || !targetUser.email) return;
+
+      if (!confirm(`Send a password reset email to ${targetUser.email}?`)) return;
+
+      resetPwBtn.disabled = true;
+      resetPwBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+      showInspectorStatus(statusMsg, "", "clear");
+
+      try {
+        await sendPasswordResetEmail(auth, targetUser.email);
+        await logAuditEvent(
+          `Admin triggered password reset email for ${targetUser.email}`,
+          "SECURITY",
+          currentAdminUser.email
+        );
+        await loadAuditLogs();
+        showInspectorStatus(statusMsg, `Password reset link sent to ${targetUser.email}.`, "success");
+      } catch (err) {
+        showInspectorStatus(statusMsg, err.message || "Failed to send password reset email.", "error");
+      } finally {
+        resetPwBtn.disabled = false;
+        resetPwBtn.innerHTML = '<i class="fas fa-key"></i> Password Reset';
+      }
+    });
+  }
+
+  // Delete / Remove User Profile Record from Firestore
+  if (deleteUserBtn && !deleteUserBtn.dataset.bound) {
+    deleteUserBtn.dataset.bound = "true";
+    deleteUserBtn.addEventListener("click", async () => {
+      const uid = document.getElementById("inspector-user-uid").value;
+      const targetUser = cachedUsers.find((u) => u.uid === uid);
+      if (!targetUser) return;
+
+      if (currentAdminUser && uid === currentAdminUser.uid) {
+        alert("Root administrator account cannot be removed.");
+        return;
+      }
+
+      const label = targetUser.email || targetUser.fullName || uid;
+      if (!confirm(`Permanently remove user directory record for "${label}"?`)) return;
+
+      deleteUserBtn.disabled = true;
+      deleteUserBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
+
+      try {
+        await deleteDoc(doc(db, "users", uid));
+        await logAuditEvent(
+          `Admin removed user directory record for ${label}`,
+          "USER_DELETE",
+          currentAdminUser.email
+        );
+        closeUserInspector();
+        await Promise.all([loadUsers(), loadMetrics(), loadAuditLogs()]);
+      } catch (err) {
+        showInspectorStatus(statusMsg, err.message || "Failed to remove user record.", "error");
+        deleteUserBtn.disabled = false;
+        deleteUserBtn.innerHTML = '<i class="fas fa-user-times"></i> Remove Account';
+      }
     });
   }
 

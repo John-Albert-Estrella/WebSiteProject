@@ -1,4 +1,4 @@
-// js/hr-library.js - Public HR Case Library, E-Modules, HR Feed Photo Upload & Moderation Warning Alerts
+// js/hr-library.js - Public HR Case Library, E-Modules, HR Feed Photo Upload (Posts & Comments) & Moderation Alerts
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -50,7 +50,6 @@ onAuthStateChanged(auth, async (user) => {
 
   bindLibraryAndFeedEvents();
 
-  // Hydrate from cache while stripping any legacy built-in starter cards
   const cachedLib = FastCache.get("hr_library_items");
   if (Array.isArray(cachedLib)) {
     allLibraryItems = cachedLib.filter((item) => !String(item.id || "").startsWith("builtin-"));
@@ -145,7 +144,7 @@ async function loadUserModerationWarnings() {
   }
 }
 
-// 2. Public HR Case Library, E-Modules & Practice Cases (Live Firestore Only)
+// 2. Public HR Case Library, E-Modules & Practice Cases
 async function loadLibraryItems() {
   try {
     const snap = await getDocs(collection(db, "cases"));
@@ -292,7 +291,7 @@ function openCaseReaderModal(item) {
   openModal("modal-read-case");
 }
 
-// 3. HR Feed: Workplace Conflict Scenarios with Photo Attachments
+// 3. HR Feed: Workplace Conflict Scenarios with Post & Comment Photo Attachments
 async function loadHrFeed() {
   try {
     let snap;
@@ -434,27 +433,46 @@ function renderFeedStream() {
 
             <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.75rem;">
               ${comments
-                .map(
-                  (c) => `
-                  <div style="padding:0.6rem 0.85rem;border-radius:var(--radius-xs);background:var(--bg-canvas);border:1px solid var(--border-subtle);font-size:0.83rem;">
-                    <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.2rem;">
-                      <strong>${escapeHtml(c.authorName || "Member")}</strong>
-                      ${renderRoleBadge(c.authorRole || "student")}
-                    </div>
-                    <p style="margin:0;color:var(--text-primary);">${escapeHtml(c.text || "")}</p>
-                  </div>`
-                )
+                .map((c) => {
+                  const safeCommentImg = sanitizeUrl(c.imageUrl, "");
+                  const commentImgHtml = safeCommentImg
+                    ? `<div style="margin-top:0.45rem;">
+                         <img src="${safeCommentImg}" alt="Comment attachment" class="btn-open-lightbox" data-src="${safeCommentImg}" data-title="Comment Photo by ${escapeHtml(c.authorName || "Member")}" style="max-height:180px;max-width:100%;border-radius:var(--radius-xs);border:1px solid var(--border-medium);cursor:zoom-in;object-fit:cover;" />
+                       </div>`
+                    : "";
+
+                  return `
+                    <div style="padding:0.6rem 0.85rem;border-radius:var(--radius-xs);background:var(--bg-canvas);border:1px solid var(--border-subtle);font-size:0.83rem;">
+                      <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.2rem;">
+                        <strong>${escapeHtml(c.authorName || "Member")}</strong>
+                        ${renderRoleBadge(c.authorRole || "student")}
+                      </div>
+                      ${c.text ? `<p style="margin:0;color:var(--text-primary);white-space:pre-wrap;">${escapeHtml(c.text)}</p>` : ""}
+                      ${commentImgHtml}
+                    </div>`;
+                })
                 .join("")}
             </div>
 
             ${
               isArchived
                 ? `<div class="text-muted" style="font-size:0.78rem;font-style:italic;">This post is archived. Unarchive it to reopen comments.</div>`
-                : `<form class="form-feed-comment" data-post-id="${post.id}" style="display:flex;gap:0.5rem;">
-                     <input type="text" class="form-control input-feed-comment" placeholder="Share your HR analysis, legal perspective, or opinion..." required style="font-size:0.83rem;" />
-                     <button type="submit" class="btn-secondary" style="padding:0.45rem 0.9rem;font-size:0.8rem;white-space:nowrap;">
-                       <i class="fas fa-reply"></i> Comment
-                     </button>
+                : `<form class="form-feed-comment" data-post-id="${post.id}" style="display:flex;flex-direction:column;gap:0.5rem;">
+                     <div style="display:flex;gap:0.5rem;align-items:center;">
+                       <input type="text" class="form-control input-feed-comment" placeholder="Share your HR analysis, legal perspective, or opinion..." style="font-size:0.83rem;flex:1;" />
+                       <label class="btn-secondary" style="padding:0.45rem 0.75rem;font-size:0.8rem;cursor:pointer;margin:0;white-space:nowrap;" title="Attach Photo to Comment">
+                         <i class="fas fa-camera"></i>
+                         <input type="file" class="input-comment-image" accept="image/png,image/jpeg,image/webp" style="display:none;" />
+                       </label>
+                       <button type="submit" class="btn-secondary btn-submit-comment" style="padding:0.45rem 0.9rem;font-size:0.8rem;white-space:nowrap;">
+                         <i class="fas fa-reply"></i> Comment
+                       </button>
+                     </div>
+                     <div class="comment-preview-strip" style="display:none;align-items:center;gap:0.6rem;padding:0.4rem 0.65rem;border-radius:var(--radius-xs);background:var(--bg-surface);border:1px solid var(--border-subtle);width:fit-content;">
+                       <img class="comment-preview-img" src="" alt="Comment Preview" style="height:44px;width:44px;object-fit:cover;border-radius:4px;" />
+                       <span class="comment-preview-name text-muted" style="font-size:0.75rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                       <button type="button" class="btn-clear-comment-img" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:0.9rem;line-height:1;" title="Remove Photo">&times;</button>
+                     </div>
                    </form>`
             }
           </div>
@@ -462,6 +480,7 @@ function renderFeedStream() {
     })
     .join("");
 
+  // Lightbox Image Click (Posts & Comments)
   stream.querySelectorAll(".btn-open-lightbox").forEach((img) => {
     img.addEventListener("click", () => {
       document.getElementById("lightbox-title").textContent = img.dataset.title || "Attached Evidence";
@@ -470,6 +489,7 @@ function renderFeedStream() {
     });
   });
 
+  // Archive / Unarchive Handler
   stream.querySelectorAll(".btn-archive-feed-post").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -506,6 +526,7 @@ function renderFeedStream() {
     });
   });
 
+  // Delete Handler
   stream.querySelectorAll(".btn-del-feed-post").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -537,17 +558,70 @@ function renderFeedStream() {
     });
   });
 
+  // Comment Photo Preview, Clear & Submit Handlers
   stream.querySelectorAll(".form-feed-comment").forEach((form) => {
+    const fileInput = form.querySelector(".input-comment-image");
+    const previewStrip = form.querySelector(".comment-preview-strip");
+    const previewImg = form.querySelector(".comment-preview-img");
+    const previewName = form.querySelector(".comment-preview-name");
+    const clearBtn = form.querySelector(".btn-clear-comment-img");
+
+    if (fileInput && previewStrip && previewImg && previewName) {
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        if (!file) {
+          previewStrip.style.display = "none";
+          return;
+        }
+        if (!file.type.startsWith("image/")) {
+          alert("Please select a valid image file (PNG, JPG, or WebP).");
+          fileInput.value = "";
+          previewStrip.style.display = "none";
+          return;
+        }
+        previewImg.src = URL.createObjectURL(file);
+        previewName.textContent = file.name;
+        previewStrip.style.display = "flex";
+      });
+    }
+
+    if (clearBtn && fileInput && previewStrip) {
+      clearBtn.addEventListener("click", () => {
+        fileInput.value = "";
+        if (previewImg) previewImg.src = "";
+        previewStrip.style.display = "none";
+      });
+    }
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const postId = form.dataset.postId;
       const input = form.querySelector(".input-feed-comment");
+      const submitBtn = form.querySelector(".btn-submit-comment");
       const text = input.value.trim();
-      if (!text) return;
+      const imageFile = fileInput?.files?.[0] || null;
+
+      if (!text && !imageFile) {
+        alert("Please write a comment or attach a photo.");
+        return;
+      }
 
       input.disabled = true;
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = imageFile
+          ? '<i class="fas fa-spinner fa-spin"></i> Uploading...'
+          : '<i class="fas fa-spinner fa-spin"></i> Posting...';
+      }
+
       try {
         checkRateLimit("feed_comment", 10, 60000);
+
+        let commentImageUrl = "";
+        if (imageFile) {
+          commentImageUrl = await uploadToCloudinary(imageFile, "aimser/hr-feed-comments");
+        }
+
         await updateDoc(doc(db, "hr_feed", postId), {
           comments: arrayUnion({
             authorUid: currentUser.uid,
@@ -555,15 +629,23 @@ function renderFeedStream() {
             authorEmail: currentUser.email,
             authorRole: userProfile.role,
             text,
+            imageUrl: commentImageUrl,
             createdAt: new Date().toISOString()
           })
         });
+
         input.value = "";
+        if (fileInput) fileInput.value = "";
+        if (previewStrip) previewStrip.style.display = "none";
         await loadHrFeed();
       } catch (err) {
         alert(err.message);
       } finally {
         input.disabled = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-reply"></i> Comment';
+        }
       }
     });
   });
