@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sign In | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=3" />
+  <link rel="stylesheet" href="css/style.css?v=8" />
 </head>
 <body class="auth-body">
   <div class="auth-container">
@@ -34,7 +34,12 @@
         </div>
 
         <div class="form-group">
-          <label for="login-password" class="form-label">Password</label>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+            <label for="login-password" class="form-label" style="margin-bottom: 0;">Password</label>
+            <button type="button" id="btn-open-forgot-pw" style="background: none; border: none; color: var(--aimser-blue-400); font-family: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; padding: 0;">
+              Forgot Password?
+            </button>
+          </div>
           <div class="input-password-wrapper">
             <input type="password" id="login-password" class="form-control" placeholder="Enter your password" required autocomplete="current-password" />
             <button type="button" class="btn-toggle-pw" data-target="login-password" aria-label="Toggle password visibility">
@@ -55,9 +60,39 @@
     </div>
   </div>
 
-  <script type="module" src="js/theme.js?v=3"></script>
-  <script type="module" src="js/ui-bridge.js?v=3"></script>
-  <script type="module" src="js/auth-guard.js?v=3"></script>
-  <script type="module" src="js/auth.js?v=3"></script>
+  <!-- Forgot Password Reset Modal -->
+  <div class="modal-backdrop" id="modal-forgot-password" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3>Reset Account Password</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-forgot-password" aria-label="Close modal">&times;</button>
+      </div>
+
+      <p class="text-muted" style="font-size: 0.84rem; margin-bottom: 1rem;">
+        Enter your registered institutional email address and we will send you a secure password recovery link.
+      </p>
+
+      <div id="forgot-status-message" class="status-msg" aria-live="polite"></div>
+
+      <form id="forgot-password-form">
+        <div class="form-group">
+          <label for="forgot-email" class="form-label">Institutional Email</label>
+          <input type="email" id="forgot-email" class="form-control" placeholder="name@institution.edu.ph" required autocomplete="email" />
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close-modal="modal-forgot-password">Cancel</button>
+          <button type="submit" id="btn-submit-forgot-pw" class="btn-primary">
+            <i class="fas fa-paper-plane"></i> Send Reset Link
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/theme.js?v=8"></script>
+  <script type="module" src="js/ui-bridge.js?v=8"></script>
+  <script type="module" src="js/auth-guard.js?v=8"></script>
+  <script type="module" src="js/auth.js?v=8"></script>
 </body>
 </html>

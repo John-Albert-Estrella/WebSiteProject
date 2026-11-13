@@ -1,8 +1,9 @@
-// js/auth.js - Hardened Authentication & Registration Policy Gatekeeper
+// js/auth.js - Hardened Authentication, Password Recovery & Registration Policy Gatekeeper
 import { auth, db } from "./firebase-init.js";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   updateProfile
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -15,6 +16,7 @@ import { FastCache, checkRateLimit, logAuditEvent } from "./security-utils.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   setupLoginForm();
+  setupForgotPasswordModal();
   setupRegisterForm();
 });
 
@@ -55,14 +57,90 @@ function setupLoginForm() {
       await logAuditEvent(`User signed in: ${email} [${role}]`, "AUTH", email);
       window.location.replace(role === "admin" ? "admin-dashboard.html" : "office.html");
     } catch (err) {
-      const msg = err.code === "auth/invalid-credential" || err.code === "auth/wrong-password"
-        ? "Invalid institutional email or password."
-        : err.message || "Authentication failed.";
+      const msg =
+        err.code === "auth/invalid-credential" || err.code === "auth/wrong-password"
+          ? "Invalid institutional email or password."
+          : err.message || "Authentication failed.";
       setAuthStatus(statusEl, msg, "error");
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+      }
+    }
+  });
+}
+
+function setupForgotPasswordModal() {
+  const openBtn = document.getElementById("btn-open-forgot-pw");
+  const modal = document.getElementById("modal-forgot-password");
+  const form = document.getElementById("forgot-password-form");
+  const statusEl = document.getElementById("forgot-status-message");
+  const forgotEmailInput = document.getElementById("forgot-email");
+  const submitBtn = document.getElementById("btn-submit-forgot-pw");
+
+  if (!openBtn || !modal || !form) return;
+
+  openBtn.addEventListener("click", () => {
+    const typedLoginEmail = (document.getElementById("login-email")?.value || "").trim();
+    if (forgotEmailInput && typedLoginEmail) {
+      forgotEmailInput.value = typedLoginEmail;
+    }
+    setAuthStatus(statusEl, "", "clear");
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+    forgotEmailInput?.focus();
+  });
+
+  document.querySelectorAll('[data-close-modal="modal-forgot-password"]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      modal.classList.remove("is-open");
+      modal.setAttribute("aria-hidden", "true");
+    });
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = (forgotEmailInput?.value || "").trim().toLowerCase();
+    if (!email) return;
+
+    try {
+      checkRateLimit("auth_pw_reset", 3, 60000);
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+      }
+      setAuthStatus(statusEl, "", "clear");
+
+      await sendPasswordResetEmail(auth, email);
+      await logAuditEvent(`Password reset link requested for ${email}`, "SECURITY", email);
+
+      setAuthStatus(
+        statusEl,
+        "If an account exists for that email, a password reset link has been sent. Please check your inbox and spam folder.",
+        "success"
+      );
+      form.reset();
+    } catch (err) {
+      // Prevent account enumeration if user-not-found is returned
+      if (err.code === "auth/user-not-found") {
+        setAuthStatus(
+          statusEl,
+          "If an account exists for that email, a password reset link has been sent. Please check your inbox and spam folder.",
+          "success"
+        );
+        form.reset();
+      } else {
+        const msg =
+          err.code === "auth/invalid-email"
+            ? "Please enter a valid institutional email address."
+            : err.message || "Unable to send password reset email.";
+        setAuthStatus(statusEl, msg, "error");
+      }
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Reset Link';
       }
     }
   });
@@ -95,7 +173,6 @@ function setupRegisterForm() {
       return;
     }
 
-    // Prevent privilege escalation via DOM tampering
     const safeRole = requestedRole === "faculty" ? "faculty" : "student";
 
     try {
@@ -106,7 +183,6 @@ function setupRegisterForm() {
       }
       setAuthStatus(statusEl, "", "clear");
 
-      // Enforce Admin Global Registration Policies (system/config)
       try {
         const configSnap = await getDoc(doc(db, "system", "config"));
         if (configSnap.exists()) {
@@ -159,9 +235,10 @@ function setupRegisterForm() {
       await logAuditEvent(`New account registered: ${email} (${fullName}) as [${safeRole}]`, "REGISTRATION", email);
       window.location.replace("office.html");
     } catch (err) {
-      const msg = err.code === "auth/email-already-in-use"
-        ? "This institutional email is already registered."
-        : err.message || "Registration failed.";
+      const msg =
+        err.code === "auth/email-already-in-use"
+          ? "This institutional email is already registered."
+          : err.message || "Registration failed.";
       setAuthStatus(statusEl, msg, "error");
     } finally {
       if (submitBtn) {
