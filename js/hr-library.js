@@ -1,4 +1,4 @@
-// js/hr-library.js - Public HR Case Library, E-Modules, Answer Keys & HR Feed (Poster/Admin Archive & Delete)
+// js/hr-library.js - Public HR Case Library, E-Modules, HR Feed Photo Upload & Moderation Warning Alerts
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -10,10 +10,12 @@ import {
   updateDoc,
   deleteDoc,
   query,
+  where,
   orderBy,
   arrayUnion,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { uploadToCloudinary } from "./cloudinary-config.js";
 import { FastCache, escapeHtml, sanitizeUrl, checkRateLimit, logAuditEvent } from "./security-utils.js";
 
 const DEFAULT_LIBRARY_ITEMS = [
@@ -57,7 +59,7 @@ let userProfile = null;
 let allLibraryItems = [];
 let activeCaseItem = null;
 let allFeedPosts = [];
-let currentFeedView = "active"; // "active" | "archived"
+let currentFeedView = "active";
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
@@ -77,15 +79,9 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const role = (userProfile.role || "student").toLowerCase();
-
-  if (role === "faculty" || role === "admin") {
+  if (role === "faculty") {
     const uploadBtn = document.getElementById("btn-open-case-modal");
     if (uploadBtn) uploadBtn.style.display = "inline-flex";
-  }
-
-  if (role === "admin") {
-    const adminBackLink = document.getElementById("nav-back-admin");
-    if (adminBackLink) adminBackLink.style.display = "flex";
   }
 
   bindLibraryAndFeedEvents();
@@ -102,7 +98,7 @@ onAuthStateChanged(auth, async (user) => {
     renderFeedStream();
   }
 
-  await Promise.all([loadLibraryItems(), loadHrFeed()]);
+  await Promise.all([loadLibraryItems(), loadHrFeed(), loadUserModerationWarnings()]);
 });
 
 function renderRoleBadge(role) {
@@ -116,7 +112,74 @@ function renderRoleBadge(role) {
   return `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:${bg};color:${color};letter-spacing:0.04em;">${escapeHtml(normalized)}</span>`;
 }
 
-// 1. Public HR Case Library, E-Modules & Practice Cases
+// 1. Load & Display Admin Moderation Warnings Issued to Current User
+async function loadUserModerationWarnings() {
+  const container = document.getElementById("user-warnings-container");
+  if (!container || !currentUser) return;
+
+  try {
+    const q = query(collection(db, "notifications"), where("recipientUid", "==", currentUser.uid));
+    const snap = await getDocs(q);
+    const unreadWarnings = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((n) => !n.read && n.type === "MODERATION_WARNING");
+
+    if (unreadWarnings.length === 0) {
+      container.style.display = "none";
+      container.innerHTML = "";
+      return;
+    }
+
+    container.style.display = "flex";
+    container.innerHTML = unreadWarnings
+      .map(
+        (w) => `
+        <div class="glass-panel" style="border: 1px solid var(--danger); background: rgba(239, 68, 68, 0.12); padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 240px;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--danger); font-weight: 700; font-size: 0.92rem; margin-bottom: 0.3rem;">
+              <i class="fas fa-exclamation-triangle"></i>
+              <span>${escapeHtml(w.title || "Administrator Policy Warning")}</span>
+            </div>
+            <p style="margin: 0 0 0.35rem; font-size: 0.85rem; color: var(--text-primary);">
+              <strong>Moderation Notice:</strong> ${escapeHtml(w.reason || "Your comment violated HR Feed discussion guidelines.")}
+            </p>
+            ${
+              w.commentExcerpt
+                ? `<div style="font-size: 0.78rem; color: var(--text-secondary); background: var(--bg-canvas); padding: 0.45rem 0.7rem; border-radius: var(--radius-xs); border-left: 3px solid var(--danger);">
+                     Moderated comment on <em>"${escapeHtml(w.postTitle || "HR Feed")}"</em>: "${escapeHtml(w.commentExcerpt)}"
+                   </div>`
+                : ""
+            }
+          </div>
+          <button type="button" class="btn-secondary btn-ack-warning" data-id="${w.id}" style="padding: 0.4rem 0.85rem; font-size: 0.78rem; border-color: var(--danger); color: var(--text-primary);">
+            <i class="fas fa-check"></i> Acknowledge Warning
+          </button>
+        </div>`
+      )
+      .join("");
+
+    container.querySelectorAll(".btn-ack-warning").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          await updateDoc(doc(db, "notifications", btn.dataset.id), {
+            read: true,
+            acknowledgedAt: serverTimestamp()
+          });
+          await loadUserModerationWarnings();
+        } catch (err) {
+          alert("Failed to dismiss warning: " + err.message);
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (err) {
+    console.warn("Moderation warnings check skipped:", err.message);
+  }
+}
+
+// 2. Public HR Case Library, E-Modules & Practice Cases
 async function loadLibraryItems() {
   try {
     const snap = await getDocs(collection(db, "cases"));
@@ -165,7 +228,7 @@ function renderFilteredLibrary() {
     .map((item) => {
       const itemType = item.type || "Company Case";
       const hasAnswerKey = itemType === "Practice Case" && Boolean(item.answerKey);
-      const canDelete = !item.id.startsWith("builtin-") && (role === "faculty" || role === "admin");
+      const canDelete = !item.id.startsWith("builtin-") && role === "faculty";
 
       return `
         <article class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;">
@@ -244,7 +307,7 @@ function openCaseReaderModal(item) {
     practiceBox.style.display = "block";
     answerInput.value = "";
     keyText.textContent = item.answerKey;
-    revealBox.style.display = role === "faculty" || role === "admin" ? "block" : "none";
+    revealBox.style.display = role === "faculty" ? "block" : "none";
   } else {
     practiceBox.style.display = "none";
     revealBox.style.display = "none";
@@ -253,7 +316,7 @@ function openCaseReaderModal(item) {
   openModal("modal-read-case");
 }
 
-// 2. HR Feed: Workplace Conflict Scenarios (ONLY Poster or Admin Can Archive or Delete)
+// 3. HR Feed: Workplace Conflict Scenarios with Photo Attachments
 async function loadHrFeed() {
   try {
     let snap;
@@ -289,9 +352,6 @@ function renderFeedStream() {
     const isPoster = post.authorUid === currentUser.uid;
     const isArchived = Boolean(post.archived);
 
-    // View tab filter:
-    // - "active": visible to all users
-    // - "archived": only visible to the original poster or an admin
     if (currentFeedView === "archived") {
       if (!isArchived) return false;
       if (!isPoster && !isAdmin) return false;
@@ -316,8 +376,8 @@ function renderFeedStream() {
         : "No Active Workplace Conflict Scenarios";
     const emptyDesc =
       currentFeedView === "archived"
-        ? "Archived posts you authored (or all archived posts for Admins) appear here."
-        : "Use the form above to share a workplace conflict case, investigation plan, and resolution recommendation.";
+        ? "Archived posts you authored appear here."
+        : "Use the form above to share a workplace conflict case, photo evidence, investigation plan, and resolution.";
 
     stream.innerHTML = `
       <div class="glass-panel empty-state">
@@ -334,19 +394,27 @@ function renderFeedStream() {
       const ts = post.createdAt?.toDate ? post.createdAt.toDate().toLocaleString() : "Recent";
       const isPoster = post.authorUid === currentUser.uid;
       const isArchived = Boolean(post.archived);
+      const safeImage = sanitizeUrl(post.imageUrl, "");
 
-      // STRICT RULE: Only the original poster OR an Admin can archive or delete the post
+      // STRICT RULE: Only original poster or Admin can archive/delete post
       const canModeratePost = isPoster || isAdmin;
 
       const moderationControlsHtml = canModeratePost
         ? `
           <div style="display:flex;align-items:center;gap:0.45rem;">
-            <button type="button" class="btn-secondary btn-archive-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}" style="padding:0.32rem 0.7rem;font-size:0.75rem;" title="${isArchived ? "Restore to Active Feed" : "Archive Post"}">
+            <button type="button" class="btn-secondary btn-archive-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}" style="padding:0.32rem 0.7rem;font-size:0.75rem;">
               <i class="fas ${isArchived ? "fa-box-open" : "fa-archive"}"></i> ${isArchived ? "Unarchive" : "Archive"}
             </button>
-            <button type="button" class="btn-sidebar-action btn-logout btn-del-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" style="width:auto;padding:0.32rem 0.7rem;font-size:0.75rem;" title="Permanently Delete Post">
+            <button type="button" class="btn-sidebar-action btn-logout btn-del-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" style="width:auto;padding:0.32rem 0.7rem;font-size:0.75rem;">
               <i class="fas fa-trash-alt"></i> Delete
             </button>
+          </div>`
+        : "";
+
+      const imageBlockHtml = safeImage
+        ? `
+          <div style="margin-bottom: 1.15rem;">
+            <img src="${safeImage}" alt="Supporting attachment for ${escapeHtml(post.title || "scenario")}" class="btn-open-lightbox" data-src="${safeImage}" data-title="${escapeHtml(post.title || "Attached Evidence")}" style="max-height: 320px; width: 100%; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-medium); cursor: zoom-in;" />
           </div>`
         : "";
 
@@ -366,6 +434,8 @@ function renderFeedStream() {
             </div>
             ${moderationControlsHtml}
           </div>
+
+          ${imageBlockHtml}
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0.85rem;margin-bottom:1.15rem;">
             <div style="padding:0.8rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-subtle);">
@@ -417,7 +487,16 @@ function renderFeedStream() {
     })
     .join("");
 
-  // Archive / Unarchive Handler (Poster or Admin only)
+  // Lightbox Image Click
+  stream.querySelectorAll(".btn-open-lightbox").forEach((img) => {
+    img.addEventListener("click", () => {
+      document.getElementById("lightbox-title").textContent = img.dataset.title || "Attached Evidence";
+      document.getElementById("lightbox-img").src = img.dataset.src;
+      openModal("modal-image-lightbox");
+    });
+  });
+
+  // Archive / Unarchive Handler
   stream.querySelectorAll(".btn-archive-feed-post").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -454,7 +533,7 @@ function renderFeedStream() {
     });
   });
 
-  // Delete Handler (Poster or Admin only)
+  // Delete Handler
   stream.querySelectorAll(".btn-del-feed-post").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -486,7 +565,7 @@ function renderFeedStream() {
     });
   });
 
-  // Comment Handler
+  // Comment Handler (Records authorUid & authorEmail for Admin moderation warnings)
   stream.querySelectorAll(".form-feed-comment").forEach((form) => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -502,6 +581,7 @@ function renderFeedStream() {
           comments: arrayUnion({
             authorUid: currentUser.uid,
             authorName: userProfile.fullName,
+            authorEmail: currentUser.email,
             authorRole: userProfile.role,
             text,
             createdAt: new Date().toISOString()
@@ -518,7 +598,7 @@ function renderFeedStream() {
   });
 }
 
-// 3. Event Bindings
+// 4. Event Bindings & Photo Preview
 function bindLibraryAndFeedEvents() {
   document.querySelectorAll(".subnav-tab").forEach((tab) => {
     tab.addEventListener("click", () => {
@@ -536,7 +616,6 @@ function bindLibraryAndFeedEvents() {
   document.getElementById("library-type-filter")?.addEventListener("change", renderFilteredLibrary);
   document.getElementById("library-search")?.addEventListener("input", renderFilteredLibrary);
 
-  // Active vs Archived Feed View Toggle
   document.querySelectorAll(".feed-view-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       currentFeedView = btn.dataset.feedView;
@@ -550,6 +629,40 @@ function bindLibraryAndFeedEvents() {
   });
 
   document.getElementById("feed-search-input")?.addEventListener("input", renderFeedStream);
+
+  // Feed Image Preview & Clear Handlers
+  const feedImgInput = document.getElementById("feed-image-input");
+  const clearImgBtn = document.getElementById("btn-clear-feed-image");
+  const previewBox = document.getElementById("feed-image-preview-box");
+  const previewImg = document.getElementById("feed-image-preview");
+
+  if (feedImgInput) {
+    feedImgInput.addEventListener("change", () => {
+      const file = feedImgInput.files[0];
+      if (!file) {
+        previewBox.style.display = "none";
+        clearImgBtn.style.display = "none";
+        return;
+      }
+      if (!file.type.startsWith("image/")) {
+        alert("Please select a valid image file (PNG, JPG, or WebP).");
+        feedImgInput.value = "";
+        return;
+      }
+      previewImg.src = URL.createObjectURL(file);
+      previewBox.style.display = "block";
+      clearImgBtn.style.display = "inline-flex";
+    });
+  }
+
+  if (clearImgBtn) {
+    clearImgBtn.addEventListener("click", () => {
+      if (feedImgInput) feedImgInput.value = "";
+      previewImg.src = "";
+      previewBox.style.display = "none";
+      clearImgBtn.style.display = "none";
+    });
+  }
 
   document.getElementById("btn-open-case-modal")?.addEventListener("click", () => openModal("modal-case"));
 
@@ -614,6 +727,7 @@ function bindLibraryAndFeedEvents() {
     }
   });
 
+  // Submit New Conflict Scenario with Optional Cloudinary Image Upload
   document.getElementById("form-create-feed-post")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = document.getElementById("btn-submit-feed-post");
@@ -623,13 +737,24 @@ function bindLibraryAndFeedEvents() {
     const resolution = document.getElementById("feed-resolution").value.trim();
 
     btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+
     try {
       checkRateLimit("create_feed_post", 6, 60000);
+
+      let uploadedImageUrl = "";
+      if (feedImgInput && feedImgInput.files.length > 0) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Photo...';
+        uploadedImageUrl = await uploadToCloudinary(feedImgInput.files[0], "aimser/hr-feed");
+      }
+
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Scenario...';
       await addDoc(collection(db, "hr_feed"), {
         title,
         concerns,
         investigation,
         resolution,
+        imageUrl: uploadedImageUrl,
         authorUid: currentUser.uid,
         authorName: userProfile.fullName,
         authorEmail: currentUser.email,
@@ -641,12 +766,15 @@ function bindLibraryAndFeedEvents() {
 
       await logAuditEvent(`Posted workplace conflict scenario "${title}" [${userProfile.role}]`, "HR_FEED", currentUser.email);
       e.target.reset();
+      if (previewBox) previewBox.style.display = "none";
+      if (clearImgBtn) clearImgBtn.style.display = "none";
       currentFeedView = "active";
       await loadHrFeed();
     } catch (err) {
       alert(err.message);
     } finally {
       btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Publish Conflict Scenario to HR Feed';
     }
   });
 }

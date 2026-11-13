@@ -128,19 +128,21 @@
         <div id="user-registry-layout" class="user-registry-layout">
           <div class="glass-panel">
             <div class="panel-toolbar">
-              <div>
-                <h2>User Registry</h2>
-                <p class="text-muted">Click any user row to inspect their full profile, avatar, enrollments, and edit account details.</p>
+            <div>
+                <h2>HR Feed Moderation</h2>
+                <p class="text-muted">Inspect threads, moderate comments, archive, or delete workplace conflict scenarios.</p>
               </div>
               <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                <select id="admin-role-filter" class="form-select" style="max-width: 150px;" aria-label="Filter by Role">
-                  <option value="all">All Roles</option>
-                  <option value="student">Students</option>
-                  <option value="faculty">Faculty</option>
-                  <option value="admin">Admins</option>
+                <select id="admin-feed-filter" class="form-select" style="width: 145px;" aria-label="Filter Feed Status">
+                  <option value="all">All Posts</option>
+                  <option value="active">Active Only</option>
+                  <option value="archived">Archived Only</option>
                 </select>
-                <input type="text" id="admin-user-search" class="form-control" placeholder="Search name, email, dept..." style="max-width: 230px;" />
-                <button type="button" id="btn-refresh-users" class="btn-secondary" title="Refresh Users">
+                <input type="text" id="admin-feed-search" class="form-control" placeholder="Search title, author, text..." style="width: 220px;" />
+                <button type="button" id="btn-admin-new-post" class="btn-primary" style="padding: 0.52rem 0.85rem; font-size: 0.8rem;">
+                  <i class="fas fa-plus"></i> New Post
+                </button>
+                <button type="button" id="btn-refresh-feed" class="btn-secondary" style="padding: 0.52rem 0.75rem;" title="Refresh HR Feed">
                   <i class="fas fa-sync-alt"></i>
                 </button>
               </div>
