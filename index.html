@@ -3,100 +3,168 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AIMSER | Enterprise HR Simulation &amp; Learning Platform</title>
+  <title>AIMSER | Human Resource Management Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=18" />
+  <style>
+    .landing-shell {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: var(--bg-canvas);
+      color: var(--text-primary);
+    }
+    .landing-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.15rem 2.25rem;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      backdrop-filter: blur(12px);
+    }
+    .landing-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+    .landing-brand img {
+      width: 38px;
+      height: 38px;
+      object-fit: contain;
+    }
+    .landing-hero {
+      max-width: 1120px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 4rem 1.5rem 3rem;
+      text-align: center;
+    }
+    .landing-hero h1 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.18;
+      margin: 0.85rem auto 1.25rem;
+      max-width: 820px;
+    }
+    .landing-cta-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.85rem;
+      flex-wrap: wrap;
+      margin-bottom: 3.5rem;
+    }
+    .landing-features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      text-align: left;
+    }
+    .landing-footer {
+      text-align: center;
+      padding: 1.25rem;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 0.8rem;
+      color: var(--text-tertiary);
+    }
+  </style>
 </head>
-<body class="landing-body">
-  <!-- Top Navigation -->
-  <header class="landing-nav">
-    <div class="landing-nav-inner">
-      <a href="index.html" class="sidebar-brand" style="text-decoration: none;">
-        <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
-        <div class="brand-text">
-          <h2>AIMSER</h2>
-          <span>HR Simulator</span>
+<body>
+  <div class="landing-shell">
+    <!-- Top Navigation -->
+    <header class="landing-nav">
+      <a href="index.html" class="landing-brand">
+        <img src="assets/aimser-logo.png" alt="AIMSER Logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
+        <div>
+          <strong style="font-size: 1.1rem; letter-spacing: 0.04em; display: block;">AIMSER</strong>
+          <span style="font-size: 0.72rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em;">HR Simulator</span>
         </div>
       </a>
 
-      <div class="landing-nav-actions">
-        <button type="button" id="theme-toggle-btn" class="btn-secondary" style="padding: 0.5rem 0.85rem;" aria-label="Toggle Theme">
+      <div style="display: flex; align-items: center; gap: 0.65rem;">
+        <button type="button" id="theme-toggle-btn" class="btn-secondary" style="padding: 0.45rem 0.75rem;" title="Toggle Theme">
           <i class="fas fa-sun"></i>
         </button>
-        <a href="login.html" id="landing-login-link" class="btn-secondary">Sign In</a>
-        <a href="register.html" id="landing-register-link" class="btn-primary">Create Account</a>
-      </div>
-    </div>
-  </header>
-
-  <!-- Hero Section -->
-  <main class="landing-main">
-    <section class="landing-hero">
-      <span class="badge-pill" style="margin-bottom: 1rem; display: inline-flex; align-items: center; gap: 0.45rem;">
-        <i class="fas fa-shield-alt"></i> Academic &amp; Corporate HR Operations Simulator
-      </span>
-      <h1 class="hero-title">Master Real-World Human Resource Management Through Live Simulation</h1>
-      <p class="hero-subtitle">
-        Manage virtual classrooms, analyze workforce turnover and training metrics, collaborate in structured 15-member HR project teams, and resolve real workplace conflict cases.
-      </p>
-
-      <div class="hero-cta-row">
-        <a href="register.html" id="hero-primary-cta" class="btn-primary" style="padding: 0.85rem 1.75rem; font-size: 0.95rem;">
-          <i class="fas fa-rocket"></i> Launch Workspace
+        <a href="login.html" id="nav-signin-btn" class="btn-secondary" style="padding: 0.48rem 0.95rem; font-size: 0.84rem;">
+          Sign In
         </a>
-        <a href="login.html" id="hero-secondary-cta" class="btn-secondary" style="padding: 0.85rem 1.75rem; font-size: 0.95rem;">
-          <i class="fas fa-sign-in-alt"></i> Member Sign In
+        <a href="register.html" id="nav-register-btn" class="btn-primary" style="padding: 0.48rem 1rem; font-size: 0.84rem;">
+          Create Account
         </a>
       </div>
-    </section>
+    </header>
 
-    <!-- Core Pillars Grid -->
-    <section class="landing-features">
-      <article class="glass-panel feature-card">
-        <div class="feature-icon"><i class="fas fa-building"></i></div>
-        <h3>Office Hub &amp; HR Analytics</h3>
-        <p class="text-muted">
-          Room-coded classrooms supporting up to 100 students, rubric-graded simulations, live turnover and absenteeism calculators, and digital HR portfolios.
-        </p>
-      </article>
+    <!-- Main Hero & Module Overview -->
+    <main class="landing-hero">
+      <span class="badge-pill">Academic &amp; Enterprise HR Simulation Platform</span>
+      <h1>Applied Human Resource Management &amp; Organizational Simulation</h1>
 
-      <article class="glass-panel feature-card">
-        <div class="feature-icon"><i class="fas fa-columns"></i></div>
-        <h3>Project Planner &amp; Onboarding</h3>
-        <p class="text-muted">
-          Collaborative 15-member team rooms with hierarchical positions, assigned responsibilities, deadline-tracked Kanban boards, and new-hire onboarding checklists.
-        </p>
-      </article>
+      <div class="landing-cta-row">
+        <a href="login.html" id="hero-primary-cta" class="btn-primary" style="padding: 0.72rem 1.45rem; font-size: 0.95rem;">
+          <i class="fas fa-sign-in-alt"></i> Launch Workspace
+        </a>
+        <a href="register.html" id="hero-secondary-cta" class="btn-secondary" style="padding: 0.72rem 1.35rem; font-size: 0.95rem;">
+          <i class="fas fa-user-plus"></i> Register Account
+        </a>
+      </div>
 
-      <article class="glass-panel feature-card">
-        <div class="feature-icon"><i class="fas fa-book-open"></i></div>
-        <h3>HR Case Library &amp; Conflict Feed</h3>
-        <p class="text-muted">
-          Access labor law company cases, HR e-modules, self-check practice cases with verified answer keys, and a peer-reviewed workplace conflict forum.
-        </p>
-      </article>
-    </section>
-  </main>
+      <section class="landing-features" aria-label="Platform Modules">
+        <article class="glass-panel">
+          <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.75rem;">
+            <i class="fas fa-building" style="color: var(--aimser-blue-400); font-size: 1.15rem;"></i>
+            <h3 style="margin: 0; font-size: 1.05rem;">Office &amp; Workforce Analytics</h3>
+          </div>
+          <p class="text-muted" style="font-size: 0.85rem; line-height: 1.55; margin: 0;">
+            100-student classroom rooms, rubric-graded HR activities, workforce turnover and absenteeism simulators, and digital student portfolios.
+          </p>
+        </article>
 
-  <footer class="landing-footer">
-    <span>&copy; 2026 AIMSER HR Simulator. Built for Academic &amp; Organizational Excellence.</span>
-  </footer>
+        <article class="glass-panel">
+          <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.75rem;">
+            <i class="fas fa-columns" style="color: #38bdf8; font-size: 1.15rem;"></i>
+            <h3 style="margin: 0; font-size: 1.05rem;">Project Planner &amp; Onboarding</h3>
+          </div>
+          <p class="text-muted" style="font-size: 0.85rem; line-height: 1.55; margin: 0;">
+            15-member team rooms with 4-stage Kanban boards, organizational hierarchy tiers, position assignments, and onboarding checklists.
+          </p>
+        </article>
 
-  <script type="module" src="js/theme.js"></script>
+        <article class="glass-panel">
+          <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.75rem;">
+            <i class="fas fa-book-open" style="color: var(--success); font-size: 1.15rem;"></i>
+            <h3 style="margin: 0; font-size: 1.05rem;">HR Library &amp; Conflict Forum</h3>
+          </div>
+          <p class="text-muted" style="font-size: 0.85rem; line-height: 1.55; margin: 0;">
+            Company case repositories, interactive practice cases with verified answer keys, and a workplace conflict resolution feed with photo evidence.
+          </p>
+        </article>
+      </section>
+    </main>
+
+    <footer class="landing-footer">
+      AIMSER Human Resource Management Simulator
+    </footer>
+  </div>
+
+  <script type="module" src="js/theme.js?v=18"></script>
+  <script type="module" src="js/auth-guard.js?v=18"></script>
   <script type="module">
-    import { FastCache } from "./js/security-utils.js";
+    import { FastCache } from "./js/security-utils.js?v=18";
     const profile = FastCache.get("user_profile");
     if (profile && profile.role) {
-      const target = profile.role === "admin" ? "admin-dashboard.html" : "office.html";
+      const target = profile.role.toLowerCase() === "admin" ? "admin-dashboard.html" : "office.html";
       const primaryCta = document.getElementById("hero-primary-cta");
-      const navLogin = document.getElementById("landing-login-link");
+      const navSignIn = document.getElementById("nav-signin-btn");
       if (primaryCta) {
         primaryCta.href = target;
-        primaryCta.innerHTML = '<i class="fas fa-arrow-right"></i> Return to Workspace';
+        primaryCta.innerHTML = '<i class="fas fa-arrow-right"></i> Return to Active Workspace';
       }
-      if (navLogin) {
-        navLogin.href = target;
-        navLogin.textContent = "Dashboard";
+      if (navSignIn) {
+        navSignIn.href = target;
+        navSignIn.textContent = "Open Workspace";
       }
     }
   </script>

@@ -1,7 +1,15 @@
-// js/ui-bridge.js - Global Header Chip Sync, Password Toggles & Sign-Out Controller
+// js/ui-bridge.js - Global Header Chip Sync, Modal Pointer Guard, Password Toggles & Sign-Out Controller
 import { auth } from "./firebase-init.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { FastCache, sanitizeUrl } from "./security-utils.js";
+
+function injectModalPointerGuard() {
+  if (document.getElementById("aimser-modal-pointer-guard")) return;
+  const style = document.createElement("style");
+  style.id = "aimser-modal-pointer-guard";
+  style.textContent = `.modal-backdrop:not(.is-open) { pointer-events: none !important; }`;
+  document.head.appendChild(style);
+}
 
 function applyHeaderChip(profile) {
   if (!profile) return;
@@ -18,14 +26,8 @@ function applyHeaderChip(profile) {
   if (avatarEl) avatarEl.src = sanitizeUrl(profile.avatarUrl, fallback);
 }
 
-// Hydrate header chip immediately from FastCache
-applyHeaderChip(FastCache.get("user_profile"));
-
-window.addEventListener("aimser:profile-ready", (e) => {
-  applyHeaderChip(e.detail);
-});
-
-document.addEventListener("DOMContentLoaded", () => {
+function initUiBridge() {
+  injectModalPointerGuard();
   applyHeaderChip(FastCache.get("user_profile"));
 
   // Password visibility toggles
@@ -45,7 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Global Sign-Out button (#logout-btn only, avoiding table/card delete buttons)
+  // Global Sign-Out button (#logout-btn only)
   const logoutBtn = document.getElementById("logout-btn");
   if (logoutBtn && !logoutBtn.dataset.bound) {
     logoutBtn.dataset.bound = "true";
@@ -61,4 +63,14 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+}
+
+window.addEventListener("aimser:profile-ready", (e) => {
+  applyHeaderChip(e.detail);
 });
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initUiBridge);
+} else {
+  initUiBridge();
+}

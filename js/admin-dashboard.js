@@ -31,19 +31,30 @@ let cachedFeedPosts = [];
 let cachedLogs = [];
 let selectedUserUid = null;
 let resetAvatarRequested = false;
+let initialHashApplied = false;
 
-// 1. Initialize Navigation, Modals & Inspector Controls Immediately
-document.addEventListener("DOMContentLoaded", () => {
+function initAdminConsoleUI() {
   setupTabs();
-  applyInitialHashRoute();
+  if (!initialHashApplied) {
+    applyInitialHashRoute();
+    initialHashApplied = true;
+  }
   setupSearchAndFilters();
   setupUserInspectorPanel();
   setupAdminCaseModal();
   setupLightboxModal();
-});
+}
 
-// 2. Authenticate & Enforce Administrator Clearance
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initAdminConsoleUI);
+} else {
+  initAdminConsoleUI();
+}
+
+// Authenticate & Enforce Administrator Clearance
 onAuthStateChanged(auth, async (user) => {
+  initAdminConsoleUI();
+
   if (!user) {
     window.location.replace("login.html");
     return;
@@ -136,6 +147,8 @@ function renderAdminIdentity(user, data) {
 function setupLightboxModal() {
   const modal = document.getElementById("modal-image-lightbox");
   document.querySelectorAll('[data-close-modal="modal-image-lightbox"]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
     btn.addEventListener("click", () => {
       if (modal) {
         modal.classList.remove("is-open");
@@ -145,7 +158,7 @@ function setupLightboxModal() {
   });
 }
 
-// 3. Multi-Collection Telemetry Metrics
+// Multi-Collection Telemetry Metrics
 async function loadMetrics() {
   const getSafeCount = async (collName) => {
     try {
@@ -200,7 +213,7 @@ async function loadTeamsCache() {
   }
 }
 
-// 4. HR Case Library & E-Modules Management Pipeline
+// HR Case Library & E-Modules Management Pipeline
 async function loadCasesAdmin() {
   const grid = document.getElementById("admin-cases-grid");
   const banner = document.getElementById("admin-cases-status-banner");
@@ -327,6 +340,8 @@ function setupAdminCaseModal() {
   const form = document.getElementById("form-admin-create-case");
 
   document.querySelectorAll('[data-close-modal="modal-admin-create-case"]').forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
     btn.addEventListener("click", () => {
       if (modal) {
         modal.classList.remove("is-open");
@@ -392,7 +407,7 @@ function setupAdminCaseModal() {
   }
 }
 
-// 5. HR Feed Summary Pipeline (Renders Post Photos, Comment Threads, Photo Comments & Delete Controls)
+// HR Feed Summary Pipeline
 async function loadHrFeedAdmin() {
   const container = document.getElementById("admin-feed-container");
   if (!container) return;
@@ -690,7 +705,7 @@ function renderAdminFeedList(posts) {
   });
 }
 
-// 6. Telemetry & Platform Audit Trail
+// Telemetry & Platform Audit Trail
 async function loadAuditLogs() {
   const container = document.getElementById("admin-logs-container");
   const elLogs = document.getElementById("stat-total-logs");
@@ -788,7 +803,7 @@ function renderAuditLogsList(logs) {
     .join("");
 }
 
-// 7. User Directory Pipeline
+// User Directory Pipeline
 async function loadUsers() {
   const tbody = document.getElementById("admin-users-table-body");
   if (!tbody) return;
@@ -877,7 +892,7 @@ function renderUsersTable(users) {
   });
 }
 
-// 8. User Profile & Details Inspector Panel
+// User Profile & Details Inspector Panel
 function openUserInspector(uid) {
   const userObj = cachedUsers.find((u) => u.uid === uid);
   if (!userObj) return;
@@ -1189,7 +1204,7 @@ function showInspectorStatus(el, msg, type) {
   el.style.display = "block";
 }
 
-// 9. Classroom Audit Pipeline
+// Classroom Audit Pipeline
 async function loadSections() {
   const container = document.getElementById("admin-sections-grid");
   if (!container) return;
@@ -1283,7 +1298,7 @@ async function loadSections() {
   }
 }
 
-// 10. Synchronized Tabs, Sidebar Active Highlight & Hash Routing
+// Synchronized Tabs, Sidebar Active Highlight & Hash Routing
 function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
   const tabs = document.querySelectorAll(".subnav-tab");
   const panels = document.querySelectorAll(".tab-panel");
@@ -1347,16 +1362,24 @@ function setupTabs() {
     });
   });
 
-  document.getElementById("btn-refresh-users")?.addEventListener("click", loadUsers);
-  document.getElementById("btn-refresh-sections")?.addEventListener("click", loadSections);
-  document.getElementById("btn-refresh-cases")?.addEventListener("click", loadCasesAdmin);
-  document.getElementById("btn-refresh-feed")?.addEventListener("click", loadHrFeedAdmin);
-  document.getElementById("btn-refresh-logs")?.addEventListener("click", async () => {
+  const bindBtn = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el && !el.dataset.bound) {
+      el.dataset.bound = "true";
+      el.addEventListener("click", fn);
+    }
+  };
+
+  bindBtn("btn-refresh-users", loadUsers);
+  bindBtn("btn-refresh-sections", loadSections);
+  bindBtn("btn-refresh-cases", loadCasesAdmin);
+  bindBtn("btn-refresh-feed", loadHrFeedAdmin);
+  bindBtn("btn-refresh-logs", async () => {
     await Promise.all([loadAuditLogs(), loadMetrics()]);
   });
 }
 
-// 11. Search & Role Filtering
+// Search & Role Filtering
 function applyUserFilters() {
   const term = (document.getElementById("admin-user-search")?.value || "").toLowerCase().trim();
   const roleFilter = (document.getElementById("admin-role-filter")?.value || "all").toLowerCase();
@@ -1376,16 +1399,21 @@ function applyUserFilters() {
 }
 
 function setupSearchAndFilters() {
-  document.getElementById("admin-user-search")?.addEventListener("input", applyUserFilters);
-  document.getElementById("admin-role-filter")?.addEventListener("change", applyUserFilters);
+  const bindInput = (id, eventName, handler) => {
+    const el = document.getElementById(id);
+    if (el && !el.dataset.bound) {
+      el.dataset.bound = "true";
+      el.addEventListener(eventName, handler);
+    }
+  };
 
-  document.getElementById("admin-case-type-filter")?.addEventListener("change", applyCaseFilters);
-  document.getElementById("admin-case-search")?.addEventListener("input", applyCaseFilters);
-
-  document.getElementById("admin-feed-filter")?.addEventListener("change", applyFeedFilters);
-  document.getElementById("admin-feed-search")?.addEventListener("input", applyFeedFilters);
-
-  document.getElementById("admin-log-search")?.addEventListener("input", (e) => {
+  bindInput("admin-user-search", "input", applyUserFilters);
+  bindInput("admin-role-filter", "change", applyUserFilters);
+  bindInput("admin-case-type-filter", "change", applyCaseFilters);
+  bindInput("admin-case-search", "input", applyCaseFilters);
+  bindInput("admin-feed-filter", "change", applyFeedFilters);
+  bindInput("admin-feed-search", "input", applyFeedFilters);
+  bindInput("admin-log-search", "input", (e) => {
     const q = e.target.value.toLowerCase().trim();
     if (!q) {
       renderAuditLogsList(cachedLogs);

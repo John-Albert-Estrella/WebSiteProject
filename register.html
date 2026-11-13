@@ -5,90 +5,119 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Create Account | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/style.css?v=18" />
+  <style>
+    .auth-shell {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background: var(--bg-canvas);
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 520px;
+      padding: 2rem;
+    }
+    .auth-brand-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-bottom: 1.35rem;
+    }
+    .auth-brand-header img {
+      width: 46px;
+      height: 46px;
+      object-fit: contain;
+      margin-bottom: 0.6rem;
+    }
+  </style>
 </head>
-<body class="auth-body">
-  <div class="auth-container" style="max-width: 520px;">
-    <div class="auth-topbar">
-      <a href="index.html" class="btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">
-        <i class="fas fa-arrow-left"></i> Home
-      </a>
-      <button type="button" id="theme-toggle-btn" class="btn-secondary" style="padding: 0.4rem 0.75rem;" aria-label="Toggle Theme">
-        <i class="fas fa-sun"></i>
-      </button>
-    </div>
-
+<body>
+  <div class="auth-shell">
     <div class="glass-panel auth-card">
-      <div class="auth-header">
-        <img src="assets/aimser-logo.png" alt="AIMSER Logo" class="brand-logo" style="width: 48px; height: 48px; margin: 0 auto 0.75rem;" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
-        <h1>Create AIMSER Account</h1>
-        <p class="text-muted">Register as a Student or Faculty participant to access the HR Simulator.</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <a href="index.html" class="text-muted" style="font-size: 0.8rem; text-decoration: none;">
+          <i class="fas fa-arrow-left"></i> Home
+        </a>
+        <button type="button" id="theme-toggle-btn" class="btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Toggle Theme">
+          <i class="fas fa-sun"></i>
+        </button>
       </div>
 
-      <div id="auth-status-message" class="status-msg" aria-live="polite"></div>
+      <div class="auth-brand-header">
+        <img src="assets/aimser-logo.png" alt="AIMSER Logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
+        <h1 style="font-size: 1.45rem; margin: 0;">Create AIMSER Account</h1>
+      </div>
+
+      <!-- Registration Policy Banner (Populated dynamically from system/config) -->
+      <div id="reg-policy-banner" style="display: none; padding: 0.75rem 1rem; border-radius: var(--radius-sm); background: rgba(245, 158, 11, 0.14); border: 1px solid var(--warning); color: var(--warning); font-size: 0.82rem; margin-bottom: 1rem;"></div>
+
+      <div id="register-status" class="status-msg" aria-live="polite"></div>
 
       <form id="register-form">
         <div class="form-group">
-          <label for="register-fullname" class="form-label">Full Name</label>
-          <input type="text" id="register-fullname" class="form-control" placeholder="e.g., Juan Dela Cruz" required autocomplete="name" />
+          <label for="reg-fullname" class="form-label">Full Name</label>
+          <input type="text" id="reg-fullname" class="form-control" placeholder="e.g., Juan Dela Cruz" required autocomplete="name" />
+        </div>
+
+        <div class="form-group">
+          <label for="reg-email" class="form-label">Institutional Email</label>
+          <input type="email" id="reg-email" class="form-control" placeholder="name@institution.edu.ph" required autocomplete="email" />
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label for="register-email" class="form-label">Institutional Email</label>
-            <input type="email" id="register-email" class="form-control" placeholder="name@institution.edu.ph" required autocomplete="email" />
-          </div>
-          <div class="form-group">
-            <label for="register-role" class="form-label">Account Role</label>
-            <select id="register-role" class="form-select" required>
+            <label for="reg-role" class="form-label">Account Role</label>
+            <select id="reg-role" class="form-select" required>
               <option value="student">Student</option>
               <option value="faculty">Faculty</option>
             </select>
           </div>
-        </div>
-
-        <div class="form-group">
-          <label for="register-department" class="form-label">Department / Program / Cohort</label>
-          <input type="text" id="register-department" class="form-control" placeholder="e.g., BSBA - Human Resource Management" required />
+          <div class="form-group">
+            <label for="reg-department" class="form-label">Department / Program</label>
+            <input type="text" id="reg-department" class="form-control" placeholder="e.g., BSBA - HRM" />
+          </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <label for="register-password" class="form-label">Password</label>
+            <label for="reg-password" class="form-label">Password</label>
             <div class="input-password-wrapper">
-              <input type="password" id="register-password" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
-              <button type="button" class="btn-toggle-pw" data-target="register-password" aria-label="Toggle password visibility">
+              <input type="password" id="reg-password" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
+              <button type="button" class="btn-toggle-pw" data-target="reg-password" aria-label="Toggle password visibility">
                 <i class="far fa-eye"></i>
               </button>
             </div>
           </div>
-
           <div class="form-group">
-            <label for="register-confirm-password" class="form-label">Confirm Password</label>
+            <label for="reg-confirm-password" class="form-label">Confirm Password</label>
             <div class="input-password-wrapper">
-              <input type="password" id="register-confirm-password" class="form-control" placeholder="Re-enter password" minlength="6" required autocomplete="new-password" />
-              <button type="button" class="btn-toggle-pw" data-target="register-confirm-password" aria-label="Toggle password visibility">
+              <input type="password" id="reg-confirm-password" class="form-control" placeholder="Re-enter password" minlength="6" required autocomplete="new-password" />
+              <button type="button" class="btn-toggle-pw" data-target="reg-confirm-password" aria-label="Toggle password visibility">
                 <i class="far fa-eye"></i>
               </button>
             </div>
           </div>
         </div>
 
-        <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 0.5rem; padding: 0.75rem;">
+        <button type="submit" id="btn-register-submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 0.5rem;">
           <i class="fas fa-user-plus"></i> Create Account
         </button>
       </form>
 
-      <div class="auth-footer">
-        <span>Already have an account?</span>
-        <a href="login.html">Sign In</a>
+      <div style="margin-top: 1.35rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); text-align: center; font-size: 0.84rem; color: var(--text-secondary);">
+        Already registered?
+        <a href="login.html" style="color: var(--aimser-blue-400); font-weight: 600; text-decoration: none;">Sign In</a>
       </div>
     </div>
   </div>
 
-  <script type="module" src="js/theme.js"></script>
-  <script type="module" src="js/ui-bridge.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
-  <script type="module" src="js/auth.js"></script>
+  <script type="module" src="js/theme.js?v=18"></script>
+  <script type="module" src="js/ui-bridge.js?v=18"></script>
+  <script type="module" src="js/auth-guard.js?v=18"></script>
+  <script type="module" src="js/auth.js?v=18"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// js/admin-hr-feed.js - Isolated Admin HR Feed View, Photo Support, Comment Deletion & User Warning Notifications
+// js/admin-hr-feed.js - Isolated Admin HR Feed View, Comment Photo Moderation & User Warning Notifications
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -22,11 +22,15 @@ let adminProfile = null;
 let allPosts = [];
 let activeStatusFilter = "all";
 
-document.addEventListener("DOMContentLoaded", () => {
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindAdminFeedEvents);
+} else {
   bindAdminFeedEvents();
-});
+}
 
 onAuthStateChanged(auth, async (user) => {
+  bindAdminFeedEvents();
+
   if (!user) {
     window.location.replace("login.html");
     return;
@@ -242,7 +246,7 @@ function renderAdminFeedStream() {
             </div>
           </div>
 
-          <!-- Comments Thread with Warn & Delete Moderation Controls -->
+          <!-- Comments Thread with Photo Display, Warn & Delete Moderation Controls -->
           <div style="padding-top:0.85rem;border-top:1px solid var(--border-subtle);">
             <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.65rem;color:var(--text-secondary);">
               <i class="far fa-comment-dots"></i> Discussion &amp; Opinions (${comments.length})
@@ -250,35 +254,54 @@ function renderAdminFeedStream() {
 
             <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.75rem;">
               ${comments
-                .map(
-                  (c, idx) => `
-                  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;padding:0.65rem 0.85rem;border-radius:var(--radius-xs);background:var(--bg-canvas);border:1px solid var(--border-subtle);font-size:0.83rem;">
-                    <div style="flex: 1; min-width: 220px;">
-                      <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.2rem;flex-wrap:wrap;">
-                        <strong>${escapeHtml(c.authorName || "Member")}</strong>
-                        ${renderRoleBadge(c.authorRole || "student")}
-                        ${c.moderatedWarning ? `<span class="badge-pill" style="font-size:0.65rem;background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);"><i class="fas fa-exclamation-triangle"></i> Warned</span>` : ""}
+                .map((c, idx) => {
+                  const safeCommentImg = sanitizeUrl(c.imageUrl, "");
+                  const commentImgHtml = safeCommentImg
+                    ? `<div style="margin-top:0.45rem;">
+                         <img src="${safeCommentImg}" alt="Comment attachment" class="btn-open-lightbox" data-src="${safeCommentImg}" data-title="Comment Photo by ${escapeHtml(c.authorName || "Member")}" style="max-height:180px;max-width:100%;border-radius:var(--radius-xs);border:1px solid var(--border-medium);cursor:zoom-in;object-fit:cover;" />
+                       </div>`
+                    : "";
+
+                  return `
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;padding:0.65rem 0.85rem;border-radius:var(--radius-xs);background:var(--bg-canvas);border:1px solid var(--border-subtle);font-size:0.83rem;">
+                      <div style="flex: 1; min-width: 220px;">
+                        <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.2rem;flex-wrap:wrap;">
+                          <strong>${escapeHtml(c.authorName || "Member")}</strong>
+                          ${renderRoleBadge(c.authorRole || "student")}
+                          ${c.moderatedWarning ? `<span class="badge-pill" style="font-size:0.65rem;background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);"><i class="fas fa-exclamation-triangle"></i> Warned</span>` : ""}
+                        </div>
+                        ${c.text ? `<p style="margin:0;color:var(--text-primary);white-space:pre-wrap;">${escapeHtml(c.text)}</p>` : ""}
+                        ${commentImgHtml}
                       </div>
-                      <p style="margin:0;color:var(--text-primary);">${escapeHtml(c.text || "")}</p>
-                    </div>
-                    <div style="display:flex;align-items:center;gap:0.4rem;">
-                      <button type="button" class="btn-secondary btn-open-mod-comment" data-post-id="${post.id}" data-idx="${idx}" style="padding:0.28rem 0.6rem;font-size:0.73rem;border-color:rgba(245,158,11,0.45);color:var(--warning);" title="Moderate Comment & Send Warning">
-                        <i class="fas fa-exclamation-triangle"></i> Warn &amp; Moderate
-                      </button>
-                      <button type="button" class="btn-sidebar-action btn-logout btn-del-comment" data-post-id="${post.id}" data-idx="${idx}" style="width:auto;padding:0.28rem 0.6rem;font-size:0.73rem;" title="Delete Comment">
-                        <i class="fas fa-trash"></i> Delete
-                      </button>
-                    </div>
-                  </div>`
-                )
+                      <div style="display:flex;align-items:center;gap:0.4rem;">
+                        <button type="button" class="btn-secondary btn-open-mod-comment" data-post-id="${post.id}" data-idx="${idx}" style="padding:0.28rem 0.6rem;font-size:0.73rem;border-color:rgba(245,158,11,0.45);color:var(--warning);" title="Moderate Comment & Send Warning">
+                          <i class="fas fa-exclamation-triangle"></i> Warn &amp; Moderate
+                        </button>
+                        <button type="button" class="btn-sidebar-action btn-logout btn-del-comment" data-post-id="${post.id}" data-idx="${idx}" style="width:auto;padding:0.28rem 0.6rem;font-size:0.73rem;" title="Delete Comment">
+                          <i class="fas fa-trash"></i> Delete
+                        </button>
+                      </div>
+                    </div>`;
+                })
                 .join("")}
             </div>
 
-            <form class="form-admin-reply" data-post-id="${post.id}" style="display:flex;gap:0.5rem;">
-              <input type="text" class="form-control input-admin-reply" placeholder="Post an official administrator note or guidance..." required style="font-size:0.83rem;" />
-              <button type="submit" class="btn-secondary" style="padding:0.45rem 0.9rem;font-size:0.8rem;white-space:nowrap;">
-                <i class="fas fa-reply"></i> Reply as Admin
-              </button>
+            <form class="form-admin-reply" data-post-id="${post.id}" style="display:flex;flex-direction:column;gap:0.5rem;">
+              <div style="display:flex;gap:0.5rem;align-items:center;">
+                <input type="text" class="form-control input-admin-reply" placeholder="Post an official administrator note or guidance..." style="font-size:0.83rem;flex:1;" />
+                <label class="btn-secondary" style="padding:0.45rem 0.75rem;font-size:0.8rem;cursor:pointer;margin:0;white-space:nowrap;" title="Attach Photo to Admin Reply">
+                  <i class="fas fa-camera"></i>
+                  <input type="file" class="input-admin-reply-image" accept="image/png,image/jpeg,image/webp" style="display:none;" />
+                </label>
+                <button type="submit" class="btn-secondary btn-submit-admin-reply" style="padding:0.45rem 0.9rem;font-size:0.8rem;white-space:nowrap;">
+                  <i class="fas fa-reply"></i> Reply as Admin
+                </button>
+              </div>
+              <div class="admin-reply-preview-strip" style="display:none;align-items:center;gap:0.6rem;padding:0.4rem 0.65rem;border-radius:var(--radius-xs);background:var(--bg-surface);border:1px solid var(--border-subtle);width:fit-content;">
+                <img class="admin-reply-preview-img" src="" alt="Reply Preview" style="height:44px;width:44px;object-fit:cover;border-radius:4px;" />
+                <span class="admin-reply-preview-name text-muted" style="font-size:0.75rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                <button type="button" class="btn-clear-admin-reply-img" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:0.9rem;line-height:1;" title="Remove Photo">&times;</button>
+              </div>
             </form>
           </div>
         </article>`;
@@ -318,7 +341,7 @@ function renderAdminFeedStream() {
         sessionStorage.removeItem("aimser_v2_hr_feed_posts");
         await loadFeedFromFirestore();
       } catch (err) {
-        alert("Failed to update archive state: " + err.message);
+        alert("Failed to update archive status: " + err.message);
       } finally {
         btn.disabled = false;
       }
@@ -364,11 +387,12 @@ function renderAdminFeedStream() {
       document.getElementById("mod-post-id").value = postId;
       document.getElementById("mod-comment-idx").value = idx;
       document.getElementById("mod-target-user").value = `${comment.authorName || "Member"} (${comment.authorRole || "student"})`;
-      document.getElementById("mod-comment-excerpt").textContent = comment.text || "";
+      const excerptLabel = `${comment.text || ""}${comment.imageUrl ? (comment.text ? " [Attached Photo]" : "[Attached Photo]") : ""}`;
+      document.getElementById("mod-comment-excerpt").textContent = excerptLabel;
       document.getElementById("mod-action-type").value = "delete_and_warn";
       document.getElementById("mod-preset-reason").selectedIndex = 0;
       document.getElementById("mod-warning-message").value =
-        `Your comment on "${post.title}" was moderated due to unprofessional or disrespectful language. Please keep discussions constructive and aligned with HR simulation standards.`;
+        `Your comment on "${post.title}" was moderated due to unprofessional or inappropriate content. Please keep discussions constructive and aligned with HR simulation standards.`;
 
       openModal("modal-moderate-comment");
     });
@@ -408,18 +432,70 @@ function renderAdminFeedStream() {
     });
   });
 
-  // Reply as Admin
+  // Reply as Admin (With Optional Photo Upload)
   stream.querySelectorAll(".form-admin-reply").forEach((form) => {
+    const fileInput = form.querySelector(".input-admin-reply-image");
+    const previewStrip = form.querySelector(".admin-reply-preview-strip");
+    const previewImg = form.querySelector(".admin-reply-preview-img");
+    const previewName = form.querySelector(".admin-reply-preview-name");
+    const clearBtn = form.querySelector(".btn-clear-admin-reply-img");
+
+    if (fileInput && previewStrip && previewImg && previewName) {
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files[0];
+        if (!file) {
+          previewStrip.style.display = "none";
+          return;
+        }
+        if (!file.type.startsWith("image/")) {
+          alert("Please select a valid image file (PNG, JPG, or WebP).");
+          fileInput.value = "";
+          previewStrip.style.display = "none";
+          return;
+        }
+        previewImg.src = URL.createObjectURL(file);
+        previewName.textContent = file.name;
+        previewStrip.style.display = "flex";
+      });
+    }
+
+    if (clearBtn && fileInput && previewStrip) {
+      clearBtn.addEventListener("click", () => {
+        fileInput.value = "";
+        if (previewImg) previewImg.src = "";
+        previewStrip.style.display = "none";
+      });
+    }
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const postId = form.dataset.postId;
       const input = form.querySelector(".input-admin-reply");
+      const submitBtn = form.querySelector(".btn-submit-admin-reply");
       const text = input.value.trim();
-      if (!text) return;
+      const imageFile = fileInput?.files?.[0] || null;
+
+      if (!text && !imageFile) {
+        alert("Please write a reply or attach a photo.");
+        return;
+      }
 
       input.disabled = true;
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = imageFile
+          ? '<i class="fas fa-spinner fa-spin"></i> Uploading...'
+          : '<i class="fas fa-spinner fa-spin"></i> Posting...';
+      }
+
       try {
         checkRateLimit("admin_feed_reply", 15, 60000);
+
+        let replyImageUrl = "";
+        if (imageFile) {
+          replyImageUrl = await uploadToCloudinary(imageFile, "aimser/hr-feed-comments");
+        }
+
         await updateDoc(doc(db, "hr_feed", postId), {
           comments: arrayUnion({
             authorUid: currentAdminUser.uid,
@@ -427,17 +503,24 @@ function renderAdminFeedStream() {
             authorEmail: currentAdminUser.email,
             authorRole: "admin",
             text,
+            imageUrl: replyImageUrl,
             createdAt: new Date().toISOString()
           })
         });
 
         input.value = "";
+        if (fileInput) fileInput.value = "";
+        if (previewStrip) previewStrip.style.display = "none";
         sessionStorage.removeItem("aimser_v2_hr_feed_posts");
         await loadFeedFromFirestore();
       } catch (err) {
         alert(err.message);
       } finally {
         input.disabled = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-reply"></i> Reply as Admin';
+        }
       }
     });
   });
@@ -445,10 +528,14 @@ function renderAdminFeedStream() {
 
 function bindAdminFeedEvents() {
   document.querySelectorAll("[data-close-modal]").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
     btn.addEventListener("click", () => closeModal(btn.dataset.closeModal));
   });
 
   document.querySelectorAll(".feed-status-tab").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
     btn.addEventListener("click", () => {
       activeStatusFilter = btn.dataset.status;
       document.querySelectorAll(".feed-status-tab").forEach((b) => {
@@ -460,149 +547,174 @@ function bindAdminFeedEvents() {
     });
   });
 
-  document.getElementById("admin-feed-search")?.addEventListener("input", renderAdminFeedStream);
-  document.getElementById("btn-refresh-admin-feed")?.addEventListener("click", loadFeedFromFirestore);
+  const searchEl = document.getElementById("admin-feed-search");
+  if (searchEl && !searchEl.dataset.bound) {
+    searchEl.dataset.bound = "true";
+    searchEl.addEventListener("input", renderAdminFeedStream);
+  }
+
+  const refreshEl = document.getElementById("btn-refresh-admin-feed");
+  if (refreshEl && !refreshEl.dataset.bound) {
+    refreshEl.dataset.bound = "true";
+    refreshEl.addEventListener("click", loadFeedFromFirestore);
+  }
 
   const composerWrapper = document.getElementById("admin-composer-wrapper");
-  document.getElementById("btn-toggle-admin-composer")?.addEventListener("click", () => {
-    if (!composerWrapper) return;
-    const isHidden = composerWrapper.style.display === "none";
-    composerWrapper.style.display = isHidden ? "block" : "none";
-  });
+  const toggleComposerBtn = document.getElementById("btn-toggle-admin-composer");
+  if (toggleComposerBtn && !toggleComposerBtn.dataset.bound) {
+    toggleComposerBtn.dataset.bound = "true";
+    toggleComposerBtn.addEventListener("click", () => {
+      if (!composerWrapper) return;
+      const isHidden = composerWrapper.style.display === "none";
+      composerWrapper.style.display = isHidden ? "block" : "none";
+    });
+  }
 
-  document.getElementById("btn-cancel-admin-composer")?.addEventListener("click", () => {
-    if (composerWrapper) composerWrapper.style.display = "none";
-  });
+  const cancelComposerBtn = document.getElementById("btn-cancel-admin-composer");
+  if (cancelComposerBtn && !cancelComposerBtn.dataset.bound) {
+    cancelComposerBtn.dataset.bound = "true";
+    cancelComposerBtn.addEventListener("click", () => {
+      if (composerWrapper) composerWrapper.style.display = "none";
+    });
+  }
 
-  // Preset Violation Reason Auto-Fill
-  document.getElementById("mod-preset-reason")?.addEventListener("change", (e) => {
-    const val = e.target.value;
-    const postId = document.getElementById("mod-post-id").value;
-    const post = allPosts.find((p) => p.id === postId);
-    const title = post ? post.title : "HR Feed";
-    const msgBox = document.getElementById("mod-warning-message");
+  const presetReasonEl = document.getElementById("mod-preset-reason");
+  if (presetReasonEl && !presetReasonEl.dataset.bound) {
+    presetReasonEl.dataset.bound = "true";
+    presetReasonEl.addEventListener("change", (e) => {
+      const val = e.target.value;
+      const postId = document.getElementById("mod-post-id").value;
+      const post = allPosts.find((p) => p.id === postId);
+      const title = post ? post.title : "HR Feed";
+      const msgBox = document.getElementById("mod-warning-message");
 
-    if (val !== "Custom" && msgBox) {
-      msgBox.value = `Your comment on "${title}" was flagged by an Administrator (${val}). Please adhere to professional HR simulation guidelines.`;
-    }
-  });
-
-  // Submit Comment Moderation & Send User Warning Notification
-  document.getElementById("form-moderate-comment")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const postId = document.getElementById("mod-post-id").value;
-    const idx = Number(document.getElementById("mod-comment-idx").value);
-    const actionType = document.getElementById("mod-action-type").value;
-    const warningMsg = document.getElementById("mod-warning-message").value.trim();
-    const submitBtn = document.getElementById("btn-submit-moderation");
-
-    const post = allPosts.find((p) => p.id === postId);
-    const comment = post?.comments?.[idx];
-    if (!post || !comment) return;
-
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-
-    try {
-      // 1. Update comment array (either delete comment or mark it as warned)
-      const existingComments = [...(post.comments || [])];
-      if (actionType === "delete_and_warn") {
-        existingComments.splice(idx, 1);
-      } else {
-        existingComments[idx] = {
-          ...comment,
-          moderatedWarning: true,
-          moderatedAt: new Date().toISOString()
-        };
+      if (val !== "Custom" && msgBox) {
+        msgBox.value = `Your comment on "${title}" was flagged by an Administrator (${val}). Please adhere to professional HR simulation guidelines.`;
       }
+    });
+  }
 
-      await updateDoc(doc(db, "hr_feed", postId), {
-        comments: existingComments
-      });
+  const modForm = document.getElementById("form-moderate-comment");
+  if (modForm && !modForm.dataset.bound) {
+    modForm.dataset.bound = "true";
+    modForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const postId = document.getElementById("mod-post-id").value;
+      const idx = Number(document.getElementById("mod-comment-idx").value);
+      const actionType = document.getElementById("mod-action-type").value;
+      const warningMsg = document.getElementById("mod-warning-message").value.trim();
+      const submitBtn = document.getElementById("btn-submit-moderation");
 
-      // 2. Deliver Warning Notification to the Comment Author
-      if (comment.authorUid) {
-        await addDoc(collection(db, "notifications"), {
-          recipientUid: comment.authorUid,
-          recipientName: comment.authorName || "Member",
-          type: "MODERATION_WARNING",
-          title: "HR Feed Comment Moderation Warning",
-          reason: warningMsg,
-          commentExcerpt: (comment.text || "").slice(0, 180),
-          postId,
-          postTitle: post.title || "HR Feed Discussion",
-          issuedBy: currentAdminUser.email,
-          read: false,
+      const post = allPosts.find((p) => p.id === postId);
+      const comment = post?.comments?.[idx];
+      if (!post || !comment) return;
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+      try {
+        const existingComments = [...(post.comments || [])];
+        if (actionType === "delete_and_warn") {
+          existingComments.splice(idx, 1);
+        } else {
+          existingComments[idx] = {
+            ...comment,
+            moderatedWarning: true,
+            moderatedAt: new Date().toISOString()
+          };
+        }
+
+        await updateDoc(doc(db, "hr_feed", postId), {
+          comments: existingComments
+        });
+
+        if (comment.authorUid) {
+          const excerptText = `${comment.text || ""}${comment.imageUrl ? (comment.text ? " [Attached Photo]" : "[Attached Photo]") : ""}`;
+          await addDoc(collection(db, "notifications"), {
+            recipientUid: comment.authorUid,
+            recipientName: comment.authorName || "Member",
+            type: "MODERATION_WARNING",
+            title: "HR Feed Comment Moderation Warning",
+            reason: warningMsg,
+            commentExcerpt: excerptText.slice(0, 180),
+            postId,
+            postTitle: post.title || "HR Feed Discussion",
+            issuedBy: currentAdminUser.email,
+            read: false,
+            createdAt: serverTimestamp()
+          });
+        }
+
+        await logAuditEvent(
+          `Admin moderated comment by ${comment.authorName || "user"} (${actionType}) & issued warning on "${post.title}"`,
+          "HR_FEED_MODERATION",
+          currentAdminUser.email
+        );
+
+        closeModal("modal-moderate-comment");
+        sessionStorage.removeItem("aimser_v2_hr_feed_posts");
+        await loadFeedFromFirestore();
+      } catch (err) {
+        alert("Moderation failed: " + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-bell"></i> Execute & Send Warning';
+      }
+    });
+  }
+
+  const createFeedForm = document.getElementById("form-admin-create-feed");
+  if (createFeedForm && !createFeedForm.dataset.bound) {
+    createFeedForm.dataset.bound = "true";
+    createFeedForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById("btn-submit-admin-feed");
+      const title = document.getElementById("admin-feed-title").value.trim();
+      const concerns = document.getElementById("admin-feed-concerns").value.trim();
+      const investigation = document.getElementById("admin-feed-investigation").value.trim();
+      const resolution = document.getElementById("admin-feed-resolution").value.trim();
+      const imgInput = document.getElementById("admin-feed-image-input");
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+
+      try {
+        checkRateLimit("admin_create_feed", 8, 60000);
+
+        let uploadedImageUrl = "";
+        if (imgInput && imgInput.files.length > 0) {
+          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Photo...';
+          uploadedImageUrl = await uploadToCloudinary(imgInput.files[0], "aimser/hr-feed");
+        }
+
+        await addDoc(collection(db, "hr_feed"), {
+          title,
+          concerns,
+          investigation,
+          resolution,
+          imageUrl: uploadedImageUrl,
+          authorUid: currentAdminUser.uid,
+          authorName: adminProfile.fullName,
+          authorEmail: currentAdminUser.email,
+          authorRole: "admin",
+          archived: false,
+          comments: [],
           createdAt: serverTimestamp()
         });
+
+        await logAuditEvent(`Admin published HR Feed scenario "${title}"`, "HR_FEED", currentAdminUser.email);
+        e.target.reset();
+        if (composerWrapper) composerWrapper.style.display = "none";
+        sessionStorage.removeItem("aimser_v2_hr_feed_posts");
+        await loadFeedFromFirestore();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Publish to Live HR Feed';
       }
-
-      await logAuditEvent(
-        `Admin moderated comment by ${comment.authorName || "user"} (${actionType}) & issued warning on "${post.title}"`,
-        "HR_FEED_MODERATION",
-        currentAdminUser.email
-      );
-
-      closeModal("modal-moderate-comment");
-      sessionStorage.removeItem("aimser_v2_hr_feed_posts");
-      await loadFeedFromFirestore();
-    } catch (err) {
-      alert("Moderation failed: " + err.message);
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="fas fa-bell"></i> Execute & Send Warning';
-    }
-  });
-
-  // Publish New Scenario from Admin Console with Optional Photo Upload
-  document.getElementById("form-admin-create-feed")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const submitBtn = document.getElementById("btn-submit-admin-feed");
-    const title = document.getElementById("admin-feed-title").value.trim();
-    const concerns = document.getElementById("admin-feed-concerns").value.trim();
-    const investigation = document.getElementById("admin-feed-investigation").value.trim();
-    const resolution = document.getElementById("admin-feed-resolution").value.trim();
-    const imgInput = document.getElementById("admin-feed-image-input");
-
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
-
-    try {
-      checkRateLimit("admin_create_feed", 8, 60000);
-
-      let uploadedImageUrl = "";
-      if (imgInput && imgInput.files.length > 0) {
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Photo...';
-        uploadedImageUrl = await uploadToCloudinary(imgInput.files[0], "aimser/hr-feed");
-      }
-
-      await addDoc(collection(db, "hr_feed"), {
-        title,
-        concerns,
-        investigation,
-        resolution,
-        imageUrl: uploadedImageUrl,
-        authorUid: currentAdminUser.uid,
-        authorName: adminProfile.fullName,
-        authorEmail: currentAdminUser.email,
-        authorRole: "admin",
-        archived: false,
-        comments: [],
-        createdAt: serverTimestamp()
-      });
-
-      await logAuditEvent(`Admin published HR Feed scenario "${title}"`, "HR_FEED", currentAdminUser.email);
-      e.target.reset();
-      if (composerWrapper) composerWrapper.style.display = "none";
-      sessionStorage.removeItem("aimser_v2_hr_feed_posts");
-      await loadFeedFromFirestore();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Publish to Live HR Feed';
-    }
-  });
+    });
+  }
 }
 
 function openModal(id) {
