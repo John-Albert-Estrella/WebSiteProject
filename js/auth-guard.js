@@ -1,4 +1,4 @@
-// js/auth-guard.js - Zero-Buffer Route Protection with Loop Circuit Breaker
+// js/auth-guard.js - Zero-Buffer Route Protection with Strict Admin Isolation
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -14,13 +14,15 @@ const isAuthLanding =
   cleanPath.endsWith("/register") ||
   cleanPath.endsWith("/index");
 
-const isStudentFacultyOnlyWorkspace =
+const isParticipantWorkspace =
   cleanPath.endsWith("/office") ||
   cleanPath.endsWith("/planner") ||
+  cleanPath.endsWith("/hr-library") ||
   (cleanPath.endsWith("/settings") && !cleanPath.endsWith("/admin-settings"));
 
 const isAdminWorkspace =
   cleanPath.endsWith("/admin-dashboard") ||
+  cleanPath.endsWith("/admin-hr-feed") ||
   cleanPath.endsWith("/admin-settings");
 
 function safeRedirect(targetUrl) {
@@ -48,8 +50,8 @@ function safeRedirect(targetUrl) {
 const cachedProfile = FastCache.get("user_profile");
 if (cachedProfile && cachedProfile.role) {
   const role = cachedProfile.role.toLowerCase();
-  if (role === "admin" && isStudentFacultyOnlyWorkspace) {
-    safeRedirect("admin-dashboard.html");
+  if (role === "admin" && isParticipantWorkspace) {
+    safeRedirect(cleanPath.endsWith("/hr-library") ? "admin-hr-feed.html" : "admin-dashboard.html");
   } else if (role !== "admin" && isAdminWorkspace) {
     safeRedirect("office.html");
   }
@@ -87,8 +89,8 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
 
-    if (userRole === "admin" && isStudentFacultyOnlyWorkspace) {
-      safeRedirect("admin-dashboard.html");
+    if (userRole === "admin" && isParticipantWorkspace) {
+      safeRedirect(cleanPath.endsWith("/hr-library") ? "admin-hr-feed.html" : "admin-dashboard.html");
       return;
     }
 
