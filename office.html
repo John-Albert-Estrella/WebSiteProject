@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Office Workspace | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=16" />
-  <link rel="stylesheet" href="css/dashboard.css?v=16" />
+  <link rel="stylesheet" href="css/style.css?v=18" />
+  <link rel="stylesheet" href="css/dashboard.css?v=18" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -63,11 +63,10 @@
           <h1 class="page-title">Office</h1>
         </div>
 
-        <div class="header-right" style="display: flex; align-items: center; gap: 0.85rem;">
-          <!-- Deadline, Grade & Moderation Warning Notification Bell -->
-          <button type="button" id="btn-open-notifications" class="btn-secondary" style="position: relative; padding: 0.5rem 0.75rem;" aria-label="Notifications and Deadlines">
+        <div class="header-right">
+          <button type="button" id="btn-open-notifications" class="btn-secondary" style="position: relative; padding: 0.45rem 0.75rem;" title="Notifications & Warnings">
             <i class="fas fa-bell"></i>
-            <span id="notif-badge" class="badge-pill" style="position: absolute; top: -6px; right: -6px; padding: 0.1rem 0.4rem; font-size: 0.68rem; background: var(--danger); color: #fff; display: none;">0</span>
+            <span id="notif-badge" style="display: none; position: absolute; top: -5px; right: -5px; background: var(--danger); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.38rem; border-radius: 9999px;">0</span>
           </button>
 
           <div class="user-profile-chip">
@@ -82,18 +81,30 @@
 
       <!-- Classroom Selector & Action Bar -->
       <div class="workspace-action-bar" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.35rem;">
-        <select id="active-classroom-select" class="form-select" style="max-width: 280px; padding: 0.5rem 0.85rem;" aria-label="Select Active Classroom">
+        <select id="active-classroom-select" class="form-select" style="max-width: 260px; padding: 0.5rem 0.85rem;" aria-label="Select Classroom">
           <option value="">Loading Classrooms...</option>
         </select>
-        <button type="button" id="btn-open-classroom-action" class="btn-primary" style="padding: 0.5rem 0.95rem; font-size: 0.83rem;">
-          <i class="fas fa-plus"></i> <span id="classroom-action-label">Join / Create Class</span>
+        <button type="button" id="btn-open-classroom-action" class="btn-secondary" style="padding: 0.5rem 0.9rem; font-size: 0.83rem;">
+          <i class="fas fa-door-open"></i> <span id="classroom-action-label">Join Class Room</span>
+        </button>
+        <button type="button" id="btn-open-new-activity" class="btn-primary" style="display: none; padding: 0.5rem 0.95rem; font-size: 0.83rem;">
+          <i class="fas fa-plus"></i> Post Activity &amp; Rubric
+        </button>
+        <button type="button" id="btn-export-report" class="btn-secondary" style="display: none; padding: 0.5rem 0.9rem; font-size: 0.83rem;">
+          <i class="fas fa-file-csv"></i> Export CSV
+        </button>
+        <button type="button" id="btn-refresh-office" class="btn-secondary" style="padding: 0.5rem 0.75rem;" title="Refresh Classroom">
+          <i class="fas fa-sync-alt"></i>
         </button>
       </div>
 
-      <!-- Workspace KPI Summary Row -->
+      <!-- Urgent Deadline Reminder Banner -->
+      <div id="deadline-reminders-banner" class="glass-panel" style="display: none; margin-bottom: 1.25rem; padding: 0.85rem 1.15rem; border-color: var(--warning); background: rgba(245, 158, 11, 0.1); font-size: 0.85rem;"></div>
+
+      <!-- Classroom KPI Summary Row -->
       <section class="stats-row">
         <div class="glass-panel stat-card">
-          <span class="stat-label">Class Room Code</span>
+          <span class="stat-label">Room Code</span>
           <h3 id="stat-section-code">—</h3>
         </div>
         <div class="glass-panel stat-card">
@@ -105,192 +116,180 @@
           <h3 id="stat-activity-count">0</h3>
         </div>
         <div class="glass-panel stat-card">
-          <span class="stat-label" id="stat-fourth-label">Completion &amp; Avg Score</span>
+          <span class="stat-label" id="stat-fourth-label">Performance Score</span>
           <h3 id="stat-avg-score">—</h3>
         </div>
       </section>
 
-      <!-- Office Sub-Navigation -->
+      <!-- Sub-Navigation Tabs -->
       <nav class="office-subnav" aria-label="Office Sub-Features">
-        <button type="button" class="subnav-tab active" data-tab="panel-dashboard">
-          <i class="fas fa-th-large"></i>
-          <span>Dashboard</span>
+        <button type="button" class="subnav-tab active" data-tab="panel-activities">
+          <i class="fas fa-tasks"></i>
+          <span>Activities &amp; Rubrics</span>
         </button>
         <button type="button" class="subnav-tab" data-tab="panel-analytics">
           <i class="fas fa-chart-bar"></i>
-          <span>Analytics</span>
+          <span>HR Workforce Analytics</span>
         </button>
         <button type="button" class="subnav-tab" data-tab="panel-portfolio">
           <i class="fas fa-briefcase"></i>
-          <span>Portfolio</span>
+          <span>HR Portfolio &amp; Appraisals</span>
         </button>
         <button type="button" class="subnav-tab" data-tab="panel-roster">
           <i class="fas fa-users"></i>
-          <span>Class Roster</span>
+          <span>Class Roster &amp; Requests</span>
         </button>
       </nav>
 
-      <!-- SUB-FEATURE 1: OFFICE DASHBOARD -->
-      <section id="panel-dashboard" class="tab-panel active">
+      <!-- PANEL 1: CLASSROOM ACTIVITIES & RUBRICS -->
+      <section id="panel-activities" class="tab-panel active">
         <div class="glass-panel">
-          <div class="panel-toolbar">
+          <div class="panel-toolbar" style="align-items: center;">
             <div>
-              <h2 id="active-classroom-title">Classroom Dashboard</h2>
-              <p id="active-classroom-desc" class="text-muted" style="font-size: 0.82rem;"></p>
-            </div>
-            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-              <button type="button" id="btn-open-new-activity" class="btn-primary" style="display: none;">
-                <i class="fas fa-plus-circle"></i> Post Activity &amp; Rubric
-              </button>
-              <button type="button" id="btn-export-report" class="btn-secondary" style="display: none;">
-                <i class="fas fa-file-export"></i> Activity Report
-              </button>
-              <button type="button" id="btn-refresh-office" class="btn-secondary" title="Refresh Dashboard">
-                <i class="fas fa-sync-alt"></i>
-              </button>
+              <h2 id="active-classroom-title" style="margin: 0;">Classroom Activities</h2>
             </div>
           </div>
-
-          <div id="deadline-reminders-banner" style="display: none; margin-bottom: 1.25rem; padding: 0.85rem 1rem; border-radius: var(--radius-sm); background: rgba(245, 158, 11, 0.12); border: 1px solid var(--warning); color: var(--text-primary); font-size: 0.85rem;"></div>
 
           <div id="activities-container" class="cards-grid">
             <div class="empty-state">
               <i class="fas fa-spinner fa-spin"></i>
-              <h3>Loading classroom dashboard...</h3>
+              <h3>Loading classroom activities...</h3>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- SUB-FEATURE 2: OFFICE ANALYTICS -->
+      <!-- PANEL 2: HR WORKFORCE ANALYTICS & PERFORMANCE TELEMETRY -->
       <section id="panel-analytics" class="tab-panel">
-        <div id="faculty-analytics-view" class="glass-panel" style="display: none;">
-          <div class="panel-toolbar">
-            <div>
-              <h2>Class Performance &amp; Completion Rates</h2>
-            </div>
-          </div>
-
-          <div class="stats-row" style="margin-bottom: 1.5rem;">
+        <!-- Faculty Analytics View -->
+        <div id="faculty-analytics-view" style="display: none;">
+          <div class="stats-row" style="margin-bottom: 1.25rem;">
             <div class="glass-panel stat-card">
-              <span class="stat-label">Overall Completion Rate</span>
+              <span class="stat-label">Completion Rate</span>
               <h3 id="fac-completion-rate">0%</h3>
             </div>
             <div class="glass-panel stat-card">
-              <span class="stat-label">Class Average Grade</span>
-              <h3 id="fac-class-avg">0%</h3>
+              <span class="stat-label">Class Average</span>
+              <h3 id="fac-class-avg">—</h3>
             </div>
             <div class="glass-panel stat-card">
-              <span class="stat-label">Graded Submissions</span>
+              <span class="stat-label">Graded Outputs</span>
               <h3 id="fac-graded-count">0</h3>
             </div>
           </div>
 
-          <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem;">
-              <thead>
-                <tr style="border-bottom: 1px solid var(--border-medium); color: var(--text-tertiary);">
-                  <th style="padding: 0.75rem 1rem;">Student</th>
-                  <th style="padding: 0.75rem 1rem;">Role</th>
-                  <th style="padding: 0.75rem 1rem;">Completed Activities</th>
-                  <th style="padding: 0.75rem 1rem;">Completion %</th>
-                  <th style="padding: 0.75rem 1rem;">Average Score</th>
-                </tr>
-              </thead>
-              <tbody id="faculty-analytics-tbody"></tbody>
-            </table>
+          <div class="glass-panel">
+            <div class="panel-toolbar" style="align-items: center;">
+              <div>
+                <h2 style="margin: 0;">Student Performance Breakdown</h2>
+              </div>
+            </div>
+            <div style="overflow-x: auto;">
+              <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem;">
+                <thead>
+                  <tr style="border-bottom: 1px solid var(--border-medium); color: var(--text-tertiary);">
+                    <th style="padding: 0.75rem 1rem;">Student</th>
+                    <th style="padding: 0.75rem 1rem;">Role</th>
+                    <th style="padding: 0.75rem 1rem;">Completed</th>
+                    <th style="padding: 0.75rem 1rem;">Completion %</th>
+                    <th style="padding: 0.75rem 1rem;">Average Score</th>
+                  </tr>
+                </thead>
+                <tbody id="faculty-analytics-tbody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div id="student-analytics-view" style="display: none; flex-direction: column; gap: 1.5rem;">
-          <div class="glass-panel">
-            <div class="panel-toolbar">
-              <div>
-                <h2>Personal Academic &amp; Simulation Performance</h2>
-              </div>
+        <!-- Student Analytics & Workforce Metrics Calculator View -->
+        <div id="student-analytics-view" style="display: flex; flex-direction: column; gap: 1.35rem;">
+          <div class="stats-row" style="margin-bottom: 0;">
+            <div class="glass-panel stat-card">
+              <span class="stat-label">My Completion Rate</span>
+              <h3 id="stu-completion-rate">0%</h3>
             </div>
-            <div class="stats-row">
-              <div class="glass-panel stat-card">
-                <span class="stat-label">Personal Completion Rate</span>
-                <h3 id="stu-completion-rate">0%</h3>
-              </div>
-              <div class="glass-panel stat-card">
-                <span class="stat-label">Personal Average Score</span>
-                <h3 id="stu-avg-score">0%</h3>
-              </div>
-              <div class="glass-panel stat-card">
-                <span class="stat-label">Outputs Submitted</span>
-                <h3 id="stu-submitted-count">0</h3>
-              </div>
+            <div class="glass-panel stat-card">
+              <span class="stat-label">My Average Score</span>
+              <h3 id="stu-avg-score">—</h3>
+            </div>
+            <div class="glass-panel stat-card">
+              <span class="stat-label">Submitted Outputs</span>
+              <h3 id="stu-submitted-count">0 / 0</h3>
             </div>
           </div>
 
           <div class="glass-panel">
-            <div class="panel-toolbar">
+            <div class="panel-toolbar" style="align-items: center;">
               <div>
-                <h2>HR Workforce Analytics Simulator</h2>
+                <h2 style="margin: 0;">HR Workforce Metrics Simulator</h2>
               </div>
             </div>
 
             <form id="form-hr-analytics">
               <div class="form-row">
                 <div class="form-group">
-                  <label for="an-total-headcount" class="form-label">Average Total Employees</label>
+                  <label for="an-total-headcount" class="form-label">Total Average Headcount</label>
                   <input type="number" id="an-total-headcount" class="form-control" min="1" value="120" required />
                 </div>
                 <div class="form-group">
-                  <label for="an-separations" class="form-label">Employee Separations (Period)</label>
+                  <label for="an-separations" class="form-label">Employee Separations</label>
                   <input type="number" id="an-separations" class="form-control" min="0" value="9" required />
                 </div>
+              </div>
+
+              <div class="form-row">
                 <div class="form-group">
                   <label for="an-absent-days" class="form-label">Total Unplanned Absent Days</label>
                   <input type="number" id="an-absent-days" class="form-control" min="0" value="48" required />
                 </div>
                 <div class="form-group">
-                  <label for="an-work-days" class="form-label">Scheduled Workdays (Period)</label>
+                  <label for="an-work-days" class="form-label">Scheduled Workdays in Period</label>
                   <input type="number" id="an-work-days" class="form-control" min="1" value="22" required />
                 </div>
               </div>
 
               <div class="form-row">
                 <div class="form-group">
-                  <label for="an-training-budget" class="form-label">Total Training Expenditure (PHP)</label>
-                  <input type="number" id="an-training-budget" class="form-control" min="0" value="180000" required />
+                  <label for="an-training-budget" class="form-label">Total Training Expenditure (₱)</label>
+                  <input type="number" id="an-training-budget" class="form-control" min="0" value="150000" required />
                 </div>
                 <div class="form-group">
                   <label for="an-trained-staff" class="form-label">Employees Trained</label>
-                  <input type="number" id="an-trained-staff" class="form-control" min="1" value="60" required />
+                  <input type="number" id="an-trained-staff" class="form-control" min="1" value="50" required />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="an-recruitment-spend" class="form-label">Total Recruitment Cost (₱)</label>
+                  <input type="number" id="an-recruitment-spend" class="form-control" min="0" value="90000" required />
                 </div>
                 <div class="form-group">
-                  <label for="an-recruitment-spend" class="form-label">Total Recruitment Spend (PHP)</label>
-                  <input type="number" id="an-recruitment-spend" class="form-control" min="0" value="75000" required />
-                </div>
-                <div class="form-group">
-                  <label for="an-new-hires" class="form-label">Successful Hires (From Applicants)</label>
-                  <input type="number" id="an-new-hires" class="form-control" min="1" value="10" required />
+                  <label for="an-new-hires" class="form-label">Total New Hires</label>
+                  <input type="number" id="an-new-hires" class="form-control" min="1" value="12" required />
                 </div>
               </div>
 
               <button type="submit" class="btn-primary">
-                <i class="fas fa-calculator"></i> Compute &amp; Save HR Analytics Report
+                <i class="fas fa-calculator"></i> Compute &amp; Save Workforce Report
               </button>
             </form>
 
-            <div class="stats-row" style="margin-top: 1.5rem;">
-              <div class="glass-panel stat-card">
+            <div class="stats-row" style="margin-top: 1.35rem; margin-bottom: 0;">
+              <div class="glass-panel stat-card" style="background: var(--bg-surface);">
                 <span class="stat-label">Turnover Rate</span>
                 <h3 id="res-turnover-rate">7.50%</h3>
               </div>
-              <div class="glass-panel stat-card">
+              <div class="glass-panel stat-card" style="background: var(--bg-surface);">
                 <span class="stat-label">Absenteeism Rate</span>
                 <h3 id="res-absenteeism-rate">1.82%</h3>
               </div>
-              <div class="glass-panel stat-card">
-                <span class="stat-label">Training Cost / Employee</span>
+              <div class="glass-panel stat-card" style="background: var(--bg-surface);">
+                <span class="stat-label">Training Cost / Head</span>
                 <h3 id="res-training-cost">₱3,000</h3>
               </div>
-              <div class="glass-panel stat-card">
-                <span class="stat-label">Recruitment Cost / Hire</span>
+              <div class="glass-panel stat-card" style="background: var(--bg-surface);">
+                <span class="stat-label">Cost per Hire</span>
                 <h3 id="res-recruitment-cost">₱7,500</h3>
               </div>
             </div>
@@ -298,90 +297,99 @@
         </div>
       </section>
 
-      <!-- SUB-FEATURE 3: OFFICE PORTFOLIO -->
+      <!-- PANEL 3: HR PORTFOLIO & PERFORMANCE APPRAISALS -->
       <section id="panel-portfolio" class="tab-panel">
-        <div id="faculty-portfolio-view" class="glass-panel" style="display: none;">
-          <div class="panel-toolbar">
-            <div>
-              <h2>Class HR Portfolios &amp; Appraisal Periods</h2>
-            </div>
-            <button type="button" id="btn-open-kpi-modal" class="btn-primary">
-              <i class="fas fa-bullseye"></i> Set KPIs &amp; Appraisal Period
-            </button>
-          </div>
-
-          <div id="active-appraisal-banner" style="margin-bottom: 1.5rem; padding: 1rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-medium);">
-            <strong>Active Appraisal Period:</strong> <span id="appraisal-period-text">Not configured yet</span>
-            <p id="appraisal-kpis-text" class="text-muted" style="font-size: 0.84rem; margin-top: 0.35rem;">Awaiting instructor KPI setup.</p>
-          </div>
-
-          <div id="class-portfolios-grid" class="cards-grid"></div>
-        </div>
-
-        <div id="student-portfolio-view" style="display: none; flex-direction: column; gap: 1.5rem;">
-          <div class="glass-panel">
-            <div class="panel-toolbar">
+        <!-- Faculty Portfolio & KPI Control View -->
+        <div id="faculty-portfolio-view" style="display: none;">
+          <div class="glass-panel" style="margin-bottom: 1.35rem;">
+            <div class="panel-toolbar" style="align-items: center;">
               <div>
-                <h2>Personal Goals, Self-Feedback &amp; Development Plan</h2>
+                <h2 style="margin: 0;">Class Appraisal Period &amp; KPIs</h2>
+              </div>
+              <button type="button" id="btn-open-kpi-modal" class="btn-primary">
+                <i class="fas fa-sliders-h"></i> Configure Class KPIs
+              </button>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+              <div style="padding: 0.85rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle);">
+                <span class="stat-label">Active Appraisal Period</span>
+                <strong id="appraisal-period-text" style="display: block; margin-top: 0.3rem;">Not configured yet</strong>
+              </div>
+              <div style="padding: 0.85rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle);">
+                <span class="stat-label">Target HR Competencies &amp; KPIs</span>
+                <strong id="appraisal-kpis-text" style="display: block; margin-top: 0.3rem;">Awaiting instructor KPI setup.</strong>
               </div>
             </div>
+          </div>
 
-            <div id="student-kpi-reference" style="margin-bottom: 1.25rem; padding: 0.85rem 1rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle); font-size: 0.85rem;">
-              <strong>Assigned Class KPIs &amp; Appraisal Window:</strong> <span id="student-kpi-text">Awaiting instructor KPI setup</span>
+          <div class="glass-panel">
+            <div class="panel-toolbar" style="align-items: center;">
+              <div>
+                <h2 style="margin: 0;">Student HR Portfolios</h2>
+              </div>
+            </div>
+            <div id="class-portfolios-grid" class="cards-grid"></div>
+          </div>
+        </div>
+
+        <!-- Student Portfolio View -->
+        <div id="student-portfolio-view" style="display: flex; flex-direction: column; gap: 1.35rem;">
+          <div class="glass-panel">
+            <div class="panel-toolbar" style="align-items: center;">
+              <div>
+                <h2 style="margin: 0;">Personal Development Plan &amp; Goals</h2>
+              </div>
+              <button type="button" id="btn-add-portfolio-item" class="btn-secondary">
+                <i class="fas fa-plus"></i> Add Portfolio Output
+              </button>
+            </div>
+
+            <div style="padding: 0.75rem 1rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle); margin-bottom: 1.15rem; font-size: 0.83rem;">
+              <strong>Class KPIs:</strong> <span id="student-kpi-text">Not configured yet</span>
             </div>
 
             <form id="form-student-devplan">
               <div class="form-row">
                 <div class="form-group">
-                  <label for="port-goals" class="form-label">Personal HR Career &amp; Learning Goals</label>
-                  <textarea id="port-goals" class="form-control" rows="3" placeholder="Define measurable HR simulation goals..." required></textarea>
+                  <label for="port-goals" class="form-label">Career &amp; HR Competency Goals</label>
+                  <textarea id="port-goals" class="form-control" rows="2" placeholder="Define your target HR role and simulation goals..."></textarea>
                 </div>
                 <div class="form-group">
-                  <label for="port-devplan" class="form-label">Individual Development Plan (IDP)</label>
-                  <textarea id="port-devplan" class="form-control" rows="3" placeholder="Action steps, target competencies, and timeline..." required></textarea>
+                  <label for="port-devplan" class="form-label">Actionable Development Plan</label>
+                  <textarea id="port-devplan" class="form-control" rows="2" placeholder="Outline steps to build labor law, recruitment, and analytics skills..."></textarea>
                 </div>
               </div>
               <div class="form-group">
-                <label for="port-self-feedback" class="form-label">Self-Evaluation &amp; Reflection Feedback</label>
-                <textarea id="port-self-feedback" class="form-control" rows="2" placeholder="Reflect on your strengths and feedback..."></textarea>
+                <label for="port-self-feedback" class="form-label">Self-Assessment &amp; Reflection</label>
+                <textarea id="port-self-feedback" class="form-control" rows="2" placeholder="Reflect on your strengths and areas for improvement..."></textarea>
               </div>
               <button type="submit" class="btn-primary">
-                <i class="fas fa-save"></i> Save Goals &amp; Development Plan
+                <i class="fas fa-save"></i> Save Portfolio Plan
               </button>
             </form>
           </div>
 
-          <div class="glass-panel">
-            <div class="panel-toolbar">
-              <div>
-                <h2>Digital HR Portfolio Outputs</h2>
-              </div>
-              <button type="button" id="btn-add-portfolio-item" class="btn-primary">
-                <i class="fas fa-folder-plus"></i> Add Portfolio Output
-              </button>
-            </div>
-
-            <div id="student-portfolio-items" class="cards-grid"></div>
-          </div>
+          <div id="student-portfolio-items" class="cards-grid"></div>
         </div>
       </section>
 
-      <!-- SUB-FEATURE 4: CLASS ROSTER & JOIN APPROVALS -->
+      <!-- PANEL 4: CLASS ROSTER & JOIN REQUESTS -->
       <section id="panel-roster" class="tab-panel">
-        <div class="glass-panel">
-          <div class="panel-toolbar">
+        <div id="join-requests-wrapper" class="glass-panel" style="display: none; margin-bottom: 1.35rem; border-color: var(--aimser-blue-500);">
+          <div class="panel-toolbar" style="align-items: center;">
             <div>
-              <h2>Class Roster &amp; Enrollment (Max 100 Students)</h2>
+              <h2 style="margin: 0;">Pending Student Join Requests</h2>
             </div>
           </div>
+          <div id="join-requests-list" style="display: flex; flex-direction: column; gap: 0.65rem;"></div>
+        </div>
 
-          <div id="join-requests-wrapper" style="margin-bottom: 1.5rem; display: none;">
-            <h3 style="font-size: 0.95rem; margin-bottom: 0.75rem; color: var(--warning);">
-              <i class="fas fa-user-clock"></i> Pending Join Requests
-            </h3>
-            <div id="join-requests-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+        <div class="glass-panel">
+          <div class="panel-toolbar" style="align-items: center;">
+            <div>
+              <h2 style="margin: 0;">Enrolled Class Roster</h2>
+            </div>
           </div>
-
           <div id="roster-list-container" class="cards-grid"></div>
         </div>
       </section>
@@ -389,66 +397,61 @@
   </div>
 
   <!-- MODALS -->
+  <!-- Modal 1: Create or Join Class Room -->
   <div class="modal-backdrop" id="modal-classroom" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
-        <h3 id="modal-classroom-title">Classroom Room Access</h3>
+        <h3 id="modal-classroom-title">Class Room</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-classroom">&times;</button>
       </div>
 
       <form id="form-create-classroom" style="display: none;">
         <div class="form-group">
-          <label for="new-class-name" class="form-label">Class / Section Name</label>
-          <input type="text" id="new-class-name" class="form-control" placeholder="e.g., HRM 301 - Section A" required />
+          <label for="new-class-name" class="form-label">Course / Section Name</label>
+          <input type="text" id="new-class-name" class="form-control" placeholder="e.g., HRM 301 - Labor Relations (Sec A)" required />
         </div>
         <div class="form-group">
-          <label for="new-class-desc" class="form-label">Course Description &amp; Schedule (Max 100 Students)</label>
-          <textarea id="new-class-desc" class="form-control" rows="3" placeholder="Overview of HR simulation coursework..."></textarea>
+          <label for="new-class-desc" class="form-label">Section Schedule / Notes</label>
+          <input type="text" id="new-class-desc" class="form-control" placeholder="e.g., MWF 9:00 AM - 10:30 AM" />
         </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close-modal="modal-classroom">Cancel</button>
-          <button type="submit" class="btn-primary" id="btn-submit-create-class">
-            <i class="fas fa-key"></i> Generate Room Code &amp; Create
-          </button>
-        </div>
+        <button type="submit" id="btn-submit-create-class" class="btn-primary" style="width: 100%;">
+          <i class="fas fa-plus"></i> Create Class Room
+        </button>
       </form>
 
       <form id="form-join-classroom" style="display: none;">
         <div class="form-group">
-          <label for="join-class-code" class="form-label">Enter Class Room Code</label>
-          <input type="text" id="join-class-code" class="form-control" placeholder="e.g., AIM-C7Y8" style="text-transform: uppercase; font-family: var(--font-mono);" required />
+          <label for="join-class-code" class="form-label">Enter Instructor Room Code</label>
+          <input type="text" id="join-class-code" class="form-control" placeholder="e.g., AIM-9X2B" style="text-transform: uppercase; font-family: var(--font-mono);" required />
         </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close-modal="modal-classroom">Cancel</button>
-          <button type="submit" class="btn-primary" id="btn-submit-join-class">
-            <i class="fas fa-sign-in-alt"></i> Join Class Room
-          </button>
-        </div>
+        <button type="submit" id="btn-submit-join-class" class="btn-primary" style="width: 100%;">
+          <i class="fas fa-paper-plane"></i> Request to Join Class Room
+        </button>
       </form>
     </div>
   </div>
 
+  <!-- Modal 2: Faculty Post Activity & Rubric -->
   <div class="modal-backdrop" id="modal-activity" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 640px;">
       <div class="modal-header">
-        <h3>Post Activity &amp; Grading Rubric</h3>
+        <h3>Post Activity &amp; Evaluation Rubric</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-activity">&times;</button>
       </div>
-
       <form id="form-create-activity">
         <div class="form-group">
           <label for="act-title" class="form-label">Activity Title</label>
-          <input type="text" id="act-title" class="form-control" placeholder="e.g., Recruitment & Selection Simulation" required />
+          <input type="text" id="act-title" class="form-control" placeholder="e.g., Case Audit 01: Twin-Notice Due Process Memo" required />
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="act-category" class="form-label">HR Domain</label>
             <select id="act-category" class="form-select">
-              <option value="Talent Acquisition">Talent Acquisition</option>
+              <option value="Labor Law & Compliance">Labor Law &amp; Compliance</option>
+              <option value="Recruitment & Selection">Recruitment &amp; Selection</option>
+              <option value="Employee Relations">Employee Relations</option>
               <option value="Compensation & Benefits">Compensation &amp; Benefits</option>
-              <option value="Labor Relations">Labor Relations</option>
-              <option value="Performance Management">Performance Management</option>
-              <option value="Training & Development">Training &amp; Development</option>
+              <option value="Organizational Development">Organizational Development</option>
             </select>
           </div>
           <div class="form-group">
@@ -456,132 +459,142 @@
             <input type="datetime-local" id="act-due-date" class="form-control" required />
           </div>
         </div>
-        <div class="form-group">
-          <label for="act-max-score" class="form-label">Total Rubric Points</label>
-          <input type="number" id="act-max-score" class="form-control" min="10" max="1000" value="100" required />
+        <div class="form-row">
+          <div class="form-group">
+            <label for="act-max-score" class="form-label">Maximum Points</label>
+            <input type="number" id="act-max-score" class="form-control" min="10" max="500" value="100" required />
+          </div>
+          <div class="form-group">
+            <label for="act-rubric" class="form-label">Grading Rubric Criteria</label>
+            <input type="text" id="act-rubric" class="form-control" placeholder="e.g., Legal Accuracy 40%, Analysis 40%, Clarity 20%" required />
+          </div>
         </div>
         <div class="form-group">
-          <label for="act-rubric" class="form-label">Grading Rubric Criteria</label>
-          <textarea id="act-rubric" class="form-control" rows="2" placeholder="e.g., Policy Accuracy (40%), Legal Compliance (30%), Presentation & Clarity (30%)" required></textarea>
-        </div>
-        <div class="form-group">
-          <label for="act-instructions" class="form-label">Activity Instructions &amp; Required Output</label>
-          <textarea id="act-instructions" class="form-control" rows="3" placeholder="Provide scenario instructions and submission format..." required></textarea>
+          <label for="act-instructions" class="form-label">Scenario &amp; Deliverable Instructions</label>
+          <textarea id="act-instructions" class="form-control" rows="4" placeholder="Detail the HR task, required format, and deliverable expectations..." required></textarea>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-activity">Cancel</button>
-          <button type="submit" class="btn-primary" id="btn-submit-activity">
-            <i class="fas fa-bullhorn"></i> Publish Activity
+          <button type="submit" id="btn-submit-activity" class="btn-primary">
+            <i class="fas fa-paper-plane"></i> Publish Activity
           </button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Modal 3: Activity Detail, Student Submission & Faculty Rubric Grading -->
   <div class="modal-backdrop" id="modal-activity-detail" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card" style="max-width: 720px;">
       <div class="modal-header">
         <h3 id="detail-act-title">Activity Details</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-activity-detail">&times;</button>
       </div>
-      <div style="margin-bottom: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
-        <span id="detail-act-badge" class="badge-pill">Domain</span>
-        <span id="detail-act-due" class="text-muted" style="font-size: 0.8rem;"></span>
-        <span id="detail-act-points" class="badge-pill" style="background: var(--bg-surface-elevated);">100 pts</span>
-      </div>
-      <div style="padding: 0.75rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle); margin-bottom: 1rem; font-size: 0.84rem;">
-        <strong>Grading Rubric:</strong> <span id="detail-act-rubric"></span>
-      </div>
-      <p id="detail-act-desc" style="white-space: pre-wrap; line-height: 1.6; color: var(--text-secondary); margin-bottom: 1.25rem;"></p>
 
+      <input type="hidden" id="detail-act-id" />
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.85rem;">
+        <span id="detail-act-badge" class="badge-pill">Domain</span>
+        <span id="detail-act-points" class="badge-pill" style="background: var(--bg-surface-elevated);">100 pts</span>
+        <span id="detail-act-due" class="text-muted" style="font-size: 0.8rem;"></span>
+      </div>
+
+      <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+        <strong>Rubric:</strong> <span id="detail-act-rubric"></span>
+      </div>
+
+      <div id="detail-act-desc" style="white-space: pre-wrap; line-height: 1.6; background: var(--bg-surface); padding: 0.95rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-bottom: 1.25rem; font-size: 0.88rem;"></div>
+
+      <!-- Student Submission View -->
       <div id="student-submission-section" style="display: none;">
-        <div id="student-grade-feedback-box" style="display: none; margin-bottom: 1rem; padding: 0.85rem; border-radius: var(--radius-sm); background: rgba(16, 185, 129, 0.12); border: 1px solid var(--success);">
-          <div><strong>Score Awarded:</strong> <span id="student-awarded-score">—</span></div>
-          <div style="margin-top: 0.35rem;"><strong>Instructor Feedback:</strong> <span id="student-awarded-feedback">—</span></div>
+        <div id="student-grade-feedback-box" style="display: none; padding: 0.9rem; border-radius: var(--radius-sm); background: rgba(16, 185, 129, 0.12); border: 1px solid var(--success); margin-bottom: 1rem;">
+          <strong style="color: var(--success);">Awarded Score: <span id="student-awarded-score"></span></strong>
+          <p id="student-awarded-feedback" style="margin: 0.35rem 0 0; font-size: 0.85rem;"></p>
         </div>
 
         <form id="form-submit-deliverable">
-          <input type="hidden" id="detail-act-id" />
           <div class="form-group">
-            <label for="deliverable-notes" class="form-label">Completed Output / Deliverable Link &amp; Summary</label>
-            <textarea id="deliverable-notes" class="form-control" rows="3" placeholder="Paste your document URL, case resolution, or output summary..." required></textarea>
+            <label for="deliverable-notes" class="form-label">Your Deliverable Output / Analysis / Document Link</label>
+            <textarea id="deliverable-notes" class="form-control" rows="4" placeholder="Write your complete HR output or paste your shared Google Doc / Drive link..." required></textarea>
           </div>
           <div class="modal-actions">
             <button type="button" class="btn-secondary" data-close-modal="modal-activity-detail">Close</button>
-            <button type="submit" class="btn-primary" id="btn-save-deliverable">
-              <i class="fas fa-paper-plane"></i> Submit Completed Output
+            <button type="submit" id="btn-save-deliverable" class="btn-primary">
+              <i class="fas fa-paper-plane"></i> Submit Deliverable
             </button>
           </div>
         </form>
       </div>
 
+      <!-- Faculty Grading View -->
       <div id="faculty-submissions-section" style="display: none;">
-        <h4 style="margin-bottom: 0.75rem;">Student Submissions &amp; Rubric Grading</h4>
-        <div id="faculty-submissions-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 320px; overflow-y: auto;"></div>
+        <h4 style="margin-bottom: 0.75rem;">Student Submissions</h4>
+        <div id="faculty-submissions-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 360px; overflow-y: auto;"></div>
       </div>
     </div>
   </div>
 
+  <!-- Modal 4: Faculty KPI Setup -->
   <div class="modal-backdrop" id="modal-kpi-setup" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Set Class KPIs &amp; Appraisal Period</h3>
+        <h3>Configure Class Appraisal Period &amp; KPIs</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-kpi-setup">&times;</button>
       </div>
       <form id="form-set-kpis">
         <div class="form-group">
-          <label for="kpi-period-name" class="form-label">Appraisal Period Label &amp; Dates</label>
-          <input type="text" id="kpi-period-name" class="form-control" placeholder="e.g., Midterm Appraisal (Nov 1 – Dec 15, 2026)" required />
+          <label for="kpi-period-name" class="form-label">Appraisal Period</label>
+          <input type="text" id="kpi-period-name" class="form-control" placeholder="e.g., Midterm Simulation Cycle (Weeks 1–8)" required />
         </div>
         <div class="form-group">
-          <label for="kpi-criteria-list" class="form-label">Key Performance Indicators (KPIs)</label>
-          <textarea id="kpi-criteria-list" class="form-control" rows="4" placeholder="1. Policy Drafting Accuracy&#10;2. HR Analytics Proficiency&#10;3. Case Investigation Rigor" required></textarea>
+          <label for="kpi-criteria-list" class="form-label">Target Competencies &amp; KPIs</label>
+          <textarea id="kpi-criteria-list" class="form-control" rows="3" placeholder="e.g., Policy Compliance, Case Investigation Accuracy, Team Leadership" required></textarea>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-kpi-setup">Cancel</button>
-          <button type="submit" class="btn-primary">Save Appraisal Settings</button>
+          <button type="submit" class="btn-primary">Save KPIs</button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Modal 5: Add Student Portfolio Output -->
   <div class="modal-backdrop" id="modal-portfolio-artifact" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Store Output in Digital HR Portfolio</h3>
+        <h3>Add Portfolio Deliverable</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-portfolio-artifact">&times;</button>
       </div>
       <form id="form-add-portfolio-item">
         <div class="form-group">
-          <label for="art-title" class="form-label">Portfolio Artifact Title</label>
-          <input type="text" id="art-title" class="form-control" placeholder="e.g., Compensation & Benefits Audit Matrix" required />
+          <label for="art-title" class="form-label">Deliverable Title</label>
+          <input type="text" id="art-title" class="form-control" placeholder="e.g., Employee Handbook & Code of Conduct Draft" required />
         </div>
         <div class="form-group">
-          <label for="art-link" class="form-label">Output URL or Summary</label>
-          <textarea id="art-link" class="form-control" rows="3" placeholder="Link to deliverable or executive summary of your work..." required></textarea>
+          <label for="art-link" class="form-label">Link or Summary Description</label>
+          <input type="text" id="art-link" class="form-control" placeholder="https://... or brief deliverable summary" required />
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-portfolio-artifact">Cancel</button>
-          <button type="submit" class="btn-primary">Save to Portfolio</button>
+          <button type="submit" class="btn-primary">Add to Portfolio</button>
         </div>
       </form>
     </div>
   </div>
 
+  <!-- Modal 6: Notifications & Moderation Warnings -->
   <div class="modal-backdrop" id="modal-notifications" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 560px;">
       <div class="modal-header">
-        <h3>Notifications &amp; Deadline Reminders</h3>
+        <h3><i class="fas fa-bell" style="margin-right: 0.45rem;"></i> Notifications &amp; Alerts</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-notifications">&times;</button>
       </div>
-      <div id="notifications-feed-list" style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 380px; overflow-y: auto;"></div>
+      <div id="notifications-feed-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 420px; overflow-y: auto;"></div>
     </div>
   </div>
 
   <script type="module" src="js/theme.js?v=18"></script>
   <script type="module" src="js/ui-bridge.js?v=18"></script>
   <script type="module" src="js/auth-guard.js?v=18"></script>
-  <!-- Keep each page's own controller script on ?v=18 as well -->
   <script type="module" src="js/office.js?v=18"></script>
 </body>
 </html>

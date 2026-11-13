@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HR Library &amp; Feed | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=15" />
-  <link rel="stylesheet" href="css/dashboard.css?v=15" />
+  <link rel="stylesheet" href="css/style.css?v=18" />
+  <link rel="stylesheet" href="css/dashboard.css?v=18" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -93,10 +93,9 @@
       <!-- SUB-FEATURE 1: PUBLIC HR CASE LIBRARY & E-MODULES -->
       <section id="panel-case-library" class="tab-panel active">
         <div class="glass-panel">
-          <div class="panel-toolbar">
+          <div class="panel-toolbar" style="align-items: center;">
             <div>
-              <h2>Company Cases, HR E-Modules &amp; Practice Cases</h2>
-              <p class="text-muted"></p>
+              <h2 style="margin: 0;">Company Cases, HR E-Modules &amp; Practice Cases</h2>
             </div>
             <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
               <select id="library-type-filter" class="form-select" style="max-width: 180px;">
@@ -126,11 +125,10 @@
         <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
           <!-- Conflict Scenario Composer with Photo Upload -->
           <div class="glass-panel">
-            <div class="card-header">
+            <div class="card-header" style="align-items: center;">
               <i class="fas fa-exclamation-circle"></i>
               <div>
-                <h3>Post Real-World Workplace Conflict Scenario</h3>
-                <p class="text-muted"></p>
+                <h3 style="margin: 0;">Post Real-World Workplace Conflict Scenario</h3>
               </div>
             </div>
 
@@ -156,7 +154,6 @@
                 <textarea id="feed-resolution" class="form-control" rows="2" placeholder="Propose corrective measures, mediation steps, or policy updates..." required></textarea>
               </div>
 
-              <!-- Optional Supporting Photo Upload -->
               <div class="form-group">
                 <label for="feed-image-input" class="form-label">4. Attach Supporting Photo / Evidence Diagram (Optional — PNG, JPG, WebP)</label>
                 <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
@@ -196,7 +193,7 @@
     </main>
   </div>
 
-  <!-- Modal 1: Faculty Create/Upload Company Case, E-Module, or Practice Case -->
+  <!-- Modal 1: Create/Upload Company Case, E-Module, or Practice Case -->
   <div class="modal-backdrop" id="modal-case" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card" style="max-width: 680px;">
       <div class="modal-header">
@@ -310,7 +307,6 @@
   <script type="module" src="js/theme.js?v=18"></script>
   <script type="module" src="js/ui-bridge.js?v=18"></script>
   <script type="module" src="js/auth-guard.js?v=18"></script>
-  <!-- Keep each page's own controller script on ?v=18 as well -->
   <script type="module" src="js/hr-library.js?v=18"></script>
 </body>
 </html>

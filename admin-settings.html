@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin System Settings | AIMSER</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=15" />
-  <link rel="stylesheet" href="css/dashboard.css?v=15" />
+  <link rel="stylesheet" href="css/style.css?v=18" />
+  <link rel="stylesheet" href="css/dashboard.css?v=18" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -90,11 +90,10 @@
       <div class="settings-grid">
         <!-- Administrator Profile Card -->
         <section class="settings-card glass-panel">
-          <div class="card-header">
+          <div class="card-header" style="align-items: center;">
             <i class="fas fa-user-shield"></i>
             <div>
-              <h3>Administrator Identity</h3>
-              <p class="text-muted">Manage your admin display profile and avatar uploaded via Cloudinary.</p>
+              <h3 style="margin: 0;">Administrator Identity</h3>
             </div>
           </div>
 
@@ -106,7 +105,6 @@
               <div>
                 <label for="admin-avatar-input" class="form-label" style="margin-bottom: 0.35rem;">Admin Profile Picture</label>
                 <input type="file" id="admin-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" style="max-width: 320px;" />
-                <span class="text-muted" style="font-size: 0.75rem; display: block; margin-top: 0.25rem;">Uploaded directly to Cloudinary (Aimser_Avatars).</span>
               </div>
             </div>
 
@@ -134,11 +132,10 @@
 
         <!-- Global Simulator Policies -->
         <section class="settings-card glass-panel">
-          <div class="card-header">
+          <div class="card-header" style="align-items: center;">
             <i class="fas fa-cogs"></i>
             <div>
-              <h3>Global Simulation Policies</h3>
-              <p class="text-muted">Control institutional constraints, team room capacity (15 max), and registration access.</p>
+              <h3 style="margin: 0;">Global Simulation Policies</h3>
             </div>
           </div>
 
@@ -173,11 +170,10 @@
 
         <!-- Admin Master Password -->
         <section class="settings-card glass-panel">
-          <div class="card-header">
+          <div class="card-header" style="align-items: center;">
             <i class="fas fa-key"></i>
             <div>
-              <h3>Admin Security Credentials</h3>
-              <p class="text-muted">Update your root administrator password.</p>
+              <h3 style="margin: 0;">Admin Security Credentials</h3>
             </div>
           </div>
 
@@ -227,7 +223,6 @@
   <script type="module" src="js/theme.js?v=18"></script>
   <script type="module" src="js/ui-bridge.js?v=18"></script>
   <script type="module" src="js/auth-guard.js?v=18"></script>
-  <!-- Keep each page's own controller script on ?v=18 as well -->
   <script type="module" src="js/admin-settings.js?v=18"></script>
 </body>
 </html>
