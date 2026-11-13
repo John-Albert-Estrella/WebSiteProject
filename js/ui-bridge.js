@@ -1,15 +1,26 @@
-// js/ui-bridge.js - Global Header Chip Sync, Modal Pointer Guard, Password Toggles & Sign-Out Controller
+// js/ui-bridge.js - Global Header Chip Sync, Theme/Sign-Out Delegation & Password Toggles
 import { auth } from "./firebase-init.js";
 import { signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { FastCache, sanitizeUrl } from "./security-utils.js";
+import * as SecUtils from "./security-utils.js";
 
-function injectModalPointerGuard() {
-  if (document.getElementById("aimser-modal-pointer-guard")) return;
-  const style = document.createElement("style");
-  style.id = "aimser-modal-pointer-guard";
-  style.textContent = `.modal-backdrop:not(.is-open) { pointer-events: none !important; }`;
-  document.head.appendChild(style);
-}
+const FastCache = SecUtils.FastCache || {
+  get: (k) => {
+    try {
+      return JSON.parse(sessionStorage.getItem("aimser_v2_" + k));
+    } catch {
+      return null;
+    }
+  },
+  clearAll: () => {
+    try {
+      sessionStorage.clear();
+    } catch {}
+  }
+};
+
+const sanitizeUrl =
+  SecUtils.sanitizeUrl ||
+  ((url, fallback = "") => (/^https?:\/\//i.test(String(url || "").trim()) ? String(url).trim() : fallback));
 
 function applyHeaderChip(profile) {
   if (!profile) return;
@@ -26,51 +37,40 @@ function applyHeaderChip(profile) {
   if (avatarEl) avatarEl.src = sanitizeUrl(profile.avatarUrl, fallback);
 }
 
-function initUiBridge() {
-  injectModalPointerGuard();
-  applyHeaderChip(FastCache.get("user_profile"));
-
-  // Password visibility toggles
-  document.querySelectorAll(".btn-toggle-pw").forEach((btn) => {
-    if (btn.dataset.bound) return;
-    btn.dataset.bound = "true";
-    btn.addEventListener("click", () => {
-      const targetId = btn.dataset.target;
-      const input = document.getElementById(targetId);
-      if (!input) return;
+// Global document-level delegation so Sign Out and Password Toggles never fail to bind
+document.addEventListener("click", async (e) => {
+  const togglePwBtn = e.target.closest(".btn-toggle-pw");
+  if (togglePwBtn) {
+    const input = document.getElementById(togglePwBtn.dataset.target);
+    if (input) {
       const isPassword = input.type === "password";
       input.type = isPassword ? "text" : "password";
-      const icon = btn.querySelector("i");
-      if (icon) {
-        icon.className = isPassword ? "far fa-eye-slash" : "far fa-eye";
-      }
-    });
-  });
-
-  // Global Sign-Out button (#logout-btn only)
-  const logoutBtn = document.getElementById("logout-btn");
-  if (logoutBtn && !logoutBtn.dataset.bound) {
-    logoutBtn.dataset.bound = "true";
-    logoutBtn.addEventListener("click", async () => {
-      logoutBtn.disabled = true;
-      try {
-        FastCache.clearAll();
-        await signOut(auth);
-      } catch (err) {
-        console.error("Sign out error:", err);
-      } finally {
-        window.location.replace("login.html");
-      }
-    });
+      const icon = togglePwBtn.querySelector("i");
+      if (icon) icon.className = isPassword ? "far fa-eye-slash" : "far fa-eye";
+    }
+    return;
   }
-}
+
+  const logoutBtn = e.target.closest("#logout-btn");
+  if (logoutBtn) {
+    logoutBtn.disabled = true;
+    try {
+      FastCache.clearAll();
+      await signOut(auth);
+    } catch (err) {
+      console.error("Sign out error:", err);
+    } finally {
+      window.location.replace("login.html");
+    }
+  }
+});
 
 window.addEventListener("aimser:profile-ready", (e) => {
   applyHeaderChip(e.detail);
 });
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", initUiBridge);
+  document.addEventListener("DOMContentLoaded", () => applyHeaderChip(FastCache.get("user_profile")));
 } else {
-  initUiBridge();
+  applyHeaderChip(FastCache.get("user_profile"));
 }

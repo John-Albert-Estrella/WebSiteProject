@@ -1,4 +1,4 @@
-// js/admin-dashboard.js - Administrator Management, User Inspector, Case Library, HR Feed Photo Comments & Telemetry
+// js/admin-dashboard.js - Resilient Administrator Management, User Inspector, Case Library, HR Feed & Telemetry
 import { auth, db } from "./firebase-init.js";
 import {
   onAuthStateChanged,
@@ -18,8 +18,85 @@ import {
   limit,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { uploadToCloudinary } from "./cloudinary-config.js";
-import { FastCache, escapeHtml, sanitizeUrl, checkRateLimit, logAuditEvent } from "./security-utils.js";
+import * as CloudCfg from "./cloudinary-config.js";
+import * as SecUtils from "./security-utils.js";
+
+// Safe fallbacks so a missing named export in helper modules never blocks script execution
+const FastCache = SecUtils.FastCache || {
+  get: (k) => {
+    try {
+      return JSON.parse(sessionStorage.getItem("aimser_v2_" + k));
+    } catch {
+      return null;
+    }
+  },
+  set: (k, v) => {
+    try {
+      sessionStorage.setItem("aimser_v2_" + k, JSON.stringify(v));
+    } catch {}
+  },
+  clearAll: () => {
+    try {
+      sessionStorage.clear();
+    } catch {}
+  }
+};
+
+const escapeHtml =
+  SecUtils.escapeHtml ||
+  ((str) =>
+    String(str ?? "").replace(
+      /[&<>"']/g,
+      (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m])
+    ));
+
+const sanitizeUrl =
+  SecUtils.sanitizeUrl ||
+  ((url, fallback = "") => (/^https?:\/\//i.test(String(url || "").trim()) ? String(url).trim() : fallback));
+
+const checkRateLimit = SecUtils.checkRateLimit || (() => true);
+
+const logAuditEvent =
+  SecUtils.logAuditEvent ||
+  (async (message, category = "EVENT", actor = "") => {
+    try {
+      await addDoc(collection(db, "audit_logs"), {
+        message,
+        category,
+        actor,
+        timestamp: serverTimestamp()
+      });
+    } catch {}
+  });
+
+async function safeCloudinaryUpload(file, folder = "aimser/avatars") {
+  const fn =
+    CloudCfg.uploadToCloudinary ||
+    CloudCfg.uploadImageToCloudinary ||
+    CloudCfg.uploadFile ||
+    CloudCfg.default;
+
+  if (typeof fn === "function") {
+    return await fn(file, folder);
+  }
+
+  const cloudName = CloudCfg.CLOUDINARY_CLOUD_NAME || CloudCfg.CLOUD_NAME || "dvh6g7k2m";
+  const preset = CloudCfg.CLOUDINARY_UPLOAD_PRESET || CloudCfg.UPLOAD_PRESET || "Aimser_Avatars";
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", preset);
+  formData.append("folder", folder);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: "POST",
+    body: formData
+  });
+  const data = await res.json();
+  if (!res.ok || !data.secure_url) {
+    throw new Error(data.error?.message || "Cloudinary upload failed.");
+  }
+  return data.secure_url;
+}
 
 let currentAdminUser = null;
 let adminProfile = null;
@@ -87,7 +164,6 @@ onAuthStateChanged(auth, async (user) => {
     };
     renderAdminIdentity(user, adminProfile);
 
-    // Hydrate from FastCache immediately for 0ms render
     const snapMetrics = FastCache.get("admin_metrics");
     if (snapMetrics) applyMetricsToDOM(snapMetrics);
 
@@ -115,7 +191,6 @@ onAuthStateChanged(auth, async (user) => {
       renderAuditLogsList(cachedLogs);
     }
 
-    // Revalidate all live Firestore collections concurrently
     await Promise.allSettled([
       loadMetrics(),
       loadUsers(),
@@ -862,7 +937,7 @@ function renderUsersTable(users) {
       }
 
       return `
-        <tr class="admin-user-row ${isSelected ? "is-selected" : ""}" data-uid="${u.uid}" style="border-bottom: 1px solid var(--border-subtle);">
+        <tr class="admin-user-row ${isSelected ? "is-selected" : ""}" data-uid="${u.uid}" style="border-bottom: 1px solid var(--border-subtle); cursor: pointer;">
           <td style="padding: 0.75rem 1rem;">
             <div style="display: flex; align-items: center; gap: 0.65rem;">
               <img src="${avatar}" alt="" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-medium);" />
@@ -1128,7 +1203,7 @@ function setupUserInspectorPanel() {
 
         if (fileInput && fileInput.files.length > 0) {
           saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Photo...';
-          const uploadedUrl = await uploadToCloudinary(fileInput.files[0], "aimser/avatars");
+          const uploadedUrl = await safeCloudinaryUpload(fileInput.files[0], "aimser/avatars");
           updatedAvatarUrl = `${uploadedUrl}?t=${Date.now()}`;
         } else if (resetAvatarRequested) {
           updatedAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=1b5375&color=faf2dd`;
@@ -1304,8 +1379,18 @@ function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
   const panels = document.querySelectorAll(".tab-panel");
   const sidebarBtns = document.querySelectorAll(".subnav-link");
 
-  tabs.forEach((t) => t.classList.toggle("active", t.dataset.tab === targetPanelId));
-  panels.forEach((p) => p.classList.toggle("active", p.id === targetPanelId));
+  tabs.forEach((t) => {
+    const isMatch = t.dataset.tab === targetPanelId;
+    t.classList.toggle("active", isMatch);
+    t.classList.toggle("is-active", isMatch);
+  });
+
+  panels.forEach((p) => {
+    const isMatch = p.id === targetPanelId;
+    p.classList.toggle("active", isMatch);
+    p.classList.toggle("is-active", isMatch);
+    p.style.display = isMatch ? "block" : "none";
+  });
 
   const resolvedKey =
     clickedSidebarKey ||
@@ -1320,7 +1405,9 @@ function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
             : "overview");
 
   sidebarBtns.forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.navKey === resolvedKey);
+    const isMatch = btn.dataset.navKey === resolvedKey;
+    btn.classList.toggle("active", isMatch);
+    btn.classList.toggle("is-active", isMatch);
   });
 
   if (resolvedKey === "audit") {
