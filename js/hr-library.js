@@ -18,42 +18,6 @@ import {
 import { uploadToCloudinary } from "./cloudinary-config.js";
 import { FastCache, escapeHtml, sanitizeUrl, checkRateLimit, logAuditEvent } from "./security-utils.js";
 
-const DEFAULT_LIBRARY_ITEMS = [
-  {
-    id: "builtin-case-1",
-    type: "Company Case",
-    category: "Labor Law & Compliance",
-    title: "Constructive Dismissal & Twin-Notice Due Process (Philippine Labor Code)",
-    authorName: "AIMSER Academic Faculty",
-    authorRole: "faculty",
-    downloadUrl: "",
-    body: "Scenario: A senior operations supervisor was reassigned indefinitely to a non-supervisory clerical post without a formal notice or hearing following a departmental audit.\n\nTask: Evaluate whether the transfer constitutes constructive dismissal under Philippine jurisprudence and outline the mandatory Twin-Notice Rule and administrative hearing steps required for valid disciplinary action.",
-    answerKey: ""
-  },
-  {
-    id: "builtin-module-2",
-    type: "HR E-Module",
-    category: "Recruitment & Selection",
-    title: "E-Module 01: Competency-Based Behavioral Interviewing & Bias Mitigation",
-    authorName: "AIMSER Academic Faculty",
-    authorRole: "faculty",
-    downloadUrl: "",
-    body: "Learning Objectives:\n1. Structure STAR (Situation, Task, Action, Result) behavioral interview questions aligned with job competency matrices.\n2. Standardize 1-to-5 anchored rating rubrics across panel interviewers.\n3. Mitigate halo effect, confirmation bias, and affinity bias during candidate calibration.",
-    answerKey: ""
-  },
-  {
-    id: "builtin-practice-3",
-    type: "Practice Case",
-    category: "Compensation & Benefits",
-    title: "Practice Case: Statutory Benefits, Overtime & Night Shift Differential Audit",
-    authorName: "AIMSER Academic Faculty",
-    authorRole: "faculty",
-    downloadUrl: "",
-    body: "Practice Problem:\nAn employee earning a basic daily rate of ₱800 worked 2 hours of regular overtime on a normal workday, with 1 hour falling between 10:00 PM and 11:00 PM.\n\nQuestions:\n1. What is the minimum overtime premium rate on an ordinary working day under Art. 87 of the Labor Code?\n2. What is the mandatory Night Shift Differential (NSD) rate under Art. 86?\n3. Compute the total gross pay for that shift.",
-    answerKey: "1. Regular Overtime Premium: +25% of the hourly rate (1.25x).\n2. Night Shift Differential (10:00 PM – 6:00 AM): Not less than +10% of the regular wage per hour.\n3. Computation:\n- Hourly Rate = ₱800 / 8 = ₱100/hr\n- Basic 8 hrs = ₱800.00\n- Hour 1 OT (before 10 PM) = ₱100 × 1.25 = ₱125.00\n- Hour 2 OT (10 PM–11 PM with NSD) = ₱100 × 1.25 × 1.10 = ₱137.50\n- Total Gross Shift Pay = ₱1,062.50."
-  }
-];
-
 let currentUser = null;
 let userProfile = null;
 let allLibraryItems = [];
@@ -79,21 +43,23 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   const role = (userProfile.role || "student").toLowerCase();
-  if (role === "faculty") {
+  if (role === "faculty" || role === "admin") {
     const uploadBtn = document.getElementById("btn-open-case-modal");
     if (uploadBtn) uploadBtn.style.display = "inline-flex";
   }
 
   bindLibraryAndFeedEvents();
 
+  // Hydrate from cache while stripping any legacy built-in starter cards
   const cachedLib = FastCache.get("hr_library_items");
-  if (cachedLib) {
-    allLibraryItems = cachedLib;
+  if (Array.isArray(cachedLib)) {
+    allLibraryItems = cachedLib.filter((item) => !String(item.id || "").startsWith("builtin-"));
+    FastCache.set("hr_library_items", allLibraryItems);
     renderFilteredLibrary();
   }
 
   const cachedFeed = FastCache.get("hr_feed_posts");
-  if (cachedFeed) {
+  if (Array.isArray(cachedFeed)) {
     allFeedPosts = cachedFeed;
     renderFeedStream();
   }
@@ -179,11 +145,11 @@ async function loadUserModerationWarnings() {
   }
 }
 
-// 2. Public HR Case Library, E-Modules & Practice Cases
+// 2. Public HR Case Library, E-Modules & Practice Cases (Live Firestore Only)
 async function loadLibraryItems() {
   try {
     const snap = await getDocs(collection(db, "cases"));
-    const remote = snap.docs
+    allLibraryItems = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
       .sort((a, b) => {
         const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
@@ -191,12 +157,11 @@ async function loadLibraryItems() {
         return tB - tA;
       });
 
-    allLibraryItems = [...remote, ...DEFAULT_LIBRARY_ITEMS];
     FastCache.set("hr_library_items", allLibraryItems);
     renderFilteredLibrary();
   } catch (err) {
-    console.warn("Using default library items:", err.message);
-    allLibraryItems = [...DEFAULT_LIBRARY_ITEMS];
+    console.error("Failed loading HR Case Library:", err);
+    allLibraryItems = [];
     renderFilteredLibrary();
   }
 }
@@ -208,6 +173,17 @@ function renderFilteredLibrary() {
   const typeFilter = document.getElementById("library-type-filter")?.value || "all";
   const searchTerm = (document.getElementById("library-search")?.value || "").toLowerCase().trim();
   const role = (userProfile?.role || "student").toLowerCase();
+
+  if (allLibraryItems.length === 0) {
+    const canUpload = role === "faculty" || role === "admin";
+    grid.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-book-open"></i>
+        <h3>No Cases or E-Modules Published Yet</h3>
+        <p>${canUpload ? 'Click "Upload Case / E-Module" above to publish learning materials to the library.' : "Faculty and administrators have not published any cases or e-modules yet."}</p>
+      </div>`;
+    return;
+  }
 
   const filtered = allLibraryItems.filter((item) => {
     const matchesType = typeFilter === "all" || (item.type || "Company Case") === typeFilter;
@@ -228,7 +204,7 @@ function renderFilteredLibrary() {
     .map((item) => {
       const itemType = item.type || "Company Case";
       const hasAnswerKey = itemType === "Practice Case" && Boolean(item.answerKey);
-      const canDelete = !item.id.startsWith("builtin-") && role === "faculty";
+      const canDelete = role === "faculty" || role === "admin";
 
       return `
         <article class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;">
@@ -307,7 +283,7 @@ function openCaseReaderModal(item) {
     practiceBox.style.display = "block";
     answerInput.value = "";
     keyText.textContent = item.answerKey;
-    revealBox.style.display = role === "faculty" ? "block" : "none";
+    revealBox.style.display = role === "faculty" || role === "admin" ? "block" : "none";
   } else {
     practiceBox.style.display = "none";
     revealBox.style.display = "none";
@@ -396,7 +372,6 @@ function renderFeedStream() {
       const isArchived = Boolean(post.archived);
       const safeImage = sanitizeUrl(post.imageUrl, "");
 
-      // STRICT RULE: Only original poster or Admin can archive/delete post
       const canModeratePost = isPoster || isAdmin;
 
       const moderationControlsHtml = canModeratePost
@@ -487,7 +462,6 @@ function renderFeedStream() {
     })
     .join("");
 
-  // Lightbox Image Click
   stream.querySelectorAll(".btn-open-lightbox").forEach((img) => {
     img.addEventListener("click", () => {
       document.getElementById("lightbox-title").textContent = img.dataset.title || "Attached Evidence";
@@ -496,7 +470,6 @@ function renderFeedStream() {
     });
   });
 
-  // Archive / Unarchive Handler
   stream.querySelectorAll(".btn-archive-feed-post").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -533,7 +506,6 @@ function renderFeedStream() {
     });
   });
 
-  // Delete Handler
   stream.querySelectorAll(".btn-del-feed-post").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -565,7 +537,6 @@ function renderFeedStream() {
     });
   });
 
-  // Comment Handler (Records authorUid & authorEmail for Admin moderation warnings)
   stream.querySelectorAll(".form-feed-comment").forEach((form) => {
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -630,7 +601,6 @@ function bindLibraryAndFeedEvents() {
 
   document.getElementById("feed-search-input")?.addEventListener("input", renderFeedStream);
 
-  // Feed Image Preview & Clear Handlers
   const feedImgInput = document.getElementById("feed-image-input");
   const clearImgBtn = document.getElementById("btn-clear-feed-image");
   const previewBox = document.getElementById("feed-image-preview-box");
@@ -712,7 +682,7 @@ function bindLibraryAndFeedEvents() {
 
     document.getElementById("answer-key-reveal-box").style.display = "block";
 
-    if (activeCaseItem && !activeCaseItem.id.startsWith("builtin-")) {
+    if (activeCaseItem) {
       try {
         await addDoc(collection(db, "cases", activeCaseItem.id, "practice_attempts"), {
           studentUid: currentUser.uid,
@@ -727,7 +697,6 @@ function bindLibraryAndFeedEvents() {
     }
   });
 
-  // Submit New Conflict Scenario with Optional Cloudinary Image Upload
   document.getElementById("form-create-feed-post")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = document.getElementById("btn-submit-feed-post");

@@ -1,4 +1,4 @@
-// js/admin-dashboard.js - Administrator Management, User Profile Inspector, HR Feed Moderation & Telemetry
+// js/admin-dashboard.js - Administrator Management, User Inspector, Case Library, HR Feed & Telemetry
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  addDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -14,23 +15,26 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { uploadToCloudinary } from "./cloudinary-config.js";
-import { FastCache, escapeHtml, sanitizeUrl, logAuditEvent } from "./security-utils.js";
+import { FastCache, escapeHtml, sanitizeUrl, checkRateLimit, logAuditEvent } from "./security-utils.js";
 
 let currentAdminUser = null;
+let adminProfile = null;
 let cachedUsers = [];
 let cachedSections = [];
 let cachedTeams = [];
+let cachedCases = [];
 let cachedFeedPosts = [];
 let cachedLogs = [];
 let selectedUserUid = null;
 let resetAvatarRequested = false;
 
-// 1. Initialize Navigation & Inspector Controls Immediately
+// 1. Initialize Navigation, Modals & Inspector Controls Immediately
 document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   applyInitialHashRoute();
   setupSearchAndFilters();
   setupUserInspectorPanel();
+  setupAdminCaseModal();
 });
 
 // 2. Authenticate & Enforce Administrator Clearance
@@ -43,6 +47,7 @@ onAuthStateChanged(auth, async (user) => {
   try {
     const cachedProfile = FastCache.get("user_profile");
     if (cachedProfile && (cachedProfile.role || "").toLowerCase() === "admin") {
+      adminProfile = cachedProfile;
       renderAdminIdentity(user, cachedProfile);
     }
 
@@ -57,7 +62,14 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     currentAdminUser = user;
-    renderAdminIdentity(user, userData);
+    adminProfile = {
+      uid: user.uid,
+      email: user.email,
+      fullName: userData.fullName || user.displayName || "Administrator",
+      role: "admin",
+      avatarUrl: userData.avatarUrl || user.photoURL || ""
+    };
+    renderAdminIdentity(user, adminProfile);
 
     // Hydrate from FastCache immediately for 0ms render
     const snapMetrics = FastCache.get("admin_metrics");
@@ -67,6 +79,12 @@ onAuthStateChanged(auth, async (user) => {
     if (snapUsers) {
       cachedUsers = snapUsers;
       applyUserFilters();
+    }
+
+    const snapCases = FastCache.get("admin_cases");
+    if (snapCases) {
+      cachedCases = snapCases;
+      applyCaseFilters();
     }
 
     const snapFeed = FastCache.get("admin_feed_posts");
@@ -87,6 +105,7 @@ onAuthStateChanged(auth, async (user) => {
       loadUsers(),
       loadSections(),
       loadTeamsCache(),
+      loadCasesAdmin(),
       loadHrFeedAdmin(),
       loadAuditLogs()
     ]);
@@ -164,7 +183,199 @@ async function loadTeamsCache() {
   }
 }
 
-// 4. HR Feed Moderation Pipeline (Archive, Unarchive & Delete Any Post)
+// 4. HR Case Library & E-Modules Management Pipeline
+async function loadCasesAdmin() {
+  const grid = document.getElementById("admin-cases-grid");
+  const banner = document.getElementById("admin-cases-status-banner");
+  if (!grid) return;
+
+  try {
+    const snap = await getDocs(collection(db, "cases"));
+    cachedCases = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+        const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        return tB - tA;
+      });
+
+    FastCache.set("admin_cases", cachedCases);
+
+    if (banner) {
+      if (cachedCases.length > 0) {
+        banner.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success); margin-right: 0.45rem;"></i><strong>${cachedCases.length} custom material(s) active.</strong> Built-in starter templates are automatically hidden from students and faculty.`;
+      } else {
+        banner.innerHTML = `<i class="fas fa-info-circle" style="color: var(--aimser-blue-400); margin-right: 0.45rem;"></i><strong>No custom materials uploaded yet.</strong> Students and faculty currently see the 3 built-in starter templates until the first case or e-module is published.`;
+      }
+    }
+
+    applyCaseFilters();
+  } catch (err) {
+    console.error("Failed loading HR Case Library:", err);
+    grid.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+        <h3>Failed to load HR Case Library</h3>
+        <p style="font-size: 0.8rem;">${escapeHtml(err.message)}</p>
+      </div>`;
+  }
+}
+
+function applyCaseFilters() {
+  const typeFilter = document.getElementById("admin-case-type-filter")?.value || "all";
+  const term = (document.getElementById("admin-case-search")?.value || "").toLowerCase().trim();
+
+  const filtered = cachedCases.filter((item) => {
+    const matchesType = typeFilter === "all" || (item.type || "Company Case") === typeFilter;
+    const matchesTerm =
+      !term ||
+      (item.title || "").toLowerCase().includes(term) ||
+      (item.category || "").toLowerCase().includes(term) ||
+      (item.authorName || "").toLowerCase().includes(term) ||
+      (item.body || "").toLowerCase().includes(term);
+    return matchesType && matchesTerm;
+  });
+
+  renderAdminCasesGrid(filtered);
+}
+
+function renderAdminCasesGrid(items) {
+  const grid = document.getElementById("admin-cases-grid");
+  if (!grid) return;
+
+  if (!items || items.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-book-open"></i>
+        <h3>No Custom Cases or E-Modules Found</h3>
+        <p>Click "Upload Case / E-Module" above to publish custom learning materials to the HR Case Library.</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = items
+    .map((item) => {
+      const itemType = item.type || "Company Case";
+      const hasAnswerKey = itemType === "Practice Case" && Boolean(item.answerKey);
+      const authorRole = (item.authorRole || "faculty").toUpperCase();
+
+      return `
+        <article class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;background:var(--bg-surface);">
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.65rem;">
+              <span class="badge-pill">${escapeHtml(itemType)}</span>
+              <div style="display:flex;align-items:center;gap:0.4rem;">
+                ${hasAnswerKey ? `<span class="badge-pill" style="background:rgba(16,185,129,0.16);color:#10b981;"><i class="fas fa-key"></i> Key Included</span>` : ""}
+                <button type="button" class="btn-sidebar-action btn-logout btn-admin-del-case" data-id="${item.id}" data-title="${escapeHtml(item.title || "")}" style="width:auto;padding:0.28rem 0.6rem;font-size:0.74rem;" title="Delete Material">
+                  <i class="fas fa-trash-alt"></i> Delete
+                </button>
+              </div>
+            </div>
+            <h3 style="font-size:1.02rem;margin-bottom:0.35rem;color:var(--text-primary);">${escapeHtml(item.title || "Untitled Material")}</h3>
+            <div style="font-size:0.76rem;color:var(--text-tertiary);margin-bottom:0.6rem;">
+              By <strong>${escapeHtml(item.authorName || "Faculty")}</strong> (${escapeHtml(authorRole)}) • ${escapeHtml(item.category || "HR Policy")}
+            </div>
+            <p class="text-muted" style="font-size:0.82rem;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">
+              ${escapeHtml(item.body || "")}
+            </p>
+          </div>
+        </article>`;
+    })
+    .join("");
+
+  grid.querySelectorAll(".btn-admin-del-case").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const caseId = btn.dataset.id;
+      const caseTitle = btn.dataset.title;
+      if (!confirm(`Permanently delete "${caseTitle}" from the HR Case Library?`)) return;
+
+      btn.disabled = true;
+      try {
+        await deleteDoc(doc(db, "cases", caseId));
+        await logAuditEvent(`Admin deleted HR Case Library item "${caseTitle}"`, "HR_LIBRARY", currentAdminUser.email);
+        sessionStorage.removeItem("aimser_v2_hr_library_items");
+        await Promise.all([loadCasesAdmin(), loadAuditLogs()]);
+      } catch (err) {
+        alert("Failed to delete material: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function setupAdminCaseModal() {
+  const openBtn = document.getElementById("btn-open-admin-case-modal");
+  const modal = document.getElementById("modal-admin-create-case");
+  const form = document.getElementById("form-admin-create-case");
+
+  document.querySelectorAll('[data-close-modal="modal-admin-create-case"]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (modal) {
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+      }
+    });
+  });
+
+  if (openBtn && modal && !openBtn.dataset.bound) {
+    openBtn.dataset.bound = "true";
+    openBtn.addEventListener("click", () => {
+      modal.classList.add("is-open");
+      modal.setAttribute("aria-hidden", "false");
+    });
+  }
+
+  if (form && !form.dataset.bound) {
+    form.dataset.bound = "true";
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("btn-submit-admin-case");
+      const type = document.getElementById("admin-case-type").value;
+      const category = document.getElementById("admin-case-category").value;
+      const title = document.getElementById("admin-case-title").value.trim();
+      const downloadUrl = sanitizeUrl(document.getElementById("admin-case-download-url").value.trim(), "");
+      const body = document.getElementById("admin-case-body").value.trim();
+      const answerKey = document.getElementById("admin-case-answer-key").value.trim();
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+
+      try {
+        checkRateLimit("admin_upload_case", 8, 60000);
+        await addDoc(collection(db, "cases"), {
+          type,
+          category,
+          title,
+          downloadUrl,
+          body,
+          answerKey,
+          authorUid: currentAdminUser.uid,
+          authorName: adminProfile.fullName,
+          authorRole: "admin",
+          createdAt: serverTimestamp()
+        });
+
+        await logAuditEvent(`Admin published ${type}: "${title}" to HR Library`, "HR_LIBRARY", currentAdminUser.email);
+        sessionStorage.removeItem("aimser_v2_hr_library_items");
+
+        if (modal) {
+          modal.classList.remove("is-open");
+          modal.setAttribute("aria-hidden", "true");
+        }
+        form.reset();
+        await Promise.all([loadCasesAdmin(), loadAuditLogs()]);
+      } catch (err) {
+        alert("Failed to publish material: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Publish to HR Library';
+      }
+    });
+  }
+}
+
+// 5. HR Feed Summary Pipeline (Archive, Unarchive & Delete Any Post)
 async function loadHrFeedAdmin() {
   const container = document.getElementById("admin-feed-container");
   if (!container) return;
@@ -302,7 +513,6 @@ function renderAdminFeedList(posts) {
     })
     .join("");
 
-  // Admin Archive / Unarchive Feed Post
   container.querySelectorAll(".btn-admin-archive-feed").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -334,7 +544,6 @@ function renderAdminFeedList(posts) {
     });
   });
 
-  // Admin Delete Feed Post
   container.querySelectorAll(".btn-admin-del-feed").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -362,7 +571,7 @@ function renderAdminFeedList(posts) {
   });
 }
 
-// 5. Telemetry & Platform Audit Trail
+// 6. Telemetry & Platform Audit Trail
 async function loadAuditLogs() {
   const container = document.getElementById("admin-logs-container");
   const elLogs = document.getElementById("stat-total-logs");
@@ -460,7 +669,7 @@ function renderAuditLogsList(logs) {
     .join("");
 }
 
-// 6. User Directory Pipeline
+// 7. User Directory Pipeline
 async function loadUsers() {
   const tbody = document.getElementById("admin-users-table-body");
   if (!tbody) return;
@@ -549,7 +758,7 @@ function renderUsersTable(users) {
   });
 }
 
-// 7. User Profile & Details Inspector Panel
+// 8. User Profile & Details Inspector Panel
 function openUserInspector(uid) {
   const userObj = cachedUsers.find((u) => u.uid === uid);
   if (!userObj) return;
@@ -786,7 +995,7 @@ function showInspectorStatus(el, msg, type) {
   el.style.display = "block";
 }
 
-// 8. Classroom Audit Pipeline
+// 9. Classroom Audit Pipeline
 async function loadSections() {
   const container = document.getElementById("admin-sections-grid");
   if (!container) return;
@@ -880,7 +1089,7 @@ async function loadSections() {
   }
 }
 
-// 9. Synchronized Tabs, Sidebar Active Highlight & Hash Routing
+// 10. Synchronized Tabs, Sidebar Active Highlight & Hash Routing
 function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
   const tabs = document.querySelectorAll(".subnav-tab");
   const panels = document.querySelectorAll(".tab-panel");
@@ -895,9 +1104,11 @@ function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
       ? "users"
       : targetPanelId === "panel-sections"
         ? "sections"
-        : targetPanelId === "panel-feed"
-          ? "feed"
-          : "overview");
+        : targetPanelId === "panel-cases"
+          ? "cases"
+          : targetPanelId === "panel-feed"
+            ? "feed"
+            : "overview");
 
   sidebarBtns.forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.navKey === resolvedKey);
@@ -914,6 +1125,8 @@ function applyInitialHashRoute() {
     activateAdminTab("panel-users", "users");
   } else if (hash === "#sections") {
     activateAdminTab("panel-sections", "sections");
+  } else if (hash === "#cases") {
+    activateAdminTab("panel-cases", "cases");
   } else if (hash === "#feed") {
     activateAdminTab("panel-feed", "feed");
   } else if (hash === "#audit") {
@@ -942,13 +1155,14 @@ function setupTabs() {
 
   document.getElementById("btn-refresh-users")?.addEventListener("click", loadUsers);
   document.getElementById("btn-refresh-sections")?.addEventListener("click", loadSections);
+  document.getElementById("btn-refresh-cases")?.addEventListener("click", loadCasesAdmin);
   document.getElementById("btn-refresh-feed")?.addEventListener("click", loadHrFeedAdmin);
   document.getElementById("btn-refresh-logs")?.addEventListener("click", async () => {
     await Promise.all([loadAuditLogs(), loadMetrics()]);
   });
 }
 
-// 10. Search & Role Filtering
+// 11. Search & Role Filtering
 function applyUserFilters() {
   const term = (document.getElementById("admin-user-search")?.value || "").toLowerCase().trim();
   const roleFilter = (document.getElementById("admin-role-filter")?.value || "all").toLowerCase();
@@ -970,6 +1184,9 @@ function applyUserFilters() {
 function setupSearchAndFilters() {
   document.getElementById("admin-user-search")?.addEventListener("input", applyUserFilters);
   document.getElementById("admin-role-filter")?.addEventListener("change", applyUserFilters);
+
+  document.getElementById("admin-case-type-filter")?.addEventListener("change", applyCaseFilters);
+  document.getElementById("admin-case-search")?.addEventListener("input", applyCaseFilters);
 
   document.getElementById("admin-feed-filter")?.addEventListener("change", applyFeedFilters);
   document.getElementById("admin-feed-search")?.addEventListener("input", applyFeedFilters);
