@@ -1,4 +1,4 @@
-// js/admin-dashboard.js - Administrator Management, User Inspector, Case Library, HR Feed & Telemetry
+// js/admin-dashboard.js - Administrator Management, User Inspector, Case Library, HR Feed Photo Comments & Telemetry
 import { auth, db } from "./firebase-init.js";
 import {
   onAuthStateChanged,
@@ -39,6 +39,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupSearchAndFilters();
   setupUserInspectorPanel();
   setupAdminCaseModal();
+  setupLightboxModal();
 });
 
 // 2. Authenticate & Enforce Administrator Clearance
@@ -130,6 +131,18 @@ function renderAdminIdentity(user, data) {
   if (headerName) headerName.textContent = name;
   if (headerRole) headerRole.textContent = "SYSTEM ADMIN";
   if (headerAvatar) headerAvatar.src = avatar;
+}
+
+function setupLightboxModal() {
+  const modal = document.getElementById("modal-image-lightbox");
+  document.querySelectorAll('[data-close-modal="modal-image-lightbox"]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (modal) {
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+      }
+    });
+  });
 }
 
 // 3. Multi-Collection Telemetry Metrics
@@ -379,7 +392,7 @@ function setupAdminCaseModal() {
   }
 }
 
-// 5. HR Feed Summary Pipeline (Archive, Unarchive & Delete Any Post)
+// 5. HR Feed Summary Pipeline (Renders Post Photos, Comment Threads, Photo Comments & Delete Controls)
 async function loadHrFeedAdmin() {
   const container = document.getElementById("admin-feed-container");
   if (!container) return;
@@ -458,8 +471,9 @@ function renderAdminFeedList(posts) {
     .map((post) => {
       const isArchived = Boolean(post.archived);
       const authorRole = (post.authorRole || "student").toLowerCase();
-      const commentsCount = (post.comments || []).length;
+      const comments = post.comments || [];
       const dateStr = post.tsMillis ? new Date(post.tsMillis).toLocaleString() : "Recent";
+      const safePostImg = sanitizeUrl(post.imageUrl, "");
 
       const roleBadge =
         authorRole === "admin"
@@ -471,6 +485,49 @@ function renderAdminFeedList(posts) {
       const statusBadge = isArchived
         ? `<span class="badge-pill" style="background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);">ARCHIVED</span>`
         : `<span class="badge-pill" style="background:rgba(16,185,129,0.14);color:var(--success);border-color:rgba(16,185,129,0.35);">ACTIVE</span>`;
+
+      const postImgHtml = safePostImg
+        ? `<div style="margin-bottom: 0.85rem;">
+             <img src="${safePostImg}" alt="Attached post photo" class="btn-admin-lightbox" data-src="${safePostImg}" data-title="${escapeHtml(post.title || "Attached Evidence")}" style="max-height: 240px; width: 100%; object-fit: cover; border-radius: var(--radius-xs); border: 1px solid var(--border-medium); cursor: zoom-in;" />
+           </div>`
+        : "";
+
+      const commentsHtml =
+        comments.length === 0
+          ? `<div class="text-muted" style="font-size: 0.78rem;">No comments on this post yet.</div>`
+          : comments
+              .map((c, idx) => {
+                const cRole = (c.authorRole || "student").toLowerCase();
+                const cBadge =
+                  cRole === "admin"
+                    ? `<span style="display:inline-block;padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.64rem;font-weight:700;text-transform:uppercase;background:var(--aimser-blue-700);color:#ffffff;">ADMIN</span>`
+                    : cRole === "faculty"
+                      ? `<span style="display:inline-block;padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.64rem;font-weight:700;text-transform:uppercase;background:rgba(56,189,248,0.16);color:#38bdf8;">FACULTY</span>`
+                      : `<span style="display:inline-block;padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.64rem;font-weight:700;text-transform:uppercase;background:rgba(16,185,129,0.16);color:#10b981;">STUDENT</span>`;
+
+                const safeCommentImg = sanitizeUrl(c.imageUrl, "");
+                const commentImgHtml = safeCommentImg
+                  ? `<div style="margin-top: 0.4rem;">
+                       <img src="${safeCommentImg}" alt="Photo comment by ${escapeHtml(c.authorName || "Member")}" class="btn-admin-lightbox" data-src="${safeCommentImg}" data-title="Photo Comment by ${escapeHtml(c.authorName || "Member")}" style="max-height: 150px; max-width: 100%; border-radius: var(--radius-xs); border: 1px solid var(--border-medium); cursor: zoom-in; object-fit: cover;" />
+                     </div>`
+                  : "";
+
+                return `
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.65rem; padding: 0.55rem 0.75rem; border-radius: var(--radius-xs); background: var(--bg-canvas); border: 1px solid var(--border-subtle); font-size: 0.8rem;">
+                    <div style="flex: 1; min-width: 200px;">
+                      <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem; flex-wrap: wrap;">
+                        <strong>${escapeHtml(c.authorName || "Member")}</strong>
+                        ${cBadge}
+                      </div>
+                      ${c.text ? `<p style="margin: 0; color: var(--text-primary); white-space: pre-wrap;">${escapeHtml(c.text)}</p>` : ""}
+                      ${commentImgHtml}
+                    </div>
+                    <button type="button" class="btn-sidebar-action btn-logout btn-admin-del-comment" data-post-id="${post.id}" data-idx="${idx}" style="width: auto; padding: 0.24rem 0.55rem; font-size: 0.72rem;" title="Delete Comment">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>`;
+              })
+              .join("");
 
       return `
         <div class="glass-panel" style="background: var(--bg-surface); ${isArchived ? "border-color: rgba(245, 158, 11, 0.45);" : ""}">
@@ -485,7 +542,7 @@ function renderAdminFeedList(posts) {
                 ${roleBadge}
                 <span>(${escapeHtml(post.authorEmail || "No email")})</span>
                 <span>• ${escapeHtml(dateStr)}</span>
-                <span>• <i class="far fa-comment-dots"></i> ${commentsCount} comment(s)</span>
+                <span>• <i class="far fa-comment-dots"></i> ${comments.length} comment(s)</span>
               </div>
             </div>
 
@@ -499,7 +556,9 @@ function renderAdminFeedList(posts) {
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.65rem; font-size: 0.8rem;">
+          ${postImgHtml}
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.65rem; font-size: 0.8rem; margin-bottom: 0.85rem;">
             <div style="padding: 0.65rem 0.8rem; border-radius: var(--radius-xs); background: var(--bg-canvas); border: 1px solid var(--border-subtle);">
               <strong style="color: var(--warning); display: block; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.2rem;">Concerns</strong>
               <span style="color: var(--text-secondary);">${escapeHtml(post.concerns || "—")}</span>
@@ -513,9 +572,65 @@ function renderAdminFeedList(posts) {
               <span style="color: var(--text-secondary);">${escapeHtml(post.resolution || "—")}</span>
             </div>
           </div>
+
+          <div style="padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
+            <div style="font-size: 0.76rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">
+              <i class="far fa-comment-dots"></i> Comments &amp; Photo Attachments (${comments.length})
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.45rem;">
+              ${commentsHtml}
+            </div>
+          </div>
         </div>`;
     })
     .join("");
+
+  container.querySelectorAll(".btn-admin-lightbox").forEach((img) => {
+    img.addEventListener("click", () => {
+      const modal = document.getElementById("modal-image-lightbox");
+      const titleEl = document.getElementById("lightbox-title");
+      const imgEl = document.getElementById("lightbox-img");
+      if (titleEl) titleEl.textContent = img.dataset.title || "Attached Evidence";
+      if (imgEl) imgEl.src = img.dataset.src;
+      if (modal) {
+        modal.classList.add("is-open");
+        modal.setAttribute("aria-hidden", "false");
+      }
+    });
+  });
+
+  container.querySelectorAll(".btn-admin-del-comment").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const postId = btn.dataset.postId;
+      const idx = Number(btn.dataset.idx);
+      const targetPost = cachedFeedPosts.find((p) => p.id === postId);
+      if (!targetPost) return;
+
+      const comment = targetPost.comments?.[idx];
+      if (!confirm(`Delete comment by ${comment?.authorName || "this user"}?`)) return;
+
+      btn.disabled = true;
+      try {
+        const updatedComments = (targetPost.comments || []).filter((_, i) => i !== idx);
+        await updateDoc(doc(db, "hr_feed", postId), {
+          comments: updatedComments
+        });
+
+        await logAuditEvent(
+          `Admin deleted comment by ${comment?.authorName || "user"} on HR Feed post "${targetPost.title}"`,
+          "HR_FEED_MODERATION",
+          currentAdminUser.email
+        );
+
+        sessionStorage.removeItem("aimser_v2_hr_feed_posts");
+        await Promise.all([loadHrFeedAdmin(), loadAuditLogs()]);
+      } catch (err) {
+        alert("Failed to delete comment: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
 
   container.querySelectorAll(".btn-admin-archive-feed").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -762,7 +877,7 @@ function renderUsersTable(users) {
   });
 }
 
-// 8. User Profile & Details Inspector Panel (With Password Reset & Account Removal)
+// 8. User Profile & Details Inspector Panel
 function openUserInspector(uid) {
   const userObj = cachedUsers.find((u) => u.uid === uid);
   if (!userObj) return;
@@ -905,7 +1020,6 @@ function setupUserInspectorPanel() {
     });
   }
 
-  // Trigger Firebase Password Reset Email for Selected User
   if (resetPwBtn && !resetPwBtn.dataset.bound) {
     resetPwBtn.dataset.bound = "true";
     resetPwBtn.addEventListener("click", async () => {
@@ -937,7 +1051,6 @@ function setupUserInspectorPanel() {
     });
   }
 
-  // Delete / Remove User Profile Record from Firestore
   if (deleteUserBtn && !deleteUserBtn.dataset.bound) {
     deleteUserBtn.dataset.bound = "true";
     deleteUserBtn.addEventListener("click", async () => {

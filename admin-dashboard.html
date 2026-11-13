@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Console | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=16" />
-  <link rel="stylesheet" href="css/dashboard.css?v=16" />
+  <link rel="stylesheet" href="css/style.css?v=18" />
+  <link rel="stylesheet" href="css/dashboard.css?v=18" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -328,126 +328,4 @@
         </div>
       </section>
 
-      <!-- Panel 4: HR Feed Summary (Routes strictly to admin-hr-feed.html) -->
-      <section id="panel-feed" class="tab-panel">
-        <div class="glass-panel">
-          <div class="panel-toolbar" style="align-items: center;">
-            <div>
-              <h2 style="margin: 0;">HR Feed Moderation</h2>
-            </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-              <select id="admin-feed-filter" class="form-select" style="width: 145px;" aria-label="Filter Feed Status">
-                <option value="all">All Posts</option>
-                <option value="active">Active Only</option>
-                <option value="archived">Archived Only</option>
-              </select>
-              <input type="text" id="admin-feed-search" class="form-control" placeholder="Search title, author, text..." style="width: 220px;" />
-              <a href="admin-hr-feed.html" class="btn-primary" style="padding: 0.52rem 0.85rem; font-size: 0.8rem;">
-                <i class="fas fa-comments"></i> Open Admin HR Feed
-              </a>
-              <button type="button" id="btn-refresh-feed" class="btn-secondary" style="padding: 0.52rem 0.75rem;" title="Refresh HR Feed">
-                <i class="fas fa-sync-alt"></i>
-              </button>
-            </div>
-          </div>
-
-          <div id="admin-feed-container" style="display: flex; flex-direction: column; gap: 0.9rem;">
-            <div class="empty-state">
-              <i class="fas fa-spinner fa-spin"></i>
-              <h3>Loading HR Feed posts...</h3>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Panel 5: Security & Activity Telemetry (Audit Trail) -->
-      <section id="panel-telemetry" class="tab-panel active">
-        <div class="glass-panel" id="audit-trail-card">
-          <div class="panel-toolbar" style="align-items: center;">
-            <div>
-              <h2 style="margin: 0;">Platform Activity &amp; Audit Trail</h2>
-            </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-              <input type="text" id="admin-log-search" class="form-control" placeholder="Filter events..." style="max-width: 220px;" />
-              <button type="button" id="btn-refresh-logs" class="btn-secondary" title="Refresh Logs">
-                <i class="fas fa-sync-alt"></i> Refresh Logs
-              </button>
-            </div>
-          </div>
-
-          <div id="admin-logs-container" style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 540px; overflow-y: auto; padding-right: 0.35rem;">
-            <div class="empty-state">
-              <i class="fas fa-spinner fa-spin"></i>
-              <h3>Loading telemetry trail...</h3>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <!-- Modal: Admin Upload Company Case, E-Module, or Practice Case -->
-  <div class="modal-backdrop" id="modal-admin-create-case" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card" style="max-width: 680px;">
-      <div class="modal-header">
-        <h3>Upload Company Case, E-Module, or Practice Case</h3>
-        <button type="button" class="btn-close-modal" data-close-modal="modal-admin-create-case">&times;</button>
-      </div>
-      <form id="form-admin-create-case">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="admin-case-type" class="form-label">Material Type</label>
-            <select id="admin-case-type" class="form-select" required>
-              <option value="Company Case">Company Case</option>
-              <option value="HR E-Module">HR E-Module</option>
-              <option value="Practice Case">Practice Case (With Answer Key)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="admin-case-category" class="form-label">HR Domain</label>
-            <select id="admin-case-category" class="form-select" required>
-              <option value="Labor Law & Compliance">Labor Law &amp; Compliance</option>
-              <option value="Recruitment & Selection">Recruitment &amp; Selection</option>
-              <option value="Employee Relations">Employee Relations</option>
-              <option value="Compensation & Benefits">Compensation &amp; Benefits</option>
-              <option value="Organizational Development">Organizational Development</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="admin-case-title" class="form-label">Title</label>
-          <input type="text" id="admin-case-title" class="form-control" placeholder="e.g., Case Study 04: Constructive Dismissal & Due Process" required />
-        </div>
-
-        <div class="form-group">
-          <label for="admin-case-download-url" class="form-label">Downloadable Material Link (PDF / Doc URL - Optional)</label>
-          <input type="url" id="admin-case-download-url" class="form-control" placeholder="https://..." />
-        </div>
-
-        <div class="form-group">
-          <label for="admin-case-body" class="form-label">Case Scenario / E-Module Content &amp; Questions</label>
-          <textarea id="admin-case-body" class="form-control" rows="4" placeholder="Enter full case narrative, e-module lesson, or practice questions..." required></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="admin-case-answer-key" class="form-label">Key to Correct (Answer Key for Practice Cases / Rubrics)</label>
-          <textarea id="admin-case-answer-key" class="form-control" rows="3" placeholder="Provide the official answer key, legal basis, or recommended resolution..."></textarea>
-        </div>
-
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close-modal="modal-admin-create-case">Cancel</button>
-          <button type="submit" class="btn-primary" id="btn-submit-admin-case">
-            <i class="fas fa-cloud-upload-alt"></i> Publish to HR Library
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script type="module" src="js/theme.js?v=16"></script>
-  <script type="module" src="js/ui-bridge.js?v=16"></script>
-  <script type="module" src="js/auth-guard.js?v=16"></script>
-  <script type="module" src="js/admin-dashboard.js?v=16"></script>
-</body>
-</html>
+      <!-- Panel 4: HR Feed Moderation (Shows Post Photos, Comment Threads & Photo Comments) -->
