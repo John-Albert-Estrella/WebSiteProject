@@ -1,4 +1,4 @@
-// js/planner.js - Project Planner (15-Member Capacity, Positions, Hierarchy, Deadlines, Kanban & Onboarding Checklists)
+// js/planner.js - Project Planner (15-Member Capacity, Positions, Hierarchy, Deadlines, Kanban Edit & Onboarding)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -14,12 +14,13 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { FastCache, escapeHtml, checkRateLimit, logAuditEvent } from "./security-utils.js";
 
-const MAX_TEAM_CAPACITY = 15; // 1 Team Leader + up to 14 additional members
+const MAX_TEAM_CAPACITY = 15;
 
 let currentUser = null;
 let userProfile = null;
 let teams = [];
 let activeTeam = null;
+let currentTasks = [];
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
@@ -109,13 +110,16 @@ async function selectTeam(teamId) {
 
 async function loadTasks(teamId) {
   const cachedTasks = FastCache.get(`planner_tasks_${teamId}`);
-  if (cachedTasks) renderKanbanTasks(cachedTasks, teamId);
+  if (cachedTasks) {
+    currentTasks = cachedTasks;
+    renderKanbanTasks(currentTasks, teamId);
+  }
 
   try {
     const snap = await getDocs(collection(db, "teams", teamId, "tasks"));
-    const tasks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    FastCache.set(`planner_tasks_${teamId}`, tasks);
-    renderKanbanTasks(tasks, teamId);
+    currentTasks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    FastCache.set(`planner_tasks_${teamId}`, currentTasks);
+    renderKanbanTasks(currentTasks, teamId);
   } catch (err) {
     console.error("Error loading tasks:", err);
   }
@@ -149,7 +153,10 @@ function renderKanbanTasks(tasks, teamId) {
                 <div style="padding:0.85rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-medium);">
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;gap:0.35rem;">
                     <span class="badge-pill" style="font-size:0.68rem;">${escapeHtml(task.positionTag || task.priority || "Task")}</span>
-                    <button type="button" class="btn-del-task" data-id="${task.id}" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:1rem;" title="Remove Task">&times;</button>
+                    <div style="display:flex;align-items:center;gap:0.45rem;">
+                      <button type="button" class="btn-edit-task" data-id="${task.id}" style="background:none;border:none;color:var(--aimser-blue-400);cursor:pointer;font-size:0.8rem;" title="Edit Task"><i class="fas fa-pen"></i></button>
+                      <button type="button" class="btn-del-task" data-id="${task.id}" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:1rem;" title="Remove Task">&times;</button>
+                    </div>
                   </div>
                   <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.35rem;color:var(--text-primary);">${escapeHtml(task.title)}</div>
                   ${task.responsibility ? `<p class="text-muted" style="font-size:0.78rem;line-height:1.4;margin-bottom:0.5rem;">${escapeHtml(task.responsibility)}</p>` : ""}
@@ -168,6 +175,21 @@ function renderKanbanTasks(tasks, teamId) {
                 </div>`;
             })
             .join("");
+
+    col.querySelectorAll(".btn-edit-task").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const targetTask = currentTasks.find((t) => t.id === btn.dataset.id);
+        if (!targetTask) return;
+        document.getElementById("edit-task-id").value = targetTask.id;
+        document.getElementById("edit-task-title").value = targetTask.title || "";
+        document.getElementById("edit-task-assignee").value = targetTask.assigneeName || targetTask.assignee || "";
+        document.getElementById("edit-task-deadline").value = targetTask.deadline || "";
+        document.getElementById("edit-task-position-tag").value = targetTask.positionTag || "";
+        document.getElementById("edit-task-priority").value = targetTask.priority || "Normal";
+        document.getElementById("edit-task-responsibility").value = targetTask.responsibility || "";
+        openModal("modal-edit-task");
+      });
+    });
 
     col.querySelectorAll(".task-status-mover").forEach((sel) => {
       sel.addEventListener("change", async (e) => {
@@ -191,6 +213,7 @@ function renderKanbanTasks(tasks, teamId) {
 function renderHierarchyAndPositions() {
   const grid = document.getElementById("hierarchy-members-grid");
   const assigneeSelect = document.getElementById("task-assignee");
+  const editAssigneeSelect = document.getElementById("edit-task-assignee");
   if (!grid || !activeTeam) return;
 
   const profilesMap = activeTeam.memberProfiles || {};
@@ -211,11 +234,12 @@ function renderHierarchyAndPositions() {
     })
     .sort((a, b) => a.tier.localeCompare(b.tier));
 
-  if (assigneeSelect) {
-    assigneeSelect.innerHTML = membersList
-      .map((m) => `<option value="${escapeHtml(m.fullName)}">${escapeHtml(m.fullName)} (${escapeHtml(m.position)})</option>`)
-      .join("");
-  }
+  const optionsHtml = membersList
+    .map((m) => `<option value="${escapeHtml(m.fullName)}">${escapeHtml(m.fullName)} (${escapeHtml(m.position)})</option>`)
+    .join("");
+
+  if (assigneeSelect) assigneeSelect.innerHTML = optionsHtml;
+  if (editAssigneeSelect) editAssigneeSelect.innerHTML = optionsHtml;
 
   grid.innerHTML = membersList
     .map(
@@ -481,6 +505,32 @@ function bindPlannerEvents() {
 
     closeModal("modal-task");
     e.target.reset();
+    await loadTasks(activeTeam.id);
+  });
+
+  document.getElementById("form-edit-task")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!activeTeam) return;
+
+    const taskId = document.getElementById("edit-task-id").value;
+    const title = document.getElementById("edit-task-title").value.trim();
+    const assigneeName = document.getElementById("edit-task-assignee").value;
+    const deadline = document.getElementById("edit-task-deadline").value;
+    const positionTag = document.getElementById("edit-task-position-tag").value.trim();
+    const priority = document.getElementById("edit-task-priority").value;
+    const responsibility = document.getElementById("edit-task-responsibility").value.trim();
+
+    await updateDoc(doc(db, "teams", activeTeam.id, "tasks", taskId), {
+      title,
+      assigneeName,
+      deadline,
+      positionTag,
+      priority,
+      responsibility,
+      updatedAt: serverTimestamp()
+    });
+
+    closeModal("modal-edit-task");
     await loadTasks(activeTeam.id);
   });
 

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Office Workspace | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=6" />
-  <link rel="stylesheet" href="css/dashboard.css?v=6" />
+  <link rel="stylesheet" href="css/style.css?v=16" />
+  <link rel="stylesheet" href="css/dashboard.css?v=16" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -64,7 +64,7 @@
         </div>
 
         <div class="header-right" style="display: flex; align-items: center; gap: 0.85rem;">
-          <!-- Deadline & Submission Notification Bell -->
+          <!-- Deadline, Grade & Moderation Warning Notification Bell -->
           <button type="button" id="btn-open-notifications" class="btn-secondary" style="position: relative; padding: 0.5rem 0.75rem;" aria-label="Notifications and Deadlines">
             <i class="fas fa-bell"></i>
             <span id="notif-badge" class="badge-pill" style="position: absolute; top: -6px; right: -6px; padding: 0.1rem 0.4rem; font-size: 0.68rem; background: var(--danger); color: #fff; display: none;">0</span>
@@ -80,7 +80,7 @@
         </div>
       </header>
 
-      <!-- Classroom Selector & Action Bar (Under the Line) -->
+      <!-- Classroom Selector & Action Bar -->
       <div class="workspace-action-bar" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.35rem;">
         <select id="active-classroom-select" class="form-select" style="max-width: 280px; padding: 0.5rem 0.85rem;" aria-label="Select Active Classroom">
           <option value="">Loading Classrooms...</option>
@@ -110,7 +110,7 @@
         </div>
       </section>
 
-      <!-- Office Sub-Navigation (Dashboard | Analytics | Portfolio | Roster) -->
+      <!-- Office Sub-Navigation -->
       <nav class="office-subnav" aria-label="Office Sub-Features">
         <button type="button" class="subnav-tab active" data-tab="panel-dashboard">
           <i class="fas fa-th-large"></i>
@@ -136,7 +136,7 @@
           <div class="panel-toolbar">
             <div>
               <h2 id="active-classroom-title">Classroom Dashboard</h2>
-              <p id="active-classroom-desc" class="text-muted">Manage activities, deadlines, rubric evaluations, and student submissions.</p>
+              <p id="active-classroom-desc" class="text-muted" style="font-size: 0.82rem;"></p>
             </div>
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
               <button type="button" id="btn-open-new-activity" class="btn-primary" style="display: none;">
@@ -168,7 +168,6 @@
           <div class="panel-toolbar">
             <div>
               <h2>Class Performance &amp; Completion Rates</h2>
-              <p class="text-muted"></p>
             </div>
           </div>
 
@@ -208,7 +207,6 @@
             <div class="panel-toolbar">
               <div>
                 <h2>Personal Academic &amp; Simulation Performance</h2>
-                <p class="text-muted">Your assignment completion progress, rubric scores, and feedback summary.</p>
               </div>
             </div>
             <div class="stats-row">
@@ -231,7 +229,6 @@
             <div class="panel-toolbar">
               <div>
                 <h2>HR Workforce Analytics Simulator</h2>
-                <p class="text-muted">Analyze organizational turnover, absenteeism, training cost per employee, and recruitment efficiency.</p>
               </div>
             </div>
 
@@ -307,7 +304,6 @@
           <div class="panel-toolbar">
             <div>
               <h2>Class HR Portfolios &amp; Appraisal Periods</h2>
-              <p class="text-muted"></p>
             </div>
             <button type="button" id="btn-open-kpi-modal" class="btn-primary">
               <i class="fas fa-bullseye"></i> Set KPIs &amp; Appraisal Period
@@ -316,7 +312,7 @@
 
           <div id="active-appraisal-banner" style="margin-bottom: 1.5rem; padding: 1rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-medium);">
             <strong>Active Appraisal Period:</strong> <span id="appraisal-period-text">Not configured yet</span>
-            <p id="appraisal-kpis-text" class="text-muted" style="font-size: 0.84rem; margin-top: 0.35rem;">Click "Set KPIs &amp; Appraisal Period" to establish section evaluation benchmarks.</p>
+            <p id="appraisal-kpis-text" class="text-muted" style="font-size: 0.84rem; margin-top: 0.35rem;">Awaiting instructor KPI setup.</p>
           </div>
 
           <div id="class-portfolios-grid" class="cards-grid"></div>
@@ -327,7 +323,6 @@
             <div class="panel-toolbar">
               <div>
                 <h2>Personal Goals, Self-Feedback &amp; Development Plan</h2>
-                <p class="text-muted">Align your career objectives and competency growth plan with your instructor's active KPIs.</p>
               </div>
             </div>
 
@@ -339,7 +334,7 @@
               <div class="form-row">
                 <div class="form-group">
                   <label for="port-goals" class="form-label">Personal HR Career &amp; Learning Goals</label>
-                  <textarea id="port-goals" class="form-control" rows="3" placeholder="Define measurable HR simulation goals for this appraisal period..." required></textarea>
+                  <textarea id="port-goals" class="form-control" rows="3" placeholder="Define measurable HR simulation goals..." required></textarea>
                 </div>
                 <div class="form-group">
                   <label for="port-devplan" class="form-label">Individual Development Plan (IDP)</label>
@@ -348,7 +343,7 @@
               </div>
               <div class="form-group">
                 <label for="port-self-feedback" class="form-label">Self-Evaluation &amp; Reflection Feedback</label>
-                <textarea id="port-self-feedback" class="form-control" rows="2" placeholder="Reflect on your strengths, challenges, and peer/instructor feedback..."></textarea>
+                <textarea id="port-self-feedback" class="form-control" rows="2" placeholder="Reflect on your strengths and feedback..."></textarea>
               </div>
               <button type="submit" class="btn-primary">
                 <i class="fas fa-save"></i> Save Goals &amp; Development Plan
@@ -360,7 +355,6 @@
             <div class="panel-toolbar">
               <div>
                 <h2>Digital HR Portfolio Outputs</h2>
-                <p class="text-muted">Store your completed HR deliverables, policies, and case outputs for faculty grading.</p>
               </div>
               <button type="button" id="btn-add-portfolio-item" class="btn-primary">
                 <i class="fas fa-folder-plus"></i> Add Portfolio Output
@@ -372,13 +366,12 @@
         </div>
       </section>
 
-      <!-- SUB-FEATURE 4: CLASS ROSTER & JOIN APPROVALS (100 MAX) -->
+      <!-- SUB-FEATURE 4: CLASS ROSTER & JOIN APPROVALS -->
       <section id="panel-roster" class="tab-panel">
         <div class="glass-panel">
           <div class="panel-toolbar">
             <div>
               <h2>Class Roster &amp; Enrollment (Max 100 Students)</h2>
-              <p class="text-muted"></p>
             </div>
           </div>
 
@@ -581,13 +574,13 @@
         <h3>Notifications &amp; Deadline Reminders</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-notifications">&times;</button>
       </div>
-      <div id="notifications-feed-list" style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 360px; overflow-y: auto;"></div>
+      <div id="notifications-feed-list" style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 380px; overflow-y: auto;"></div>
     </div>
   </div>
 
-  <script type="module" src="js/theme.js?v=6"></script>
-  <script type="module" src="js/ui-bridge.js?v=6"></script>
-  <script type="module" src="js/auth-guard.js?v=6"></script>
-  <script type="module" src="js/office.js?v=6"></script>
+  <script type="module" src="js/theme.js?v=16"></script>
+  <script type="module" src="js/ui-bridge.js?v=16"></script>
+  <script type="module" src="js/auth-guard.js?v=16"></script>
+  <script type="module" src="js/office.js?v=16"></script>
 </body>
 </html>

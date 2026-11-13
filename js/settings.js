@@ -1,4 +1,4 @@
-// js/settings.js - Complete Profile, Avatar, and Password Controller
+// js/settings.js - Participant Profile, Cloudinary Avatar Upload & Password Rotation
 import { auth, db } from "./firebase-init.js";
 import {
   onAuthStateChanged,
@@ -14,160 +14,149 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { uploadToCloudinary } from "./cloudinary-config.js";
+import { FastCache, sanitizeUrl, logAuditEvent } from "./security-utils.js";
 
 let currentUser = null;
+let currentProfile = null;
 
-// 1. Session and Profile Bootstrap
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.replace("login.html");
     return;
   }
+
   currentUser = user;
 
-  try {
-    const userDocRef = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userDocRef);
-    const userData = userSnap.exists() ? userSnap.data() : {};
-
-    populateProfileUI(user, userData);
-    setupAvatarPreview();
-    setupProfileSubmit();
-    setupPasswordSubmit();
-  } catch (err) {
-    console.error("Error bootstrapping settings:", err);
+  const cached = FastCache.get("user_profile");
+  if (cached) {
+    currentProfile = cached;
+    populateSettingsUI(user, cached);
   }
+
+  try {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    const data = snap.exists() ? snap.data() : {};
+    currentProfile = {
+      uid: user.uid,
+      email: user.email,
+      fullName: data.fullName || user.displayName || user.email.split("@")[0],
+      role: (data.role || "student").toLowerCase(),
+      department: data.department || "",
+      avatarUrl: data.avatarUrl || user.photoURL || ""
+    };
+    FastCache.set("user_profile", currentProfile);
+    populateSettingsUI(user, currentProfile);
+  } catch (err) {
+    console.error("Settings load error:", err);
+  }
+
+  setupAvatarPreview();
+  setupProfileSubmit();
+  setupPasswordSubmit();
 });
 
-// 2. Populate View Elements
-function populateProfileUI(user, data) {
+function populateSettingsUI(user, data) {
   const nameInput = document.getElementById("settings-fullname");
   const emailInput = document.getElementById("settings-email");
-  const roleInput = document.getElementById("settings-role");
   const deptInput = document.getElementById("settings-department");
-  const previewImg = document.getElementById("settings-avatar-preview");
-  const headerName = document.getElementById("header-user-name");
-  const headerRole = document.getElementById("header-user-role");
-  const headerAvatar = document.getElementById("header-user-avatar");
+  const roleBadge = document.getElementById("settings-role-badge");
+  const avatarPreview = document.getElementById("settings-avatar-preview");
 
-  const resolvedName = data.fullName || user.displayName || user.email.split("@")[0];
-  const resolvedRole = (data.role || "student").toUpperCase();
-  const defaultFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedName)}&background=1b5375&color=faf2dd`;
-  const resolvedAvatar = data.avatarUrl || user.photoURL || defaultFallback;
+  const resolvedName = data.fullName || user.displayName || "Member";
+  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedName)}&background=1b5375&color=faf2dd`;
+  const resolvedAvatar = sanitizeUrl(data.avatarUrl || user.photoURL, fallback);
 
   if (nameInput) nameInput.value = resolvedName;
   if (emailInput) emailInput.value = user.email || "";
-  if (roleInput) roleInput.value = resolvedRole;
   if (deptInput) deptInput.value = data.department || "";
-  if (previewImg) previewImg.src = resolvedAvatar;
-
-  if (headerName) headerName.textContent = resolvedName;
-  if (headerRole) headerRole.textContent = resolvedRole;
-  if (headerAvatar) headerAvatar.src = resolvedAvatar;
+  if (roleBadge) roleBadge.value = (data.role || "student").toUpperCase();
+  if (avatarPreview) avatarPreview.src = resolvedAvatar;
 }
 
-// 3. Local Blob Preview Before Upload
 function setupAvatarPreview() {
-  const fileInput = document.getElementById("avatar-file-input");
+  const fileInput = document.getElementById("settings-avatar-input");
   const previewImg = document.getElementById("settings-avatar-preview");
-
   if (!fileInput || !previewImg || fileInput.dataset.bound) return;
   fileInput.dataset.bound = "true";
 
   fileInput.addEventListener("change", () => {
     const file = fileInput.files[0];
-    if (file) {
-      if (!file.type.startsWith("image/")) {
-        alert("Please select a valid image file (JPG, PNG, or WebP).");
-        fileInput.value = "";
-        return;
-      }
-      // Instant browser blob preview
-      previewImg.src = URL.createObjectURL(file);
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image file (PNG, JPG, or WebP).");
+      fileInput.value = "";
+      return;
     }
+    previewImg.src = URL.createObjectURL(file);
   });
 }
 
-// 4. Save Profile & Upload to Cloudinary
 function setupProfileSubmit() {
-  const profileForm = document.getElementById("profile-settings-form");
-  const submitBtn = document.getElementById("btn-save-profile");
-  const statusMsg = document.getElementById("profile-status-message");
+  const form = document.getElementById("settings-profile-form");
+  const submitBtn = document.getElementById("btn-save-settings-profile");
+  const statusEl = document.getElementById("settings-profile-status");
+  if (!form || form.dataset.bound) return;
+  form.dataset.bound = "true";
 
-  if (!profileForm || profileForm.dataset.bound) return;
-  profileForm.dataset.bound = "true";
-
-  profileForm.addEventListener("submit", async (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
-
     const fullName = document.getElementById("settings-fullname").value.trim();
     const department = document.getElementById("settings-department").value.trim();
-    const fileInput = document.getElementById("avatar-file-input");
+    const fileInput = document.getElementById("settings-avatar-input");
 
     if (!fullName) {
-      showStatus(statusMsg, "Full Name cannot be empty.", "error");
+      showStatus(statusEl, "Full name cannot be empty.", "error");
       return;
     }
 
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-    showStatus(statusMsg, "", "clear");
+    showStatus(statusEl, "", "clear");
 
     try {
       let finalAvatarUrl = null;
-
-      // Execute Cloudinary Upload if a new file is chosen
       if (fileInput && fileInput.files.length > 0) {
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Image...';
-        const file = fileInput.files[0];
-        const uploadedUrl = await uploadToCloudinary(file, "aimser/avatars");
-        
-        // Append cache-buster timestamp to ensure immediate browser reload
-        finalAvatarUrl = `${uploadedUrl}?t=${Date.now()}`;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Photo...';
+        const uploaded = await uploadToCloudinary(fileInput.files[0], "aimser/avatars");
+        finalAvatarUrl = `${uploaded}?t=${Date.now()}`;
       }
 
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating Records...';
-
-      // Prepare Firestore payload
-      const firestorePayload = {
-        fullName: fullName,
-        department: department,
+      const payload = {
+        fullName,
+        department,
         updatedAt: serverTimestamp()
       };
+      if (finalAvatarUrl) payload.avatarUrl = finalAvatarUrl;
 
-      if (finalAvatarUrl) {
-        firestorePayload.avatarUrl = finalAvatarUrl;
-      }
-
-      // Update Firestore and Firebase Auth simultaneously
-      const updates = [
-        updateDoc(doc(db, "users", currentUser.uid), firestorePayload),
+      await Promise.all([
+        updateDoc(doc(db, "users", currentUser.uid), payload),
         updateProfile(currentUser, {
           displayName: fullName,
           ...(finalAvatarUrl ? { photoURL: finalAvatarUrl } : {})
         })
-      ];
+      ]);
 
-      await Promise.all(updates);
+      const updatedProfile = {
+        ...(currentProfile || {}),
+        uid: currentUser.uid,
+        email: currentUser.email,
+        fullName,
+        department,
+        ...(finalAvatarUrl ? { avatarUrl: finalAvatarUrl } : {})
+      };
+      currentProfile = updatedProfile;
+      FastCache.set("user_profile", updatedProfile);
+      window.dispatchEvent(new CustomEvent("aimser:profile-ready", { detail: updatedProfile }));
 
-      // Update in-page UI components instantly
-      const headerName = document.getElementById("header-user-name");
-      const headerAvatar = document.getElementById("header-user-avatar");
-      const previewImg = document.getElementById("settings-avatar-preview");
-
-      if (headerName) headerName.textContent = fullName;
       if (finalAvatarUrl) {
-        if (headerAvatar) headerAvatar.src = finalAvatarUrl;
-        if (previewImg) previewImg.src = finalAvatarUrl;
+        document.getElementById("settings-avatar-preview").src = finalAvatarUrl;
       }
-
-      // Reset file input selection
       if (fileInput) fileInput.value = "";
 
-      showStatus(statusMsg, "Profile updated successfully!", "success");
+      await logAuditEvent(`User updated profile identity (${fullName})`, "PROFILE", currentUser.email);
+      showStatus(statusEl, "Profile changes saved successfully!", "success");
     } catch (err) {
-      console.error("Profile update error:", err);
-      showStatus(statusMsg, err.message || "Failed to update profile.", "error");
+      showStatus(statusEl, err.message || "Failed to save profile.", "error");
     } finally {
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Profile Changes';
@@ -175,65 +164,62 @@ function setupProfileSubmit() {
   });
 }
 
-// 5. Save Password Changes
 function setupPasswordSubmit() {
-  const pwForm = document.getElementById("password-settings-form");
-  const submitBtn = document.getElementById("btn-save-password");
-  const statusMsg = document.getElementById("password-status-message");
+  const form = document.getElementById("settings-password-form");
+  const submitBtn = document.getElementById("btn-save-settings-pw");
+  const statusEl = document.getElementById("settings-password-status");
+  if (!form || form.dataset.bound) return;
+  form.dataset.bound = "true";
 
-  if (!pwForm || pwForm.dataset.bound) return;
-  pwForm.dataset.bound = "true";
-
-  pwForm.addEventListener("submit", async (e) => {
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
-
-    const currentPw = document.getElementById("settings-current-password").value;
-    const newPw = document.getElementById("settings-new-password").value;
-    const confirmPw = document.getElementById("settings-confirm-password").value;
+    const currentPw = document.getElementById("settings-current-pw").value;
+    const newPw = document.getElementById("settings-new-pw").value;
+    const confirmPw = document.getElementById("settings-confirm-pw").value;
 
     if (newPw !== confirmPw) {
-      showStatus(statusMsg, "New passwords do not match.", "error");
+      showStatus(statusEl, "New passwords do not match.", "error");
       return;
     }
 
     if (newPw.length < 6) {
-      showStatus(statusMsg, "New password must be at least 6 characters.", "error");
+      showStatus(statusEl, "Password must be at least 6 characters.", "error");
       return;
     }
 
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating Password...';
-    showStatus(statusMsg, "", "clear");
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
+    showStatus(statusEl, "", "clear");
 
     try {
-      const credential = EmailAuthProvider.credential(currentUser.email, currentPw);
-      await reauthenticateWithCredential(currentUser, credential);
+      const cred = EmailAuthProvider.credential(currentUser.email, currentPw);
+      await reauthenticateWithCredential(currentUser, cred);
       await updatePassword(currentUser, newPw);
-
-      showStatus(statusMsg, "Password changed successfully!", "success");
-      pwForm.reset();
+      await logAuditEvent("User rotated account password", "SECURITY", currentUser.email);
+      showStatus(statusEl, "Password updated successfully!", "success");
+      form.reset();
     } catch (err) {
-      console.error("Password update error:", err);
-      const friendlyMessage = (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential")
-        ? "Current password entered is incorrect."
-        : err.message || "Failed to update password.";
-      showStatus(statusMsg, friendlyMessage, "error");
+      const msg =
+        err.code === "auth/wrong-password" || err.code === "auth/invalid-credential"
+          ? "Current password is incorrect."
+          : err.message || "Failed to update password.";
+      showStatus(statusEl, msg, "error");
     } finally {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="fas fa-key"></i> Update Password';
+      submitBtn.innerHTML = '<i class="fas fa-lock"></i> Update Password';
     }
   });
 }
 
-function showStatus(container, message, type) {
-  if (!container) return;
-  if (type === "clear" || !message) {
-    container.style.display = "none";
-    container.textContent = "";
-    container.className = "status-msg";
+function showStatus(el, msg, type) {
+  if (!el) return;
+  if (type === "clear" || !msg) {
+    el.style.display = "none";
+    el.textContent = "";
+    el.className = "status-msg";
     return;
   }
-  container.textContent = message;
-  container.className = `status-msg ${type}`;
-  container.style.display = "block";
+  el.textContent = msg;
+  el.className = `status-msg ${type}`;
+  el.style.display = "block";
 }

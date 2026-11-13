@@ -26,6 +26,7 @@ let activeClassroom = null;
 let currentActivities = [];
 let allSubmissionsMap = new Map();
 let notificationsQueue = [];
+let warningNotifications = [];
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
@@ -48,6 +49,8 @@ onAuthStateChanged(auth, async (user) => {
 
   configureRoleViews();
   bindOfficeEvents();
+
+  await loadModerationWarningsIntoBell();
 
   const cachedRooms = FastCache.get("office_classrooms");
   if (cachedRooms && cachedRooms.length > 0) {
@@ -90,6 +93,26 @@ function configureRoleViews() {
   if (stuPortfolio) stuPortfolio.style.display = isFaculty ? "none" : "flex";
 }
 
+async function loadModerationWarningsIntoBell() {
+  if (!currentUser) return;
+  try {
+    const q = query(collection(db, "notifications"), where("recipientUid", "==", currentUser.uid));
+    const snap = await getDocs(q);
+    warningNotifications = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((n) => !n.read && n.type === "MODERATION_WARNING")
+      .map((w) => ({
+        id: w.id,
+        type: "WARNING",
+        title: w.title || "HR Feed Moderation Warning",
+        detail: `${w.reason || "Comment moderated by administrator."}${w.postTitle ? ` (Post: "${w.postTitle}")` : ""}`
+      }));
+  } catch {
+    warningNotifications = [];
+  }
+  renderNotificationsBell();
+}
+
 async function loadUserClassrooms() {
   try {
     const snap = await getDocs(collection(db, "classrooms"));
@@ -120,6 +143,7 @@ async function populateClassroomDropdown() {
   if (classrooms.length === 0) {
     select.innerHTML = `<option value="">No Active Classrooms</option>`;
     renderEmptyWorkspace();
+    renderNotificationsBell();
     return;
   }
 
@@ -149,8 +173,10 @@ async function selectClassroom(classroomId) {
   document.getElementById("stat-section-code").textContent = code;
   document.getElementById("stat-member-count").textContent = `${students.length} / ${MAX_CLASS_STUDENTS}`;
   document.getElementById("active-classroom-title").textContent = activeClassroom.name || "Classroom Dashboard";
-  document.getElementById("active-classroom-desc").textContent =
-    activeClassroom.description || `Room Code: ${code} • Instructor: ${activeClassroom.instructorEmail || "Faculty"}`;
+  const descEl = document.getElementById("active-classroom-desc");
+  if (descEl) {
+    descEl.textContent = activeClassroom.description || `Room Code: ${code} • Instructor: ${activeClassroom.instructorEmail || "Faculty"}`;
+  }
 
   const periodText = activeClassroom.appraisalPeriod || "Not configured yet";
   const kpisText = activeClassroom.appraisalKpis || "Awaiting instructor KPI setup.";
@@ -164,7 +190,8 @@ async function selectClassroom(classroomId) {
   await Promise.all([
     loadClassroomActivitiesAndSubmissions(classroomId, students),
     loadRosterAndRequests(classroomId, students),
-    loadPortfolioData(classroomId, students)
+    loadPortfolioData(classroomId, students),
+    loadModerationWarningsIntoBell()
   ]);
 
   if (userProfile.role === "student") {
@@ -614,7 +641,6 @@ async function loadPortfolioData(classroomId, students) {
       const portfolioMap = new Map();
       snap.docs.forEach((d) => portfolioMap.set(d.id, { uid: d.id, ...d.data() }));
 
-      // Merge enrolled students so every class member appears in the portfolio review grid
       students.forEach((st) => {
         const uid = typeof st === "string" ? st : st.uid;
         if (uid && !portfolioMap.has(uid)) {
@@ -879,11 +905,12 @@ async function loadRosterAndRequests(classroomId, students) {
 function renderNotificationsBell() {
   const badge = document.getElementById("notif-badge");
   const list = document.getElementById("notifications-feed-list");
+  const merged = [...warningNotifications, ...notificationsQueue];
 
   if (badge) {
-    if (notificationsQueue.length > 0) {
+    if (merged.length > 0) {
       badge.style.display = "inline-block";
-      badge.textContent = notificationsQueue.length;
+      badge.textContent = merged.length;
     } else {
       badge.style.display = "none";
     }
@@ -891,20 +918,41 @@ function renderNotificationsBell() {
 
   if (list) {
     list.innerHTML =
-      notificationsQueue.length === 0
+      merged.length === 0
         ? `<div class="empty-state" style="padding:1.5rem;"><i class="fas fa-bell-slash"></i><h3>All Caught Up</h3><p>No pending deadline reminders or new notifications.</p></div>`
-        : notificationsQueue
-            .map(
-              (n) => `
-              <div style="padding:0.75rem 1rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-medium);">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">
-                  <strong style="font-size:0.88rem;">${escapeHtml(n.title)}</strong>
-                  <span class="badge-pill" style="font-size:0.68rem;">${escapeHtml(n.type)}</span>
-                </div>
-                <p class="text-muted" style="font-size:0.8rem;margin:0;">${escapeHtml(n.detail)}</p>
-              </div>`
-            )
+        : merged
+            .map((n) => {
+              const isWarning = n.type === "WARNING";
+              const borderStyle = isWarning ? "border:1px solid var(--danger);background:rgba(239,68,68,0.1);" : "border:1px solid var(--border-medium);background:var(--bg-surface);";
+              const ackBtn = isWarning && n.id
+                ? `<button type="button" class="btn-secondary btn-ack-bell-warning" data-id="${n.id}" style="margin-top:0.5rem;padding:0.28rem 0.65rem;font-size:0.74rem;border-color:var(--danger);"><i class="fas fa-check"></i> Acknowledge Warning</button>`
+                : "";
+              return `
+                <div style="padding:0.75rem 1rem;border-radius:var(--radius-sm);${borderStyle}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">
+                    <strong style="font-size:0.88rem;${isWarning ? "color:var(--danger);" : ""}">${escapeHtml(n.title)}</strong>
+                    <span class="badge-pill" style="font-size:0.68rem;${isWarning ? "background:rgba(239,68,68,0.2);color:var(--danger);border-color:var(--danger);" : ""}">${escapeHtml(n.type)}</span>
+                  </div>
+                  <p class="text-muted" style="font-size:0.8rem;margin:0;">${escapeHtml(n.detail)}</p>
+                  ${ackBtn}
+                </div>`;
+            })
             .join("");
+
+    list.querySelectorAll(".btn-ack-bell-warning").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        try {
+          await updateDoc(doc(db, "notifications", btn.dataset.id), {
+            read: true,
+            acknowledgedAt: serverTimestamp()
+          });
+          await loadModerationWarningsIntoBell();
+        } catch (err) {
+          alert("Failed to acknowledge warning: " + err.message);
+        }
+      });
+    });
   }
 }
 
@@ -941,6 +989,7 @@ function bindOfficeEvents() {
 
   document.getElementById("btn-refresh-office")?.addEventListener("click", () => {
     if (activeClassroom) selectClassroom(activeClassroom.id);
+    else loadModerationWarningsIntoBell();
   });
 
   document.getElementById("btn-open-notifications")?.addEventListener("click", () => {

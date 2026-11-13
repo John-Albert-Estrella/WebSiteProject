@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Settings | AIMSER HR Simulator</title>
+  <title>Account Settings | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/style.css?v=16" />
+  <link rel="stylesheet" href="css/dashboard.css?v=16" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -56,12 +56,12 @@
       </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main Workspace -->
     <main class="main-workspace">
       <header class="workspace-header">
         <div class="header-left">
           <h1 class="page-title">Settings</h1>
-          <span class="badge-pill">Account &amp; System Preferences</span>
+          <span class="badge-pill">Profile &amp; Security</span>
         </div>
 
         <div class="header-right">
@@ -76,26 +76,23 @@
       </header>
 
       <div class="settings-grid">
-        <!-- Personal Profile Card -->
+        <!-- Profile Card -->
         <section class="settings-card glass-panel">
-          <div class="card-header">
-            <i class="fas fa-id-card"></i>
+          <div class="card-header" style="align-items: center;">
+            <i class="fas fa-user-circle"></i>
             <div>
-              <h3>Personal Profile</h3>
-              <p class="text-muted">Update your display photo, official name, and department affiliation.</p>
+              <h3 style="margin: 0;">Personal Identity</h3>
             </div>
           </div>
 
-          <div id="profile-status-message" class="status-msg" aria-live="polite"></div>
+          <div id="settings-profile-status" class="status-msg" aria-live="polite"></div>
 
-          <form id="profile-settings-form">
-            <!-- Profile Avatar Row -->
+          <form id="settings-profile-form">
             <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.75rem;">
-              <img id="settings-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Profile Preview" class="avatar-preview" />
+              <img id="settings-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Avatar Preview" class="avatar-preview" />
               <div>
-                <label for="avatar-file-input" class="form-label" style="margin-bottom: 0.35rem;">Profile Picture</label>
-                <input type="file" id="avatar-file-input" class="form-control" accept="image/png,image/jpeg,image/webp" style="max-width: 320px;" />
-                <span class="text-muted" style="font-size: 0.75rem; display: block; margin-top: 0.25rem;">Supports JPG, PNG, or WebP up to 5MB.</span>
+                <label for="settings-avatar-input" class="form-label" style="margin-bottom: 0.35rem;">Profile Picture</label>
+                <input type="file" id="settings-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" style="max-width: 320px;" />
               </div>
             </div>
 
@@ -110,40 +107,39 @@
                 <input type="email" id="settings-email" class="form-control" disabled />
               </div>
               <div class="form-group">
-                <label for="settings-role" class="form-label">System Role</label>
-                <input type="text" id="settings-role" class="form-control" disabled />
+                <label for="settings-role-badge" class="form-label">Account Role</label>
+                <input type="text" id="settings-role-badge" class="form-control" disabled />
               </div>
             </div>
 
             <div class="form-group">
-              <label for="settings-department" class="form-label">Department / Cohort</label>
-              <input type="text" id="settings-department" class="form-control" placeholder="e.g., CCMS - BSIT 3A" />
+              <label for="settings-department" class="form-label">Department / Program / Cohort</label>
+              <input type="text" id="settings-department" class="form-control" placeholder="e.g., BSBA - Human Resource Management" />
             </div>
 
-            <button type="submit" id="btn-save-profile" class="btn-primary" style="margin-top: 0.5rem;">
+            <button type="submit" id="btn-save-settings-profile" class="btn-primary" style="margin-top: 0.5rem;">
               <i class="fas fa-save"></i> Save Profile Changes
             </button>
           </form>
         </section>
 
-        <!-- Security / Password Card -->
+        <!-- Password Card -->
         <section class="settings-card glass-panel">
-          <div class="card-header">
-            <i class="fas fa-lock"></i>
+          <div class="card-header" style="align-items: center;">
+            <i class="fas fa-key"></i>
             <div>
-              <h3>Account Security</h3>
-              <p class="text-muted">Update your account login password.</p>
+              <h3 style="margin: 0;">Security Credentials</h3>
             </div>
           </div>
 
-          <div id="password-status-message" class="status-msg" aria-live="polite"></div>
+          <div id="settings-password-status" class="status-msg" aria-live="polite"></div>
 
-          <form id="password-settings-form">
+          <form id="settings-password-form">
             <div class="form-group">
-              <label for="settings-current-password" class="form-label">Current Password</label>
+              <label for="settings-current-pw" class="form-label">Current Password</label>
               <div class="input-password-wrapper">
-                <input type="password" id="settings-current-password" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
-                <button type="button" class="btn-toggle-pw" data-target="settings-current-password" aria-label="Toggle password visibility">
+                <input type="password" id="settings-current-pw" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
+                <button type="button" class="btn-toggle-pw" data-target="settings-current-pw" aria-label="Toggle password visibility">
                   <i class="far fa-eye"></i>
                 </button>
               </div>
@@ -151,27 +147,27 @@
 
             <div class="form-row">
               <div class="form-group">
-                <label for="settings-new-password" class="form-label">New Password</label>
+                <label for="settings-new-pw" class="form-label">New Password</label>
                 <div class="input-password-wrapper">
-                  <input type="password" id="settings-new-password" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-pw" data-target="settings-new-password" aria-label="Toggle password visibility">
+                  <input type="password" id="settings-new-pw" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
+                  <button type="button" class="btn-toggle-pw" data-target="settings-new-pw" aria-label="Toggle password visibility">
                     <i class="far fa-eye"></i>
                   </button>
                 </div>
               </div>
               <div class="form-group">
-                <label for="settings-confirm-password" class="form-label">Confirm New Password</label>
+                <label for="settings-confirm-pw" class="form-label">Confirm New Password</label>
                 <div class="input-password-wrapper">
-                  <input type="password" id="settings-confirm-password" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-pw" data-target="settings-confirm-password" aria-label="Toggle password visibility">
+                  <input type="password" id="settings-confirm-pw" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
+                  <button type="button" class="btn-toggle-pw" data-target="settings-confirm-pw" aria-label="Toggle password visibility">
                     <i class="far fa-eye"></i>
                   </button>
                 </div>
               </div>
             </div>
 
-            <button type="submit" id="btn-save-password" class="btn-primary" style="margin-top: 0.5rem;">
-              <i class="fas fa-key"></i> Update Password
+            <button type="submit" id="btn-save-settings-pw" class="btn-primary" style="margin-top: 0.5rem;">
+              <i class="fas fa-lock"></i> Update Password
             </button>
           </form>
         </section>
@@ -179,9 +175,9 @@
     </main>
   </div>
 
-  <script type="module" src="js/theme.js"></script>
-  <script type="module" src="js/ui-bridge.js"></script>
-  <script type="module" src="js/auth-guard.js"></script>
-  <script type="module" src="js/settings.js"></script>
+  <script type="module" src="js/theme.js?v=16"></script>
+  <script type="module" src="js/ui-bridge.js?v=16"></script>
+  <script type="module" src="js/auth-guard.js?v=16"></script>
+  <script type="module" src="js/settings.js?v=16"></script>
 </body>
 </html>

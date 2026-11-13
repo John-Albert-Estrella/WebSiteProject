@@ -203,9 +203,9 @@ async function loadCasesAdmin() {
 
     if (banner) {
       if (cachedCases.length > 0) {
-        banner.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success); margin-right: 0.45rem;"></i><strong>${cachedCases.length} custom material(s) active.</strong> Built-in starter templates are automatically hidden from students and faculty.`;
+        banner.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success); margin-right: 0.45rem;"></i><strong>${cachedCases.length} published material(s) active</strong> in the HR Case Library.`;
       } else {
-        banner.innerHTML = `<i class="fas fa-info-circle" style="color: var(--aimser-blue-400); margin-right: 0.45rem;"></i><strong>No custom materials uploaded yet.</strong> Students and faculty currently see the 3 built-in starter templates until the first case or e-module is published.`;
+        banner.innerHTML = `<i class="fas fa-info-circle" style="color: var(--aimser-blue-400); margin-right: 0.45rem;"></i><strong>HR Case Library is currently empty.</strong> Click "Upload Case / E-Module" to publish Company Cases, E-Modules, or Practice Cases.`;
       }
     }
 
@@ -247,8 +247,8 @@ function renderAdminCasesGrid(items) {
     grid.innerHTML = `
       <div class="empty-state">
         <i class="fas fa-book-open"></i>
-        <h3>No Custom Cases or E-Modules Found</h3>
-        <p>Click "Upload Case / E-Module" above to publish custom learning materials to the HR Case Library.</p>
+        <h3>No Cases or E-Modules Found</h3>
+        <p>Click "Upload Case / E-Module" above to publish learning materials to the HR Case Library.</p>
       </div>`;
     return;
   }

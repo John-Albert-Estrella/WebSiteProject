@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Project Planner | AIMSER HR Simulator</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=6" />
-  <link rel="stylesheet" href="css/dashboard.css?v=6" />
+  <link rel="stylesheet" href="css/style.css?v=16" />
+  <link rel="stylesheet" href="css/dashboard.css?v=16" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -163,10 +163,9 @@
       <!-- PANEL 2: POSITIONS, PROJECT HIERARCHY & RESPONSIBILITIES -->
       <section id="panel-hierarchy" class="tab-panel">
         <div class="glass-panel">
-          <div class="panel-toolbar">
+          <div class="panel-toolbar" style="align-items: center;">
             <div>
-              <h2>Team Structure, Positions &amp; Responsibilities</h2>
-              <p class="text-muted"></p>
+              <h2 style="margin: 0;">Team Structure, Positions &amp; Responsibilities</h2>
             </div>
           </div>
 
@@ -177,10 +176,9 @@
       <!-- PANEL 3: ONBOARDING PROJECTS & CHECKLISTS -->
       <section id="panel-onboarding" class="tab-panel">
         <div class="glass-panel">
-          <div class="panel-toolbar">
+          <div class="panel-toolbar" style="align-items: center;">
             <div>
-              <h2>Onboarding Projects &amp; Action Checklists</h2>
-              <p class="text-muted"></p>
+              <h2 style="margin: 0;">Onboarding Projects &amp; Action Checklists</h2>
             </div>
             <button type="button" id="btn-open-onboarding-modal" class="btn-primary">
               <i class="fas fa-plus-circle"></i> Add Onboarding Step
@@ -277,6 +275,58 @@
     </div>
   </div>
 
+  <!-- Edit Existing Project Task Modal -->
+  <div class="modal-backdrop" id="modal-edit-task" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Edit Project Task &amp; Deadline</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-edit-task">&times;</button>
+      </div>
+
+      <form id="form-edit-task">
+        <input type="hidden" id="edit-task-id" />
+        <div class="form-group">
+          <label for="edit-task-title" class="form-label">Task / Deliverable Title</label>
+          <input type="text" id="edit-task-title" class="form-control" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="edit-task-assignee" class="form-label">Assigned Member</label>
+            <select id="edit-task-assignee" class="form-select" required></select>
+          </div>
+          <div class="form-group">
+            <label for="edit-task-deadline" class="form-label">Deadline</label>
+            <input type="date" id="edit-task-deadline" class="form-control" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="edit-task-position-tag" class="form-label">Target Position / Unit</label>
+            <input type="text" id="edit-task-position-tag" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label for="edit-task-priority" class="form-label">Priority Level</label>
+            <select id="edit-task-priority" class="form-select">
+              <option value="Normal">Normal</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="edit-task-responsibility" class="form-label">Specific Responsibilities</label>
+          <textarea id="edit-task-responsibility" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close-modal="modal-edit-task">Cancel</button>
+          <button type="submit" class="btn-primary">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="modal-assign-position" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -345,9 +395,9 @@
     </div>
   </div>
 
-  <script type="module" src="js/theme.js?v=6"></script>
-  <script type="module" src="js/ui-bridge.js?v=6"></script>
-  <script type="module" src="js/auth-guard.js?v=6"></script>
-  <script type="module" src="js/planner.js?v=6"></script>
+  <script type="module" src="js/theme.js?v=16"></script>
+  <script type="module" src="js/ui-bridge.js?v=16"></script>
+  <script type="module" src="js/auth-guard.js?v=16"></script>
+  <script type="module" src="js/planner.js?v=16"></script>
 </body>
 </html>
