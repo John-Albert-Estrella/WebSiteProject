@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /login.html
+Allow: /register.html
+
+Disallow: /office.html
+Disallow: /planner.html
+Disallow: /hr-library.html
+Disallow: /settings.html
+Disallow: /admin-dashboard.html
+Disallow: /admin-hr-feed.html
+Disallow: /admin-settings.html
+
+Sitemap: https://aimser.vercel.app/sitemap.xml
