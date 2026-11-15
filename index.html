@@ -86,10 +86,10 @@
       object-fit: contain;
     }
     .landing-hero {
-      max-width: 1200px;
+      max-width: 1120px;
       width: 100%;
       margin: 0 auto;
-      padding: 3.5rem 1.5rem 3rem;
+      padding: 4rem 1.5rem 3rem;
       text-align: center;
     }
     .landing-hero h1 {
@@ -101,7 +101,7 @@
       font-size: 1.05rem;
       color: var(--text-secondary);
       max-width: 680px;
-      margin: 0 auto 2rem;
+      margin: 0 auto 2.25rem;
     }
     .landing-cta-row {
       display: flex;
@@ -109,57 +109,12 @@
       align-items: center;
       gap: 0.85rem;
       flex-wrap: wrap;
-      margin-bottom: 3rem;
-    }
-    /* 6 & 7. Enlarge Main Feature & Show Actual Product Workspace Preview */
-    .product-showcase {
-      text-align: left;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-medium);
-      border-radius: var(--radius-lg);
-      padding: 1.25rem;
-      box-shadow: var(--shadow-md);
-      margin-bottom: 2.5rem;
-    }
-    .showcase-topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      padding-bottom: 1rem;
-      margin-bottom: 1rem;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-    .showcase-kpis {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 0.85rem;
-      margin-bottom: 1rem;
-    }
-    .showcase-kpi-card {
-      background: var(--bg-surface-elevated);
-      border: 1px solid var(--border-subtle);
-      border-radius: var(--radius-md);
-      padding: 0.9rem 1rem;
-      font-variant-numeric: tabular-nums;
-    }
-    .showcase-kpi-card span {
-      display: block;
-      font-size: 0.72rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      color: var(--text-tertiary);
-      margin-bottom: 0.25rem;
-    }
-    .showcase-kpi-card strong {
-      font-size: 1.35rem;
-      color: var(--text-primary);
+      margin-bottom: 3.5rem;
     }
     .landing-features {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.15rem;
+      gap: 1.25rem;
       text-align: left;
     }
     .landing-footer {
@@ -195,82 +150,52 @@
       </div>
     </header>
 
-    <!-- Main Hero (9. Specific Headline, 10. Emphasized CTA, 6 & 7. Enlarged Live Product Preview) -->
+    <!-- Main Hero & Module Overview -->
     <main class="landing-hero">
-      <h1>Run 100-Student HR Classrooms, Workforce Analytics &amp; Case Audits in One Workspace</h1>
+      <h1>Applied Human Resource Management &amp; Organizational Simulation</h1>
       <p class="landing-subtitle">
-        Assign rubric-graded labor law cases, simulate turnover and recruitment budgets, and coordinate 15-member onboarding teams in real time.
+        Assign rubric-graded labor law cases, simulate turnover and recruitment budgets, and coordinate 15-member onboarding teams in one workspace.
       </p>
 
       <div class="landing-cta-row">
         <a href="login.html" id="hero-primary-cta" class="btn-primary" style="padding: 0.78rem 1.6rem; font-size: 0.95rem;">
-          <i class="fas fa-sign-in-alt"></i> Launch HR Workspace
+          <i class="fas fa-sign-in-alt"></i> Launch Workspace
         </a>
         <a href="register.html" id="hero-secondary-cta" class="btn-secondary" style="padding: 0.78rem 1.4rem; font-size: 0.95rem;">
-          <i class="fas fa-user-plus"></i> Register Cohort Account
+          <i class="fas fa-user-plus"></i> Register Account
         </a>
       </div>
 
-      <!-- Enlarged Interactive-Style Product Preview -->
-      <section class="product-showcase" aria-label="Workspace Preview">
-        <div class="showcase-topbar">
-          <div style="display: flex; align-items: center; gap: 0.65rem;">
+      <section class="landing-features" aria-label="Platform Modules">
+        <article class="glass-panel">
+          <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.65rem;">
             <i class="fas fa-building" style="color: var(--aimser-blue-400);"></i>
-            <strong>HRM 301 — Labor Relations &amp; Workforce Telemetry</strong>
+            <h2 style="margin: 0; font-size: 1.02rem;">Office &amp; Workforce Analytics</h2>
           </div>
-          <span class="badge-pill code-mono">AIM-36KW</span>
-        </div>
+          <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
+            Grade student deliverables against weighted rubrics, compute absenteeism and training ROI, and track individual HR competency portfolios.
+          </p>
+        </article>
 
-        <div class="showcase-kpis">
-          <div class="showcase-kpi-card">
-            <span>Class Capacity</span>
-            <strong>84 / 100</strong>
+        <article class="glass-panel">
+          <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.65rem;">
+            <i class="fas fa-columns" style="color: var(--accent-highlight);"></i>
+            <h2 style="margin: 0; font-size: 1.02rem;">Project Planner &amp; Onboarding</h2>
           </div>
-          <div class="showcase-kpi-card">
-            <span>Turnover Rate</span>
-            <strong style="color: var(--aimser-blue-400);">7.50%</strong>
-          </div>
-          <div class="showcase-kpi-card">
-            <span>Cost per Hire</span>
-            <strong>₱7,500</strong>
-          </div>
-          <div class="showcase-kpi-card">
-            <span>Onboarding Progress</span>
-            <strong style="color: var(--success);">92%</strong>
-          </div>
-        </div>
+          <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
+            Organize 15-member student teams across 4 hierarchy tiers, assign HR specialist roles, and track deliverables from To Do to Completed.
+          </p>
+        </article>
 
-        <div class="landing-features">
-          <article class="glass-panel" style="background: var(--bg-surface-elevated);">
-            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
-              <i class="fas fa-tasks" style="color: var(--aimser-blue-400);"></i>
-              <h2 style="margin: 0; font-size: 1rem;">Office &amp; Workforce Analytics</h2>
-            </div>
-            <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
-              Grade student deliverables against weighted rubrics, compute absenteeism and training ROI, and track individual HR competency portfolios.
-            </p>
-          </article>
-
-          <article class="glass-panel" style="background: var(--bg-surface-elevated);">
-            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
-              <i class="fas fa-columns" style="color: var(--accent-highlight);"></i>
-              <h2 style="margin: 0; font-size: 1rem;">15-Member Project Planner</h2>
-            </div>
-            <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
-              Organize student teams across 4 hierarchy tiers, assign HR specialist roles, and track deliverables from To Do to Completed.
-            </p>
-          </article>
-
-          <article class="glass-panel" style="background: var(--bg-surface-elevated);">
-            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
-              <i class="fas fa-book-open" style="color: var(--success);"></i>
-              <h2 style="margin: 0; font-size: 1rem;">HR Case Library &amp; Conflict Feed</h2>
-            </div>
-            <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
-              Publish company case studies with self-checking answer keys and moderate workplace conflict investigations with photo evidence.
-            </p>
-          </article>
-        </div>
+        <article class="glass-panel">
+          <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.65rem;">
+            <i class="fas fa-book-open" style="color: var(--success);"></i>
+            <h2 style="margin: 0; font-size: 1.02rem;">HR Library &amp; Conflict Forum</h2>
+          </div>
+          <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
+            Publish company case studies with self-checking answer keys and moderate workplace conflict investigations with photo evidence.
+          </p>
+        </article>
       </section>
     </main>
 
