@@ -67,9 +67,7 @@ onAuthStateChanged(auth, async (user) => {
 function renderRoleBadge(role) {
   const normalized = (role || "student").toLowerCase();
   const isFac = normalized === "faculty";
-  const bg = isFac ? "rgba(56, 189, 248, 0.16)" : "rgba(16, 185, 129, 0.16)";
-  const color = isFac ? "#38bdf8" : "#10b981";
-  return `<span class="badge-pill" style="background:${bg};color:${color};border-color:transparent;">${escapeHtml(normalized.toUpperCase())}</span>`;
+  return `<span class="badge-pill ${isFac ? "role-pill-faculty" : "role-pill-student"}">${escapeHtml(normalized.toUpperCase())}</span>`;
 }
 
 function configureRoleViews() {
@@ -77,6 +75,7 @@ function configureRoleViews() {
 
   const roomCodeCard = document.getElementById("card-room-code");
   if (roomCodeCard) {
+    roomCodeCard.classList.toggle("is-hidden", !isFaculty);
     roomCodeCard.style.display = isFaculty ? "" : "none";
   }
 
@@ -86,8 +85,8 @@ function configureRoleViews() {
   const fourthLabel = document.getElementById("stat-fourth-label");
 
   if (actionLabel) actionLabel.textContent = isFaculty ? "Create Class Room" : "Join Class Room";
-  if (newActBtn) newActBtn.style.display = isFaculty ? "inline-flex" : "none";
-  if (exportBtn) exportBtn.style.display = isFaculty ? "inline-flex" : "none";
+  if (newActBtn) newActBtn.classList.toggle("is-hidden", !isFaculty);
+  if (exportBtn) exportBtn.classList.toggle("is-hidden", !isFaculty);
   if (fourthLabel) fourthLabel.textContent = isFaculty ? "Class Avg & Completion" : "Personal Avg Score";
 
   const facAnalytics = document.getElementById("faculty-analytics-view");
@@ -95,10 +94,10 @@ function configureRoleViews() {
   const facPortfolio = document.getElementById("faculty-portfolio-view");
   const stuPortfolio = document.getElementById("student-portfolio-view");
 
-  if (facAnalytics) facAnalytics.style.display = isFaculty ? "block" : "none";
-  if (stuAnalytics) stuAnalytics.style.display = isFaculty ? "none" : "flex";
-  if (facPortfolio) facPortfolio.style.display = isFaculty ? "block" : "none";
-  if (stuPortfolio) stuPortfolio.style.display = isFaculty ? "none" : "flex";
+  if (facAnalytics) facAnalytics.classList.toggle("is-hidden", !isFaculty);
+  if (stuAnalytics) stuAnalytics.classList.toggle("is-hidden", isFaculty);
+  if (facPortfolio) facPortfolio.classList.toggle("is-hidden", !isFaculty);
+  if (stuPortfolio) stuPortfolio.classList.toggle("is-hidden", isFaculty);
 }
 
 async function loadModerationWarningsIntoBell() {
@@ -290,6 +289,7 @@ function checkDeadlinesAndBuildNotifications() {
   const banner = document.getElementById("deadline-reminders-banner");
   const now = Date.now();
   const urgentReminders = [];
+  notificationsQueue = [];
 
   currentActivities.forEach((act) => {
     if (!act.dueDate) return;
@@ -333,10 +333,10 @@ function checkDeadlinesAndBuildNotifications() {
 
   if (banner) {
     if (urgentReminders.length > 0) {
-      banner.style.display = "block";
-      banner.innerHTML = `<i class="fas fa-clock" style="color:var(--warning);margin-right:0.5rem;"></i><strong>Deadline Reminder:</strong> ${escapeHtml(urgentReminders[0])}`;
+      banner.classList.remove("is-hidden");
+      banner.innerHTML = `<i class="fas fa-clock"></i> <strong>Deadline Reminder:</strong> ${escapeHtml(urgentReminders[0])}`;
     } else {
-      banner.style.display = "none";
+      banner.classList.add("is-hidden");
     }
   }
 }
@@ -368,53 +368,53 @@ function renderActivitiesGrid() {
       let buttonLabel = "Open";
 
       if (userProfile.role === "faculty") {
-        statusHtml = `<span style="font-size:0.75rem;color:var(--text-secondary);">Submissions: <strong>${subs.length}</strong> ${pastDue ? "• <strong style='color:var(--danger);'>Closed</strong>" : ""}</span>`;
+        statusHtml = `<span class="text-muted">Submissions: <strong>${subs.length}</strong> ${pastDue ? "• <strong>Closed</strong>" : ""}</span>`;
         buttonLabel = "Grade & Review";
       } else {
         const mySub = subs.find((s) => s.studentUid === currentUser.uid || s.id === currentUser.uid);
         if (mySub && mySub.score !== undefined && mySub.score !== null) {
-          statusHtml = `<span style="font-size:0.75rem;color:var(--success);font-weight:700;"><i class="fas fa-check-circle"></i> Graded: ${mySub.score}/${maxPts}</span>`;
+          statusHtml = `<span class="badge-pill status-pill-active"><i class="fas fa-check-circle"></i> Graded: ${mySub.score}/${maxPts}</span>`;
           buttonLabel = "View Graded Output";
         } else if (mySub) {
           const isUnlocked = Boolean(mySub.allowEdit) && !pastDue;
-          statusHtml = `<span style="font-size:0.75rem;color:#38bdf8;font-weight:600;"><i class="fas ${isUnlocked ? "fa-unlock" : "fa-lock"}"></i> Submitted ${isUnlocked ? "(Edit Allowed)" : "(Locked)"}</span>`;
+          statusHtml = `<span class="badge-pill"><i class="fas ${isUnlocked ? "fa-unlock" : "fa-lock"}"></i> Submitted ${isUnlocked ? "(Unlocked)" : "(Locked)"}</span>`;
           buttonLabel = isUnlocked ? "Edit Submission" : "View Submission";
         } else if (pastDue) {
-          statusHtml = `<span style="font-size:0.75rem;color:var(--danger);font-weight:700;"><i class="fas fa-ban"></i> Closed (Missing)</span>`;
+          statusHtml = `<span class="badge-pill status-pill-danger"><i class="fas fa-ban"></i> Closed (Missing)</span>`;
           buttonLabel = "View Closed Activity";
         } else {
-          statusHtml = `<span style="font-size:0.75rem;color:var(--warning);font-weight:600;">Pending Submission</span>`;
+          statusHtml = `<span class="badge-pill status-pill-archived">Pending Submission</span>`;
           buttonLabel = "Submit";
         }
       }
 
       const deleteBtnHtml =
         userProfile.role === "faculty"
-          ? `<button type="button" class="btn-del-activity" data-id="${act.id}" data-source="${act.source || "sub"}" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:0.95rem;" title="Delete Activity"><i class="fas fa-trash-alt"></i></button>`
+          ? `<button type="button" class="btn-close-modal btn-del-activity" data-id="${act.id}" data-source="${act.source || "sub"}" title="Delete Activity"><i class="fas fa-trash-alt"></i></button>`
           : "";
 
       return `
-        <article class="glass-panel portfolio-output-card" data-act-id="${act.id}" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <article class="glass-panel portfolio-output-card" data-act-id="${act.id}">
           <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;gap:0.5rem;flex-wrap:wrap;">
+            <div class="panel-toolbar">
               <span class="badge-pill">${escapeHtml(act.category || "HR Simulation")}</span>
-              <div style="display:flex;align-items:center;gap:0.5rem;">
-                <span class="text-muted" style="font-size:0.74rem;${pastDue ? "color:var(--danger)!important;font-weight:600;" : ""}"><i class="far fa-clock"></i> ${escapeHtml(dueDisplay)}</span>
+              <div class="user-cell-flex">
+                <span class="text-muted"><i class="far fa-clock"></i> ${escapeHtml(dueDisplay)}</span>
                 ${deleteBtnHtml}
               </div>
             </div>
-            <h3 style="font-size:1.05rem;margin-bottom:0.45rem;color:var(--text-primary);">${escapeHtml(act.title || "Untitled Activity")}</h3>
-            <p class="text-muted" style="font-size:0.83rem;line-height:1.5;margin-bottom:0.6rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">
+            <h3>${escapeHtml(act.title || "Untitled Activity")}</h3>
+            <p class="text-muted">
               ${escapeHtml(act.instructions || act.description || "")}
             </p>
-            <div style="font-size:0.74rem;color:var(--text-tertiary);">
+            <div class="text-muted">
               <i class="fas fa-list-check"></i> Rubric: ${escapeHtml(act.rubric || "Standard HR Evaluation")} (${maxPts} pts)
             </div>
           </div>
 
-          <div style="margin-top:1.15rem;padding-top:0.75rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
+          <div class="card-footer-bar">
             ${statusHtml}
-            <button type="button" class="btn-secondary btn-open-act-detail" data-id="${act.id}" style="padding:0.35rem 0.8rem;font-size:0.78rem;">
+            <button type="button" class="btn-secondary btn-open-act-detail" data-id="${act.id}">
               <i class="fas fa-folder-open"></i> ${buttonLabel}
             </button>
           </div>
@@ -477,67 +477,98 @@ function openActivityDetailModal(act) {
   const subs = allSubmissionsMap.get(act.id) || [];
 
   if (userProfile.role === "faculty") {
-    stuSection.style.display = "none";
-    facSection.style.display = "block";
+    stuSection?.classList.add("is-hidden");
+    facSection?.classList.remove("is-hidden");
     renderFacultySubmissionsList(act, subs);
   } else {
-    facSection.style.display = "none";
-    stuSection.style.display = "block";
+    facSection?.classList.add("is-hidden");
+    stuSection?.classList.remove("is-hidden");
 
     const mySub = subs.find((s) => s.studentUid === currentUser.uid || s.id === currentUser.uid);
     const notesInput = document.getElementById("deliverable-notes");
+    const fileGroup = document.getElementById("deliverable-file-group");
     const fileInput = document.getElementById("deliverable-file-input");
     const fileInfo = document.getElementById("deliverable-attached-file-info");
     const saveBtn = document.getElementById("btn-save-deliverable");
     const gradeBox = document.getElementById("student-grade-feedback-box");
     const closedNotice = document.getElementById("activity-closed-notice");
+    const closedIcon = document.getElementById("activity-closed-icon");
     const closedText = document.getElementById("activity-closed-text");
 
     notesInput.value = mySub ? mySub.notes || "" : "";
     if (fileInput) fileInput.value = "";
 
-    // Display attached document link if already uploaded
+    if (mySub && mySub.score !== undefined && mySub.score !== null) {
+      gradeBox?.classList.remove("is-hidden");
+      document.getElementById("student-awarded-score").textContent = `${mySub.score} / ${maxPts}`;
+      document.getElementById("student-awarded-feedback").textContent =
+        mySub.feedback || "No written comments.";
+    } else if (gradeBox) {
+      gradeBox.classList.add("is-hidden");
+    }
+
+    const hasSubmitted = Boolean(mySub);
+    const facultyUnlocked = hasSubmitted && Boolean(mySub.allowEdit) && !pastDue;
+    const isLocked = pastDue || (hasSubmitted && !facultyUnlocked);
+
     if (fileInfo) {
       const safeFileUrl = sanitizeUrl(mySub?.fileUrl, "");
       if (safeFileUrl) {
-        fileInfo.style.display = "block";
-        fileInfo.innerHTML = `<i class="fas fa-paperclip"></i> Submitted Document: <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--aimser-blue-400);font-weight:600;">${escapeHtml(mySub.fileName || "View Attached File")}</a>`;
+        fileInfo.classList.remove("is-hidden");
+        fileInfo.innerHTML = `
+          <div class="attached-file-meta">
+            <i class="fas fa-file-alt"></i>
+            <span>${escapeHtml(mySub.fileName || "Submitted Document")}</span>
+          </div>
+          <div class="workspace-action-bar">
+            <span class="attached-file-lock-tag">
+              <i class="fas ${isLocked ? "fa-lock" : "fa-unlock"}"></i>
+              ${isLocked ? "Locked" : "Editable"}
+            </span>
+            <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" class="btn-secondary">
+              <i class="fas fa-download"></i> View / Download
+            </a>
+          </div>`;
       } else {
-        fileInfo.style.display = "none";
+        fileInfo.classList.add("is-hidden");
         fileInfo.innerHTML = "";
       }
     }
 
-    // Show graded feedback details
-    if (mySub && mySub.score !== undefined && mySub.score !== null) {
-      gradeBox.style.display = "block";
-      document.getElementById("student-awarded-score").textContent = `${mySub.score} / ${maxPts}`;
-      document.getElementById("student-awarded-feedback").textContent = mySub.feedback || "Reviewed by instructor.";
-    } else {
-      gradeBox.style.display = "none";
-    }
-
-    // Enforce automatic deadline closure AND submission lock (students cannot edit/remove once submitted unless unlocked by faculty)
-    const isSubmittedAndLocked = Boolean(mySub) && !mySub.allowEdit;
-    const isLocked = pastDue || isSubmittedAndLocked;
-
     if (closedNotice && closedText) {
       if (pastDue) {
-        closedNotice.style.display = "block";
-        closedText.textContent = "This activity is closed because the deadline has passed. Submissions and edits are no longer accepted.";
-      } else if (isSubmittedAndLocked) {
-        closedNotice.style.display = "block";
-        closedText.textContent = "Your output has been submitted and locked. Submitted documents cannot be edited or removed unless unlocked by your instructor.";
+        closedNotice.className = "submission-lock-banner";
+        if (closedIcon) closedIcon.className = "fas fa-ban";
+        closedText.textContent = hasSubmitted
+          ? "Deadline has passed. This activity is closed and your submission is permanently locked."
+          : "Deadline has passed. This activity is now closed and no longer accepts submissions.";
+      } else if (hasSubmitted && !facultyUnlocked) {
+        closedNotice.className = "submission-lock-banner";
+        if (closedIcon) closedIcon.className = "fas fa-lock";
+        closedText.textContent =
+          "Output submitted and locked. You cannot edit or remove your submitted document unless allowed by your instructor.";
+      } else if (facultyUnlocked) {
+        closedNotice.className = "submission-unlocked-banner";
+        if (closedIcon) closedIcon.className = "fas fa-unlock";
+        closedText.textContent =
+          "Your instructor has unlocked your submission. You may update your answer or upload a replacement document before the deadline.";
       } else {
-        closedNotice.style.display = "none";
+        closedNotice.classList.add("is-hidden");
       }
     }
 
     notesInput.disabled = isLocked;
-    if (fileInput) fileInput.disabled = isLocked;
+    notesInput.readOnly = isLocked;
+
+    if (fileInput) {
+      fileInput.disabled = isLocked;
+    }
+    if (fileGroup) {
+      fileGroup.classList.toggle("is-hidden", isLocked);
+    }
     if (saveBtn) {
       saveBtn.disabled = isLocked;
-      saveBtn.style.display = isLocked ? "none" : "inline-flex";
+      saveBtn.classList.toggle("is-hidden", isLocked);
       saveBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
     }
   }
@@ -548,9 +579,10 @@ function openActivityDetailModal(act) {
 function renderFacultySubmissionsList(act, subs) {
   const listEl = document.getElementById("faculty-submissions-list");
   const maxPts = act.maxScore || 100;
+  const pastDue = isActivityPastDeadline(act);
 
   if (subs.length === 0) {
-    listEl.innerHTML = `<div class="empty-state" style="padding:1.5rem;"><p>No student outputs submitted for this activity yet.</p></div>`;
+    listEl.innerHTML = `<div class="empty-state"><p>No student outputs submitted for this activity yet.</p></div>`;
     return;
   }
 
@@ -563,31 +595,35 @@ function renderFacultySubmissionsList(act, subs) {
       const allowEdit = Boolean(sub.allowEdit);
 
       const fileAttachmentHtml = safeFileUrl
-        ? `<div style="margin-bottom:0.65rem;">
-             <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding:0.32rem 0.7rem;font-size:0.76rem;">
-               <i class="fas fa-file-download"></i> Open Attached File (${escapeHtml(sub.fileName || "Document")})
+        ? `<div class="attached-file-card">
+             <div class="attached-file-meta">
+               <i class="fas fa-paperclip"></i>
+               <span>${escapeHtml(sub.fileName || "Attached Document")}</span>
+             </div>
+             <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" class="btn-secondary">
+               <i class="fas fa-file-download"></i> Open Document
              </a>
            </div>`
         : "";
 
       return `
-        <div class="inspector-meta-item" style="padding:0.9rem;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.45rem;flex-wrap:wrap;gap:0.4rem;">
-            <div style="display:flex;align-items:center;gap:0.45rem;">
+        <div class="faculty-sub-card">
+          <div class="panel-toolbar">
+            <div class="user-cell-flex">
               <strong>${escapeHtml(sub.studentName || sub.studentEmail)}</strong>
               ${renderRoleBadge("student")}
+              <span class="badge-pill">${allowEdit && !pastDue ? "Unlocked for Edit" : "Locked"}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;">
-              <button type="button" class="btn-secondary btn-toggle-sub-lock" data-act-id="${act.id}" data-sub-id="${subId}" data-allow="${allowEdit}" style="padding:0.25rem 0.6rem;font-size:0.72rem;">
-                <i class="fas ${allowEdit ? "fa-lock" : "fa-unlock"}"></i> ${allowEdit ? "Lock Submission" : "Allow Resubmission"}
-              </button>
-            </div>
+            <button type="button" class="btn-secondary btn-toggle-sub-lock" data-act-id="${act.id}" data-sub-id="${subId}" data-allow="${allowEdit}" ${pastDue ? 'disabled title="Deadline has passed; activity is closed"' : ""}>
+              <i class="fas ${allowEdit ? "fa-lock" : "fa-unlock"}"></i>
+              ${allowEdit ? "Lock Submission" : "Allow Edit / Resubmit"}
+            </button>
           </div>
-          <p style="font-size:0.84rem;white-space:pre-wrap;color:var(--text-primary);background:var(--bg-canvas);padding:0.65rem;border-radius:var(--radius-xs);margin-bottom:0.65rem;">${escapeHtml(sub.notes || "")}</p>
+          ${sub.notes ? `<div class="faculty-sub-notes">${escapeHtml(sub.notes)}</div>` : ""}
           ${fileAttachmentHtml}
-          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-            <input type="number" class="form-control input-rubric-score" data-sub-id="${subId}" min="0" max="${maxPts}" value="${currentScore}" placeholder="Score / ${maxPts}" style="width:120px;" />
-            <input type="text" class="form-control input-rubric-feedback" data-sub-id="${subId}" value="${escapeHtml(currentFeedback)}" placeholder="Rubric evaluation feedback..." style="flex:1;min-width:180px;" />
+          <div class="faculty-grade-controls">
+            <input type="number" class="form-control input-score-sm input-rubric-score" data-sub-id="${subId}" min="0" max="${maxPts}" value="${currentScore}" placeholder="Score / ${maxPts}" />
+            <input type="text" class="form-control input-feedback-flex input-rubric-feedback" data-sub-id="${subId}" value="${escapeHtml(currentFeedback)}" placeholder="Rubric evaluation feedback..." />
             <button type="button" class="btn-primary btn-save-rubric-grade" data-act-id="${act.id}" data-sub-id="${subId}" data-student="${escapeHtml(sub.studentEmail || subId)}">
               <i class="fas fa-check"></i> Save Grade
             </button>
@@ -604,8 +640,15 @@ function renderFacultySubmissionsList(act, subs) {
       btn.disabled = true;
       try {
         await updateDoc(doc(db, "classrooms", activeClassroom.id, "activities", actId, "submissions", subId), {
-          allowEdit: nextAllow
+          allowEdit: nextAllow,
+          unlockedBy: nextAllow ? currentUser.email : null,
+          updatedAt: serverTimestamp()
         });
+        await logAuditEvent(
+          `Faculty ${nextAllow ? "unlocked" : "locked"} submission for ${subId} on activity "${act.title}"`,
+          "SUBMISSION_LOCK",
+          currentUser.email
+        );
         await loadClassroomActivitiesAndSubmissions(activeClassroom.id, activeClassroom.students || []);
         const updatedSubs = allSubmissionsMap.get(actId) || [];
         renderFacultySubmissionsList(act, updatedSubs);
@@ -702,16 +745,16 @@ function computeAnalyticsView(students) {
     if (tbody) {
       tbody.innerHTML =
         studentStats.length === 0
-          ? `<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:var(--text-secondary);">No students enrolled yet.</td></tr>`
+          ? `<tr><td colspan="5">No students enrolled yet.</td></tr>`
           : studentStats
               .map(
                 (row) => `
-              <tr style="border-bottom:1px solid var(--border-subtle);">
-                <td style="padding:0.75rem 1rem;"><strong>${escapeHtml(row.name)}</strong><br><small class="text-muted">${escapeHtml(row.email)}</small></td>
-                <td style="padding:0.75rem 1rem;">${renderRoleBadge("student")}</td>
-                <td style="padding:0.75rem 1rem;">${row.completed} / ${totalActs}</td>
-                <td style="padding:0.75rem 1rem;">${row.compPct}%</td>
-                <td style="padding:0.75rem 1rem;font-weight:700;">${row.avgPct}</td>
+              <tr>
+                <td><strong>${escapeHtml(row.name)}</strong><br><small class="text-muted">${escapeHtml(row.email)}</small></td>
+                <td>${renderRoleBadge("student")}</td>
+                <td>${row.completed} / ${totalActs}</td>
+                <td>${row.compPct}%</td>
+                <td><strong>${row.avgPct}</strong></td>
               </tr>`
               )
               .join("");
@@ -795,31 +838,31 @@ async function loadPortfolioData(classroomId, students) {
         .map((p) => {
           const artifacts = p.artifacts || [];
           return `
-            <div class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;">
+            <div class="glass-panel">
               <div>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                <div class="panel-toolbar">
                   <strong>${escapeHtml(p.studentName || p.studentEmail || p.uid)}</strong>
                   ${renderRoleBadge("student")}
                 </div>
-                <div style="font-size:0.82rem;margin-bottom:0.5rem;"><strong>Career Goals:</strong> ${escapeHtml(p.goals || "Not yet submitted")}</div>
-                <div style="font-size:0.82rem;margin-bottom:0.5rem;"><strong>Development Plan:</strong> ${escapeHtml(p.devPlan || "Not yet submitted")}</div>
-                <div style="font-size:0.82rem;margin-bottom:0.75rem;"><strong>Self-Feedback:</strong> ${escapeHtml(p.selfFeedback || "—")}</div>
-                <div style="font-size:0.8rem;margin-bottom:0.75rem;">
+                <p class="text-muted"><strong>Career Goals:</strong> ${escapeHtml(p.goals || "Not yet submitted")}</p>
+                <p class="text-muted"><strong>Development Plan:</strong> ${escapeHtml(p.devPlan || "Not yet submitted")}</p>
+                <p class="text-muted"><strong>Self-Feedback:</strong> ${escapeHtml(p.selfFeedback || "—")}</p>
+                <div class="text-muted">
                   <strong>Portfolio Outputs (${artifacts.length}):</strong>
-                  <ul style="margin:0.35rem 0 0 1.1rem;padding:0;">
+                  <ul>
                     ${artifacts.map((a) => `<li><strong>${escapeHtml(a.title)}:</strong> ${escapeHtml(a.link)}</li>`).join("") || "<li>None added</li>"}
                   </ul>
                 </div>
               </div>
 
-              <div style="padding-top:0.75rem;border-top:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:0.45rem;">
-                <div style="display:flex;gap:0.45rem;">
-                  <input type="number" class="form-control port-grade-input" data-uid="${p.uid}" min="0" max="100" value="${p.facultyScore ?? ""}" placeholder="Score / 100" style="width:110px;" />
-                  <input type="text" class="form-control port-fb-input" data-uid="${p.uid}" value="${escapeHtml(p.facultyFeedback || "")}" placeholder="Portfolio feedback..." style="flex:1;" />
+              <div class="card-footer-bar">
+                <div class="faculty-grade-controls w-full">
+                  <input type="number" class="form-control input-score-sm port-grade-input" data-uid="${p.uid}" min="0" max="100" value="${p.facultyScore ?? ""}" placeholder="Score / 100" />
+                  <input type="text" class="form-control input-feedback-flex port-fb-input" data-uid="${p.uid}" value="${escapeHtml(p.facultyFeedback || "")}" placeholder="Portfolio feedback..." />
+                  <button type="button" class="btn-primary btn-grade-portfolio" data-uid="${p.uid}" data-name="${escapeHtml(p.studentName || p.uid)}">
+                    <i class="fas fa-award"></i> Save Grade
+                  </button>
                 </div>
-                <button type="button" class="btn-primary btn-grade-portfolio" data-uid="${p.uid}" data-name="${escapeHtml(p.studentName || p.uid)}">
-                  <i class="fas fa-award"></i> Save Portfolio Grade &amp; Feedback
-                </button>
               </div>
             </div>`;
         })
@@ -879,7 +922,6 @@ async function loadPortfolioData(classroomId, students) {
   }
 }
 
-// Compute 6 Required Student Portfolio Metrics & Render Filterable/Sortable Output Cards
 function updateStudentPortfolioMetricsAndView() {
   const totalActivities = currentActivities.length;
   let completedCount = 0;
@@ -908,7 +950,7 @@ function updateStudentPortfolioMetricsAndView() {
         title: act.title || "Classroom Activity",
         category: act.category || "Activity",
         status: isGraded ? "graded" : "submitted",
-        scoreText: isGraded ? `${mySub.score} / ${act.maxScore || 100}` : "Submitted (Pending Grade)",
+        scoreText: isGraded ? `${mySub.score} / ${act.maxScore || 100}` : "Submitted (Locked)",
         summary: mySub.notes || act.instructions || "",
         feedback: mySub.feedback || "",
         fileName: mySub.fileName || "",
@@ -924,7 +966,7 @@ function updateStudentPortfolioMetricsAndView() {
         title: act.title || "Classroom Activity",
         category: act.category || "Activity",
         status: pastDue ? "missing" : "pending",
-        scoreText: pastDue ? "Missing (Closed)" : "Pending Submission",
+        scoreText: pastDue ? "Closed (Missing)" : "Pending Submission",
         summary: act.instructions || "",
         feedback: "",
         fileName: "",
@@ -956,7 +998,6 @@ function updateStudentPortfolioMetricsAndView() {
   if (elRate) elRate.textContent = `${completionRate}%`;
   if (elAvg) elAvg.textContent = avgScore;
 
-  // Include custom portfolio outputs
   const customArtifacts = currentPortfolioData?.artifacts || [];
   customArtifacts.forEach((art, idx) => {
     unifiedItems.push({
@@ -983,21 +1024,20 @@ function renderStudentPortfolioItemsList(items) {
   const searchVal = (document.getElementById("portfolio-search-input")?.value || "").toLowerCase().trim();
   const sortMode = document.getElementById("portfolio-sort-select")?.value || "newest";
 
-  let filtered = items.filter((item) => {
-    if (sortMode === "graded" && item.status !== "graded") return false;
-    if (sortMode === "missing" && item.status !== "missing" && item.status !== "pending") return false;
-    if (!searchVal) return true;
-    return (
-      (item.title || "").toLowerCase().includes(searchVal) ||
-      (item.category || "").toLowerCase().includes(searchVal) ||
-      (item.summary || "").toLowerCase().includes(searchVal)
+  const filtered = items
+    .filter((item) => {
+      if (sortMode === "graded" && item.status !== "graded") return false;
+      if (sortMode === "missing" && item.status !== "missing" && item.status !== "pending") return false;
+      if (!searchVal) return true;
+      return (
+        (item.title || "").toLowerCase().includes(searchVal) ||
+        (item.category || "").toLowerCase().includes(searchVal) ||
+        (item.summary || "").toLowerCase().includes(searchVal)
+      );
+    })
+    .sort((a, b) =>
+      sortMode === "oldest" ? (a.timestamp || 0) - (b.timestamp || 0) : (b.timestamp || 0) - (a.timestamp || 0)
     );
-  });
-
-  filtered.sort((a, b) => {
-    if (sortMode === "oldest") return (a.timestamp || 0) - (b.timestamp || 0);
-    return (b.timestamp || 0) - (a.timestamp || 0);
-  });
 
   if (filtered.length === 0) {
     container.innerHTML = `
@@ -1011,41 +1051,41 @@ function renderStudentPortfolioItemsList(items) {
 
   container.innerHTML = filtered
     .map((item) => {
-      let badgeColor = "";
-      if (item.status === "graded") badgeColor = "background:rgba(16,185,129,0.16);color:var(--success);border-color:var(--success);";
-      else if (item.status === "missing") badgeColor = "background:rgba(239,68,68,0.16);color:var(--danger);border-color:var(--danger);";
-      else if (item.status === "pending") badgeColor = "background:rgba(245,158,11,0.16);color:var(--warning);border-color:var(--warning);";
+      let pillClass = "";
+      if (item.status === "graded") pillClass = "status-pill-active";
+      else if (item.status === "missing") pillClass = "status-pill-danger";
+      else if (item.status === "pending") pillClass = "status-pill-archived";
 
       if (item.kind === "activity") {
         return `
-          <article class="glass-panel portfolio-output-card" data-port-act-id="${item.actId}" style="display:flex;flex-direction:column;justify-content:space-between;">
+          <article class="glass-panel portfolio-output-card" data-port-act-id="${item.actId}">
             <div>
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.55rem;">
+              <div class="panel-toolbar">
                 <span class="badge-pill">${escapeHtml(item.category)}</span>
-                <span class="badge-pill" style="${badgeColor}">${escapeHtml(item.scoreText)}</span>
+                <span class="badge-pill ${pillClass}">${escapeHtml(item.scoreText)}</span>
               </div>
-              <h3 style="font-size:1rem;margin-bottom:0.35rem;">${escapeHtml(item.title)}</h3>
-              <p class="text-muted" style="font-size:0.82rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:0.5rem;">
+              <h3>${escapeHtml(item.title)}</h3>
+              <p class="text-muted">
                 ${escapeHtml(item.summary || "Click to inspect activity and rubric details.")}
               </p>
-              ${item.feedback ? `<div style="font-size:0.78rem;color:var(--success);"><strong>Feedback:</strong> ${escapeHtml(item.feedback)}</div>` : ""}
+              ${item.feedback ? `<p class="text-muted"><strong>Feedback:</strong> ${escapeHtml(item.feedback)}</p>` : ""}
             </div>
-            <div style="margin-top:0.9rem;padding-top:0.65rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
-              <span class="text-muted" style="font-size:0.74rem;">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Click to view graded details"}</span>
-              <i class="fas fa-chevron-right" style="color:var(--aimser-blue-400);font-size:0.8rem;"></i>
+            <div class="card-footer-bar">
+              <span class="text-muted">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Click to view graded details"}</span>
+              <i class="fas fa-chevron-right"></i>
             </div>
           </article>`;
       }
 
       return `
-        <article class="glass-panel portfolio-output-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <article class="glass-panel portfolio-output-card">
           <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.55rem;">
+            <div class="panel-toolbar">
               <span class="badge-pill">Portfolio Output</span>
-              <span class="badge-pill">Locked</span>
+              <span class="badge-pill"><i class="fas fa-lock"></i> Locked</span>
             </div>
-            <h3 style="font-size:1rem;margin-bottom:0.35rem;">${escapeHtml(item.title)}</h3>
-            <p class="text-muted" style="font-size:0.82rem;word-break:break-word;">${escapeHtml(item.summary)}</p>
+            <h3>${escapeHtml(item.title)}</h3>
+            <p class="text-muted">${escapeHtml(item.summary)}</p>
           </div>
         </article>`;
     })
@@ -1066,14 +1106,14 @@ async function loadRosterAndRequests(classroomId, students) {
 
   if (rosterEl) {
     const instructorCard = `
-      <div class="glass-panel" style="display:flex;align-items:center;gap:0.75rem;padding:0.9rem 1rem;border:1px solid var(--aimser-blue-500);">
+      <div class="glass-panel user-cell-flex">
         <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(activeClassroom.instructorEmail || "Faculty")}&background=1b5375&color=faf2dd" alt="" class="avatar-sm" />
         <div>
-          <div style="font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:0.45rem;">
-            <span>${escapeHtml(activeClassroom.instructorName || activeClassroom.instructorEmail || "Class Instructor")}</span>
+          <div class="user-cell-flex">
+            <strong>${escapeHtml(activeClassroom.instructorName || activeClassroom.instructorEmail || "Class Instructor")}</strong>
             ${renderRoleBadge("faculty")}
           </div>
-          <div class="text-muted" style="font-size:0.75rem;">${escapeHtml(activeClassroom.instructorEmail || "")}</div>
+          <div class="text-muted">${escapeHtml(activeClassroom.instructorEmail || "")}</div>
         </div>
       </div>`;
 
@@ -1082,14 +1122,14 @@ async function loadRosterAndRequests(classroomId, students) {
         const label = typeof s === "string" ? s : s.fullName || s.email || s.uid;
         const email = typeof s === "object" ? s.email || "" : "";
         return `
-          <div class="glass-panel" style="display:flex;align-items:center;gap:0.75rem;padding:0.9rem 1rem;">
+          <div class="glass-panel user-cell-flex">
             <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=1b5375&color=faf2dd" alt="" class="avatar-sm" />
             <div>
-              <div style="font-weight:600;font-size:0.9rem;display:flex;align-items:center;gap:0.45rem;">
-                <span>${escapeHtml(label)}</span>
+              <div class="user-cell-flex">
+                <strong>${escapeHtml(label)}</strong>
                 ${renderRoleBadge("student")}
               </div>
-              <div class="text-muted" style="font-size:0.75rem;">${escapeHtml(email || "Enrolled Student")}</div>
+              <div class="text-muted">${escapeHtml(email || "Enrolled Student")}</div>
             </div>
           </div>`;
       })
@@ -1105,23 +1145,23 @@ async function loadRosterAndRequests(classroomId, students) {
       const pending = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((r) => r.status === "pending");
 
       if (pending.length === 0) {
-        reqWrapper.style.display = "none";
+        reqWrapper.classList.add("is-hidden");
       } else {
-        reqWrapper.style.display = "block";
+        reqWrapper.classList.remove("is-hidden");
         reqList.innerHTML = pending
           .map(
             (req) => `
-            <div class="inspector-meta-item" style="display:flex;justify-content:space-between;align-items:center;">
-              <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div class="inspector-meta-item panel-toolbar">
+              <div class="user-cell-flex">
                 <strong>${escapeHtml(req.studentName || req.studentEmail)}</strong>
                 ${renderRoleBadge("student")}
-                <span class="text-muted" style="font-size:0.8rem;">(${escapeHtml(req.studentEmail)})</span>
+                <span class="text-muted">(${escapeHtml(req.studentEmail)})</span>
               </div>
-              <div style="display:flex;gap:0.5rem;">
+              <div class="workspace-action-bar">
                 <button type="button" class="btn-primary btn-approve-req" data-req-id="${req.id}" data-uid="${req.studentUid}" data-name="${escapeHtml(req.studentName || req.studentEmail)}" data-email="${escapeHtml(req.studentEmail)}">
                   <i class="fas fa-check"></i> Approve
                 </button>
-                <button type="button" class="btn-sidebar-action btn-logout btn-reject-req" data-req-id="${req.id}" style="width:auto;">
+                <button type="button" class="btn-sidebar-action btn-logout btn-reject-req" data-req-id="${req.id}">
                   Decline
                 </button>
               </div>
@@ -1181,20 +1221,17 @@ function renderNotificationsBell() {
   if (list) {
     list.innerHTML =
       merged.length === 0
-        ? `<div class="empty-state" style="padding:1.5rem;"><i class="fas fa-bell-slash"></i><h3>All Caught Up</h3><p>No pending deadline reminders or new notifications.</p></div>`
+        ? `<div class="empty-state"><i class="fas fa-bell-slash"></i><h3>All Caught Up</h3><p>No pending deadline reminders or new notifications.</p></div>`
         : merged
             .map((n) => {
               const isWarning = n.type === "WARNING";
-              const borderStyle = isWarning
-                ? "border:1px solid var(--danger);background:rgba(239,68,68,0.1);"
-                : "border:1px solid var(--border-subtle);background:var(--bg-surface-elevated);";
               return `
-                <div style="padding:0.75rem 0.9rem;border-radius:var(--radius-sm);${borderStyle}">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;gap:0.4rem;">
-                    <strong style="font-size:0.84rem;${isWarning ? "color:var(--danger);" : ""}">${escapeHtml(n.title)}</strong>
-                    <span class="badge-pill" style="font-size:0.65rem;">${escapeHtml(n.type)}</span>
+                <div class="inspector-meta-item">
+                  <div class="panel-toolbar">
+                    <strong>${escapeHtml(n.title)}</strong>
+                    <span class="badge-pill ${isWarning ? "status-pill-danger" : ""}">${escapeHtml(n.type)}</span>
                   </div>
-                  <p class="text-muted" style="font-size:0.78rem;margin:0;">${escapeHtml(n.detail)}</p>
+                  <p class="text-muted">${escapeHtml(n.detail)}</p>
                 </div>`;
             })
             .join("");
@@ -1235,9 +1272,11 @@ function bindOfficeEvents() {
 
   document.getElementById("btn-open-classroom-action")?.addEventListener("click", () => {
     const isFaculty = userProfile.role === "faculty";
-    document.getElementById("modal-classroom-title").textContent = isFaculty ? "Create Class Room (100 Students Max)" : "Join Class Room";
-    document.getElementById("form-create-classroom").style.display = isFaculty ? "block" : "none";
-    document.getElementById("form-join-classroom").style.display = isFaculty ? "none" : "block";
+    document.getElementById("modal-classroom-title").textContent = isFaculty
+      ? "Create Class Room (100 Students Max)"
+      : "Join Class Room";
+    document.getElementById("form-create-classroom")?.classList.toggle("is-hidden", !isFaculty);
+    document.getElementById("form-join-classroom")?.classList.toggle("is-hidden", isFaculty);
     openModal("modal-classroom");
   });
 
@@ -1418,15 +1457,23 @@ function bindOfficeEvents() {
     const selectedFile = fileInput?.files?.[0] || null;
 
     const act = currentActivities.find((a) => a.id === actId);
+
     if (isActivityPastDeadline(act)) {
-      alert("This activity is closed because the deadline has already passed.");
+      alert("This activity has automatically closed because the deadline has passed.");
+      openActivityDetailModal(act);
       return;
     }
 
     const subs = allSubmissionsMap.get(actId) || [];
     const existingSub = subs.find((s) => s.studentUid === currentUser.uid || s.id === currentUser.uid);
     if (existingSub && !existingSub.allowEdit) {
-      alert("Your submission is already locked and cannot be edited or removed unless unlocked by your instructor.");
+      alert("Your submission is locked. You cannot edit or remove your submitted output unless your instructor allows it.");
+      openActivityDetailModal(act);
+      return;
+    }
+
+    if (!notes && !selectedFile && !existingSub?.fileUrl) {
+      alert("Please enter your output/link or attach a document (PDF, DOC, DOCX, etc.) before submitting.");
       return;
     }
 
@@ -1459,9 +1506,19 @@ function bindOfficeEvents() {
         { merge: true }
       );
 
-      await logAuditEvent(`${currentUser.email} submitted output for activity ${actId}`, "SUBMISSION", currentUser.email);
-      closeModal("modal-activity-detail");
+      await logAuditEvent(
+        `${currentUser.email} submitted locked output${fileName ? ` (${fileName})` : ""} for activity "${act?.title || actId}"`,
+        "SUBMISSION",
+        currentUser.email
+      );
+
       await loadClassroomActivitiesAndSubmissions(activeClassroom.id, activeClassroom.students || []);
+      const refreshedAct = currentActivities.find((a) => a.id === actId);
+      if (refreshedAct) {
+        openActivityDetailModal(refreshedAct);
+      } else {
+        closeModal("modal-activity-detail");
+      }
     } catch (err) {
       alert("Submission failed: " + err.message);
     } finally {
@@ -1590,7 +1647,7 @@ function bindOfficeEvents() {
     e.target.reset();
     await loadPortfolioData(activeClassroom.id, []);
   });
-} 
+}
 
 function openModal(id) {
   const m = document.getElementById(id);

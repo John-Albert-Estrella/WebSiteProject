@@ -147,7 +147,6 @@ async function loadClassroomPortfolioTelemetry(classroomId) {
   portfolioNotifications = [];
 
   try {
-    // 1. Load Absenteeism Rate from Analytics Report if saved
     try {
       const anSnap = await getDoc(doc(db, "classrooms", classroomId, "analytics_reports", currentUser.uid));
       savedAbsenteeismRate = anSnap.exists() ? anSnap.data().absenteeismRate || "0%" : "0%";
@@ -155,7 +154,6 @@ async function loadClassroomPortfolioTelemetry(classroomId) {
       savedAbsenteeismRate = "0%";
     }
 
-    // 2. Load Portfolio Artifacts
     try {
       const portSnap = await getDoc(doc(db, "classrooms", classroomId, "portfolios", currentUser.uid));
       portfolioDocData = portSnap.exists() ? portSnap.data() : { artifacts: [] };
@@ -163,7 +161,6 @@ async function loadClassroomPortfolioTelemetry(classroomId) {
       portfolioDocData = { artifacts: [] };
     }
 
-    // 3. Load Activities & Student Submissions
     const mergedMap = new Map();
     try {
       const subSnap = await getDocs(collection(db, "classrooms", classroomId, "activities"));
@@ -261,7 +258,7 @@ function computeAndRenderPortfolio() {
         title: act.title || "Classroom Activity",
         category: act.category || "Activity",
         status: pastDue ? "missing" : "pending",
-        scoreText: pastDue ? "Missing (Closed)" : "Pending Submission",
+        scoreText: pastDue ? "Closed (Missing)" : "Pending Submission",
         summary: act.instructions || "",
         feedback: "",
         fileName: "",
@@ -337,41 +334,41 @@ function renderPortfolioCards(items) {
 
   container.innerHTML = filtered
     .map((item) => {
-      let badgeColor = "";
-      if (item.status === "graded") badgeColor = "background:rgba(16,185,129,0.16);color:var(--success);border-color:var(--success);";
-      else if (item.status === "missing") badgeColor = "background:rgba(239,68,68,0.16);color:var(--danger);border-color:var(--danger);";
-      else if (item.status === "pending") badgeColor = "background:rgba(245,158,11,0.16);color:var(--warning);border-color:var(--warning);";
+      let pillClass = "";
+      if (item.status === "graded") pillClass = "status-pill-active";
+      else if (item.status === "missing") pillClass = "status-pill-danger";
+      else if (item.status === "pending") pillClass = "status-pill-archived";
 
       if (item.kind === "activity") {
         return `
-          <article class="glass-panel portfolio-output-card" data-port-act-id="${item.actId}" style="display:flex;flex-direction:column;justify-content:space-between;">
+          <article class="glass-panel portfolio-output-card" data-port-act-id="${item.actId}">
             <div>
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.55rem;">
+              <div class="panel-toolbar">
                 <span class="badge-pill">${escapeHtml(item.category)}</span>
-                <span class="badge-pill" style="${badgeColor}">${escapeHtml(item.scoreText)}</span>
+                <span class="badge-pill ${pillClass}">${escapeHtml(item.scoreText)}</span>
               </div>
-              <h3 style="font-size:1rem;margin-bottom:0.35rem;">${escapeHtml(item.title)}</h3>
-              <p class="text-muted" style="font-size:0.82rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:0.5rem;">
+              <h3>${escapeHtml(item.title)}</h3>
+              <p class="text-muted">
                 ${escapeHtml(item.summary || "Click to inspect activity and rubric details.")}
               </p>
-              ${item.feedback ? `<div style="font-size:0.78rem;color:var(--success);"><strong>Feedback:</strong> ${escapeHtml(item.feedback)}</div>` : ""}
+              ${item.feedback ? `<p class="text-muted"><strong>Feedback:</strong> ${escapeHtml(item.feedback)}</p>` : ""}
             </div>
-            <div style="margin-top:0.9rem;padding-top:0.65rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
-              <span class="text-muted" style="font-size:0.74rem;">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Click to view graded details"}</span>
-              <i class="fas fa-chevron-right" style="color:var(--aimser-blue-400);font-size:0.8rem;"></i>
+            <div class="card-footer-bar">
+              <span class="text-muted">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Click to view graded details"}</span>
+              <i class="fas fa-chevron-right"></i>
             </div>
           </article>`;
       }
 
       return `
-        <article class="glass-panel portfolio-output-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <article class="glass-panel portfolio-output-card">
           <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.55rem;">
+            <div class="panel-toolbar">
               <span class="badge-pill">Portfolio Output</span>
-              <span class="badge-pill">Locked</span>
+              <span class="badge-pill"><i class="fas fa-lock"></i> Locked</span>
             </div>
-            <h3 style="font-size:1rem;margin-bottom:0.35rem;">${escapeHtml(item.title)}</h3>
-            <p class="text-muted" style="font-size:0.82rem;word-break:break-word;">${escapeHtml(item.summary)}</p>
+            <h3>${escapeHtml(item.title)}</h3>
+            <p class="text-muted">${escapeHtml(item.summary)}</p>
           </div>
         </article>`;
     })
@@ -402,55 +399,85 @@ function openPortfolioActivityModal(act) {
   document.getElementById("detail-act-desc").textContent = act.instructions || act.description || "";
 
   const notesInput = document.getElementById("deliverable-notes");
+  const fileGroup = document.getElementById("deliverable-file-group");
   const fileInput = document.getElementById("deliverable-file-input");
   const fileInfo = document.getElementById("deliverable-attached-file-info");
   const saveBtn = document.getElementById("btn-save-deliverable");
   const gradeBox = document.getElementById("student-grade-feedback-box");
   const closedNotice = document.getElementById("activity-closed-notice");
+  const closedIcon = document.getElementById("activity-closed-icon");
   const closedText = document.getElementById("activity-closed-text");
 
   notesInput.value = mySub ? mySub.notes || "" : "";
   if (fileInput) fileInput.value = "";
 
+  if (mySub && mySub.score !== undefined && mySub.score !== null) {
+    gradeBox?.classList.remove("is-hidden");
+    document.getElementById("student-awarded-score").textContent = `${mySub.score} / ${maxPts}`;
+    document.getElementById("student-awarded-feedback").textContent =
+      mySub.feedback || "No written comments.";
+  } else if (gradeBox) {
+    gradeBox.classList.add("is-hidden");
+  }
+
+  const hasSubmitted = Boolean(mySub);
+  const facultyUnlocked = hasSubmitted && Boolean(mySub.allowEdit) && !pastDue;
+  const isLocked = pastDue || (hasSubmitted && !facultyUnlocked);
+
   if (fileInfo) {
     const safeFileUrl = sanitizeUrl(mySub?.fileUrl, "");
     if (safeFileUrl) {
-      fileInfo.style.display = "block";
-      fileInfo.innerHTML = `<i class="fas fa-paperclip"></i> Submitted Document: <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--aimser-blue-400);font-weight:600;">${escapeHtml(mySub.fileName || "View Attached File")}</a>`;
+      fileInfo.classList.remove("is-hidden");
+      fileInfo.innerHTML = `
+        <div class="attached-file-meta">
+          <i class="fas fa-file-alt"></i>
+          <span>${escapeHtml(mySub.fileName || "Submitted Document")}</span>
+        </div>
+        <div class="workspace-action-bar">
+          <span class="attached-file-lock-tag">
+            <i class="fas ${isLocked ? "fa-lock" : "fa-unlock"}"></i>
+            ${isLocked ? "Locked" : "Editable"}
+          </span>
+          <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" class="btn-secondary">
+            <i class="fas fa-download"></i> View / Download
+          </a>
+        </div>`;
     } else {
-      fileInfo.style.display = "none";
+      fileInfo.classList.add("is-hidden");
       fileInfo.innerHTML = "";
     }
   }
 
-  if (mySub && mySub.score !== undefined && mySub.score !== null) {
-    gradeBox.style.display = "block";
-    document.getElementById("student-awarded-score").textContent = `${mySub.score} / ${maxPts}`;
-    document.getElementById("student-awarded-feedback").textContent = mySub.feedback || "Reviewed by instructor.";
-  } else {
-    gradeBox.style.display = "none";
-  }
-
-  const isSubmittedAndLocked = Boolean(mySub) && !mySub.allowEdit;
-  const isLocked = pastDue || isSubmittedAndLocked;
-
   if (closedNotice && closedText) {
     if (pastDue) {
-      closedNotice.style.display = "block";
-      closedText.textContent = "This activity is closed because the deadline has passed. Submissions and edits are no longer accepted.";
-    } else if (isSubmittedAndLocked) {
-      closedNotice.style.display = "block";
-      closedText.textContent = "Your output has been submitted and locked. Submitted documents cannot be edited or removed unless unlocked by your instructor.";
+      closedNotice.className = "submission-lock-banner";
+      if (closedIcon) closedIcon.className = "fas fa-ban";
+      closedText.textContent = hasSubmitted
+        ? "Deadline has passed. This activity is closed and your submission is permanently locked."
+        : "Deadline has passed. This activity is now closed and no longer accepts submissions.";
+    } else if (hasSubmitted && !facultyUnlocked) {
+      closedNotice.className = "submission-lock-banner";
+      if (closedIcon) closedIcon.className = "fas fa-lock";
+      closedText.textContent =
+        "Output submitted and locked. You cannot edit or remove your submitted document unless allowed by your instructor.";
+    } else if (facultyUnlocked) {
+      closedNotice.className = "submission-unlocked-banner";
+      if (closedIcon) closedIcon.className = "fas fa-unlock";
+      closedText.textContent =
+        "Your instructor has unlocked your submission. You may update your answer or upload a replacement document before the deadline.";
     } else {
-      closedNotice.style.display = "none";
+      closedNotice.classList.add("is-hidden");
     }
   }
 
   notesInput.disabled = isLocked;
+  notesInput.readOnly = isLocked;
   if (fileInput) fileInput.disabled = isLocked;
+  if (fileGroup) fileGroup.classList.toggle("is-hidden", isLocked);
   if (saveBtn) {
     saveBtn.disabled = isLocked;
-    saveBtn.style.display = isLocked ? "none" : "inline-flex";
+    saveBtn.classList.toggle("is-hidden", isLocked);
+    saveBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
   }
 
   const modal = document.getElementById("modal-activity-detail");
@@ -493,7 +520,7 @@ async function renderPortfolioNotificationsBell() {
   }
 
   if (merged.length === 0) {
-    list.innerHTML = `<div class="empty-state" style="padding:1.25rem;"><i class="fas fa-bell-slash"></i><h3>All Caught Up</h3><p>No pending alerts or grade updates.</p></div>`;
+    list.innerHTML = `<div class="empty-state"><i class="fas fa-bell-slash"></i><h3>All Caught Up</h3><p>No pending alerts or grade updates.</p></div>`;
     return;
   }
 
@@ -501,11 +528,11 @@ async function renderPortfolioNotificationsBell() {
     .map(
       (n) => `
       <div class="inspector-meta-item">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.2rem;">
-          <strong style="font-size:0.84rem;">${escapeHtml(n.title)}</strong>
-          <span class="badge-pill" style="font-size:0.65rem;">${escapeHtml(n.type)}</span>
+        <div class="panel-toolbar">
+          <strong>${escapeHtml(n.title)}</strong>
+          <span class="badge-pill">${escapeHtml(n.type)}</span>
         </div>
-        <p class="text-muted" style="font-size:0.78rem;margin:0;">${escapeHtml(n.detail)}</p>
+        <p class="text-muted">${escapeHtml(n.detail)}</p>
       </div>`
     )
     .join("");
@@ -548,14 +575,21 @@ function bindPortfolioEvents() {
 
     const act = classroomActivities.find((a) => a.id === actId);
     if (isActivityPastDeadline(act)) {
-      alert("This activity is closed because the deadline has already passed.");
+      alert("This activity has automatically closed because the deadline has passed.");
+      openPortfolioActivityModal(act);
       return;
     }
 
     const subs = submissionsByActId.get(actId) || [];
     const existingSub = subs.find((s) => s.studentUid === currentUser.uid || s.id === currentUser.uid);
     if (existingSub && !existingSub.allowEdit) {
-      alert("Your submission is already locked and cannot be edited or removed unless unlocked by your instructor.");
+      alert("Your submission is locked. You cannot edit or remove your submitted output unless your instructor allows it.");
+      openPortfolioActivityModal(act);
+      return;
+    }
+
+    if (!notes && !selectedFile && !existingSub?.fileUrl) {
+      alert("Please enter your output/link or attach a document (PDF, DOC, DOCX, etc.) before submitting.");
       return;
     }
 
@@ -588,8 +622,13 @@ function bindPortfolioEvents() {
         { merge: true }
       );
 
-      document.getElementById("modal-activity-detail")?.classList.remove("is-open");
       await loadClassroomPortfolioTelemetry(activeClassroom.id);
+      const refreshedAct = classroomActivities.find((a) => a.id === actId);
+      if (refreshedAct) {
+        openPortfolioActivityModal(refreshedAct);
+      } else {
+        document.getElementById("modal-activity-detail")?.classList.remove("is-open");
+      }
     } catch (err) {
       alert("Submission failed: " + err.message);
     } finally {

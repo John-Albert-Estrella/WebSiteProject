@@ -87,7 +87,7 @@
                 </div>
               </div>
               <div class="notif-dropdown-footer">
-                <button type="button" id="btn-view-all-notifs" class="btn-secondary">
+                <button type="button" id="btn-view-all-notifs" class="btn-secondary w-full">
                   View All in Full Page
                 </button>
               </div>
@@ -106,16 +106,16 @@
 
       <!-- Classroom Selector & Action Bar -->
       <div class="workspace-action-bar" id="office-top-action-bar">
-        <select id="active-classroom-select" class="form-select" style="max-width: 260px;" aria-label="Select Classroom">
+        <select id="active-classroom-select" class="form-select select-compact" aria-label="Select Classroom">
           <option value="">Loading Classrooms...</option>
         </select>
         <button type="button" id="btn-open-classroom-action" class="btn-secondary">
           <i class="fas fa-door-open"></i> <span id="classroom-action-label">Join Class Room</span>
         </button>
-        <button type="button" id="btn-open-new-activity" class="btn-primary" style="display: none;">
+        <button type="button" id="btn-open-new-activity" class="btn-primary is-hidden">
           <i class="fas fa-plus"></i> Post Activity &amp; Rubric
         </button>
-        <button type="button" id="btn-export-report" class="btn-secondary" style="display: none;">
+        <button type="button" id="btn-export-report" class="btn-secondary is-hidden">
           <i class="fas fa-file-csv"></i> Export CSV
         </button>
         <button type="button" id="btn-refresh-office" class="btn-secondary" title="Refresh Classroom">
@@ -124,9 +124,9 @@
       </div>
 
       <!-- Urgent Deadline Reminder Banner -->
-      <div id="deadline-reminders-banner" class="glass-panel" style="display: none; margin-bottom: 1.25rem;"></div>
+      <div id="deadline-reminders-banner" class="glass-panel admin-status-banner is-hidden"></div>
 
-      <!-- Classroom KPI Summary Row -->
+      <!-- Classroom KPI Summary Row (Room Code card auto-hides for students) -->
       <section class="stats-row" id="office-kpi-row">
         <div class="glass-panel stat-card" id="card-room-code">
           <span class="stat-label">Room Code</span>
@@ -186,7 +186,7 @@
 
       <!-- PANEL 2: HR WORKFORCE ANALYTICS & PERFORMANCE TELEMETRY -->
       <section id="panel-analytics" class="tab-panel">
-        <div id="faculty-analytics-view" style="display: none;">
+        <div id="faculty-analytics-view" class="is-hidden">
           <div class="stats-row">
             <div class="glass-panel stat-card">
               <span class="stat-label">Completion Rate</span>
@@ -208,15 +208,15 @@
                 <h2>Student Performance Breakdown</h2>
               </div>
             </div>
-            <div style="overflow-x: auto;">
-              <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem;">
+            <div class="table-scroll">
+              <table class="admin-table">
                 <thead>
-                  <tr style="border-bottom: 1px solid var(--border-medium); color: var(--text-tertiary);">
-                    <th style="padding: 0.75rem 1rem;">Student</th>
-                    <th style="padding: 0.75rem 1rem;">Role</th>
-                    <th style="padding: 0.75rem 1rem;">Completed</th>
-                    <th style="padding: 0.75rem 1rem;">Completion %</th>
-                    <th style="padding: 0.75rem 1rem;">Average Score</th>
+                  <tr>
+                    <th>Student</th>
+                    <th>Role</th>
+                    <th>Completed</th>
+                    <th>Completion %</th>
+                    <th>Average Score</th>
                   </tr>
                 </thead>
                 <tbody id="faculty-analytics-tbody"></tbody>
@@ -225,8 +225,8 @@
           </div>
         </div>
 
-        <div id="student-analytics-view" style="display: flex; flex-direction: column; gap: 1.35rem;">
-          <div class="stats-row" style="margin-bottom: 0;">
+        <div id="student-analytics-view" class="stack-col">
+          <div class="stats-row">
             <div class="glass-panel stat-card">
               <span class="stat-label">Completion Rate</span>
               <h3 id="stu-completion-rate">0%</h3>
@@ -298,7 +298,7 @@
               </button>
             </form>
 
-            <div class="stats-row" style="margin-top: 1.35rem; margin-bottom: 0;">
+            <div class="stats-row">
               <div class="glass-panel stat-card">
                 <span class="stat-label">Turnover Rate</span>
                 <h3 id="res-turnover-rate">7.50%</h3>
@@ -322,8 +322,8 @@
 
       <!-- PANEL 3: PORTFOLIO & OUTPUT TELEMETRY -->
       <section id="panel-portfolio" class="tab-panel">
-        <div id="faculty-portfolio-view" style="display: none;">
-          <div class="glass-panel" style="margin-bottom: 1.35rem;">
+        <div id="faculty-portfolio-view" class="is-hidden">
+          <div class="glass-panel">
             <div class="panel-toolbar">
               <div>
                 <h2>Class Appraisal Period &amp; KPIs</h2>
@@ -332,7 +332,7 @@
                 <i class="fas fa-sliders-h"></i> Configure Class KPIs
               </button>
             </div>
-            <div class="form-row" style="margin-bottom: 0;">
+            <div class="form-row">
               <div class="inspector-meta-item">
                 <span>Active Appraisal Period</span>
                 <strong id="appraisal-period-text">Not configured yet</strong>
@@ -354,7 +354,7 @@
           </div>
         </div>
 
-        <div id="student-portfolio-view" style="display: flex; flex-direction: column; gap: 1.35rem;">
+        <div id="student-portfolio-view" class="stack-col">
           <div class="stats-row stats-row-6">
             <div class="glass-panel stat-card">
               <span class="stat-label">Absenteeism</span>
@@ -388,9 +388,9 @@
                 <h2>Submitted Outputs &amp; Graded Activities</h2>
                 <p class="text-muted">Click any activity output card to inspect graded feedback and rubric scores.</p>
               </div>
-              <div class="workspace-action-bar" style="margin-bottom: 0;">
-                <input type="text" id="portfolio-search-input" class="form-control" placeholder="Search outputs..." style="max-width: 210px;" />
-                <select id="portfolio-sort-select" class="form-select" style="max-width: 175px;">
+              <div class="workspace-action-bar">
+                <input type="text" id="portfolio-search-input" class="form-control input-search-sm" placeholder="Search outputs..." />
+                <select id="portfolio-sort-select" class="form-select select-sort-sm">
                   <option value="newest">Newest First</option>
                   <option value="oldest">Oldest First</option>
                   <option value="graded">Graded Only</option>
@@ -412,7 +412,7 @@
               </div>
             </div>
 
-            <div class="inspector-meta-item" style="margin-bottom: 1.15rem;">
+            <div class="inspector-meta-item">
               <strong>Class KPIs:</strong> <span id="student-kpi-text">Not configured yet</span>
             </div>
 
@@ -441,13 +441,13 @@
 
       <!-- PANEL 4: CLASS ROSTER & JOIN REQUESTS -->
       <section id="panel-roster" class="tab-panel">
-        <div id="join-requests-wrapper" class="glass-panel" style="display: none; margin-bottom: 1.35rem;">
+        <div id="join-requests-wrapper" class="glass-panel is-hidden">
           <div class="panel-toolbar">
             <div>
               <h2>Pending Student Join Requests</h2>
             </div>
           </div>
-          <div id="join-requests-list" style="display: flex; flex-direction: column; gap: 0.65rem;"></div>
+          <div id="join-requests-list" class="admin-feed-list"></div>
         </div>
 
         <div class="glass-panel">
@@ -473,20 +473,21 @@
             <span id="notif-detail-badge" class="badge-pill">Alert</span>
           </div>
 
-          <div id="notif-selected-detail-card" class="inspector-meta-item" style="margin-bottom: 1.5rem;">
+          <div id="notif-selected-detail-card" class="inspector-meta-item">
             <h3 id="notif-detail-title">Select a notification</h3>
             <p id="notif-detail-meta" class="text-muted"></p>
-            <div id="notif-detail-body" style="white-space: pre-wrap; margin-top: 0.75rem;"></div>
+            <div id="notif-detail-body" class="faculty-sub-notes"></div>
           </div>
 
           <h3>All Workspace Notifications</h3>
-          <div id="notif-fullpage-all-list" style="display: flex; flex-direction: column; gap: 0.65rem; margin-top: 0.85rem;"></div>
+          <div id="notif-fullpage-all-list" class="admin-feed-list"></div>
         </div>
       </section>
     </main>
   </div>
 
   <!-- MODALS -->
+  <!-- Modal 1: Create or Join Class Room -->
   <div class="modal-backdrop" id="modal-classroom" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -494,7 +495,7 @@
         <button type="button" class="btn-close-modal" data-close-modal="modal-classroom">&times;</button>
       </div>
 
-      <form id="form-create-classroom" style="display: none;">
+      <form id="form-create-classroom" class="is-hidden">
         <div class="form-group">
           <label for="new-class-name" class="form-label">Course / Section Name</label>
           <input type="text" id="new-class-name" class="form-control" placeholder="e.g., HRM 301 - Labor Relations (Sec A)" required />
@@ -503,25 +504,26 @@
           <label for="new-class-desc" class="form-label">Section Schedule / Notes</label>
           <input type="text" id="new-class-desc" class="form-control" placeholder="e.g., MWF 9:00 AM - 10:30 AM" />
         </div>
-        <button type="submit" id="btn-submit-create-class" class="btn-primary" style="width: 100%;">
+        <button type="submit" id="btn-submit-create-class" class="btn-primary w-full">
           <i class="fas fa-plus"></i> Create Class Room
         </button>
       </form>
 
-      <form id="form-join-classroom" style="display: none;">
+      <form id="form-join-classroom" class="is-hidden">
         <div class="form-group">
           <label for="join-class-code" class="form-label">Enter Instructor Room Code</label>
           <input type="text" id="join-class-code" class="form-control code-mono" placeholder="e.g., AIM-9X2B" required />
         </div>
-        <button type="submit" id="btn-submit-join-class" class="btn-primary" style="width: 100%;">
+        <button type="submit" id="btn-submit-join-class" class="btn-primary w-full">
           <i class="fas fa-paper-plane"></i> Request to Join Class Room
         </button>
       </form>
     </div>
   </div>
 
+  <!-- Modal 2: Faculty Post Activity & Rubric -->
   <div class="modal-backdrop" id="modal-activity" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card" style="max-width: 640px;">
+    <div class="modal-card modal-card-lg">
       <div class="modal-header">
         <h3>Post Activity &amp; Evaluation Rubric</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-activity">&times;</button>
@@ -571,46 +573,53 @@
     </div>
   </div>
 
+  <!-- Modal 3: Activity Detail, Locked Student Submission & Faculty Rubric Grading -->
   <div class="modal-backdrop" id="modal-activity-detail" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card" style="max-width: 720px;">
+    <div class="modal-card modal-card-lg">
       <div class="modal-header">
         <h3 id="detail-act-title">Activity Details</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-activity-detail">&times;</button>
       </div>
 
       <input type="hidden" id="detail-act-id" />
-      <div class="workspace-action-bar" style="margin-bottom: 0.85rem;">
+      <div class="workspace-action-bar">
         <span id="detail-act-badge" class="badge-pill">Domain</span>
         <span id="detail-act-points" class="badge-pill">100 pts</span>
         <span id="detail-act-due" class="text-muted"></span>
       </div>
 
-      <div class="text-muted" style="margin-bottom: 0.75rem;">
+      <div class="text-muted">
         <strong>Rubric:</strong> <span id="detail-act-rubric"></span>
       </div>
 
-      <div id="detail-act-desc" class="inspector-meta-item" style="white-space: pre-wrap; margin-bottom: 1.25rem;"></div>
+      <div id="detail-act-desc" class="faculty-sub-notes"></div>
 
-      <div id="student-submission-section" style="display: none;">
-        <div id="student-grade-feedback-box" class="status-msg success" style="display: none;">
+      <!-- Student Submission View -->
+      <div id="student-submission-section" class="is-hidden">
+        <!-- Graded Output Details Box -->
+        <div id="student-grade-feedback-box" class="status-msg success is-hidden">
           <strong>Awarded Score: <span id="student-awarded-score"></span></strong>
           <p id="student-awarded-feedback"></p>
         </div>
 
-        <div id="activity-closed-notice" class="status-msg error" style="display: none;">
-          <i class="fas fa-lock"></i> <span id="activity-closed-text">This activity is locked. Submissions cannot be edited or removed unless unlocked by your instructor, or the deadline has passed.</span>
+        <!-- Automatic Deadline Closure or Locked Submission Banner -->
+        <div id="activity-closed-notice" class="submission-lock-banner is-hidden">
+          <i class="fas fa-lock" id="activity-closed-icon"></i>
+          <span id="activity-closed-text">This activity is locked.</span>
         </div>
+
+        <!-- Read-Only Submitted File Display (Cannot be edited/removed unless Faculty unlocks) -->
+        <div id="deliverable-attached-file-info" class="attached-file-card is-hidden"></div>
 
         <form id="form-submit-deliverable">
           <div class="form-group">
-            <label for="deliverable-notes" class="form-label">Your Output / Analysis / Document Link</label>
-            <textarea id="deliverable-notes" class="form-control" rows="4" placeholder="Write your complete HR output or paste your shared document link..." required></textarea>
+            <label for="deliverable-notes" class="form-label">Submitted Answer / Output Notes (Optional if uploading a file)</label>
+            <textarea id="deliverable-notes" class="form-control" rows="4" placeholder="Write your HR analysis, or paste a document link, or upload your file below..."></textarea>
           </div>
 
-          <div class="form-group">
-            <label for="deliverable-file-input" class="form-label">Attach Document or Image (PDF, DOC, DOCX, PNG, JPG — Locked Once Submitted)</label>
-            <input type="file" id="deliverable-file-input" class="form-control" accept=".pdf,.doc,.docx,image/png,image/jpeg,image/webp" />
-            <div id="deliverable-attached-file-info" class="text-muted" style="display: none;"></div>
+          <div class="form-group" id="deliverable-file-group">
+            <label for="deliverable-file-input" class="form-label">Upload Document or File (PDF, DOC, DOCX, XLSX, PPTX, PNG, JPG)</label>
+            <input type="file" id="deliverable-file-input" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,image/png,image/jpeg,image/webp" />
           </div>
 
           <div class="modal-actions">
@@ -622,13 +631,15 @@
         </form>
       </div>
 
-      <div id="faculty-submissions-section" style="display: none;">
+      <!-- Faculty Grading View -->
+      <div id="faculty-submissions-section" class="is-hidden">
         <h4>Student Submissions</h4>
-        <div id="faculty-submissions-list" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 360px; overflow-y: auto; margin-top: 0.75rem;"></div>
+        <div id="faculty-submissions-list" class="admin-logs-scroll"></div>
       </div>
     </div>
   </div>
 
+  <!-- Modal 4: Faculty KPI Setup -->
   <div class="modal-backdrop" id="modal-kpi-setup" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -652,6 +663,7 @@
     </div>
   </div>
 
+  <!-- Modal 5: Add Student Portfolio Output -->
   <div class="modal-backdrop" id="modal-portfolio-artifact" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -675,7 +687,7 @@
     </div>
   </div>
 
-  <div id="modal-notifications" style="display: none;"></div>
+  <div id="modal-notifications" class="is-hidden"></div>
 
   <script type="module" src="js/theme.js?v=18"></script>
   <script type="module" src="js/ui-bridge.js?v=18"></script>

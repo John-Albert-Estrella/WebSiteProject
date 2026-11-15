@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AIMSER Workspace & Admin Layout (v=18) — Strict External Stylesheet
+   AIMSER Workspace & Admin Layout (v=18) — Complete External Stylesheet
    ========================================================================== */
 
 .dashboard-layout {
@@ -257,7 +257,6 @@
   letter-spacing: 0.04em;
 }
 
-/* Notification Dropdown Card */
 .notif-dropdown-menu {
   position: absolute;
   top: calc(100% + 0.6rem);
@@ -340,7 +339,7 @@
 
 .stats-row-6 {
   grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
-  margin-bottom: 0;
+  margin-bottom: 1.35rem;
 }
 
 .stat-card {
@@ -617,26 +616,112 @@
   background-color: rgba(14, 165, 233, 0.14);
 }
 
-@media (max-width: 960px) {
-  .dashboard-layout {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: static;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-  .main-workspace {
-    padding: 1.25rem;
-  }
-  .user-registry-layout.has-inspector {
-    grid-template-columns: 1fr;
-  }
+/* ==========================================================================
+   Activity Submission Lock, Closed Deadline & Document Attachment Styles
+   ========================================================================== */
+
+.submission-lock-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background-color: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.42);
+  color: #f87171;
+  font-size: 0.84rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.submission-unlocked-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background-color: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  color: var(--aimser-blue-400);
+  font-size: 0.84rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.attached-file-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-medium);
+  margin-bottom: 1rem;
+}
+
+.attached-file-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.attached-file-meta i {
+  color: var(--aimser-blue-400);
+  font-size: 1.05rem;
+}
+
+.attached-file-lock-tag {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.faculty-sub-card {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-medium);
+}
+
+.faculty-sub-notes {
+  font-size: 0.84rem;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+  background-color: var(--bg-canvas);
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  margin: 0.6rem 0;
+}
+
+.faculty-grade-controls {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 0.65rem;
+}
+
+.input-score-sm {
+  width: 125px;
+}
+
+.input-feedback-flex {
+  flex: 1;
+  min-width: 190px;
 }
 
 /* ==========================================================================
-   Admin Console & Moderation Utility Classes (Zero Inline Styles)
+   Admin Console & Shared Utility Classes (Zero Inline Styles)
    ========================================================================== */
 
 .is-hidden {
@@ -645,6 +730,24 @@
 
 .w-full {
   width: 100%;
+}
+
+.stack-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.select-compact {
+  max-width: 260px;
+}
+
+.input-search-sm {
+  max-width: 210px;
+}
+
+.select-sort-sm {
+  max-width: 175px;
 }
 
 .table-scroll {
@@ -686,6 +789,7 @@
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  flex-wrap: wrap;
 }
 
 .inspector-identity-row {
@@ -876,6 +980,12 @@
   border-color: rgba(16, 185, 129, 0.35);
 }
 
+.status-pill-danger {
+  background: rgba(239, 68, 68, 0.16);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 .card-archived-border {
   border-color: rgba(245, 158, 11, 0.45);
 }
@@ -921,10 +1031,28 @@
 }
 
 .modal-card-lg {
-  max-width: 680px;
+  max-width: 720px;
 }
 
 .modal-card-xl {
   max-width: 820px;
   text-align: center;
+}
+
+@media (max-width: 960px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .main-workspace {
+    padding: 1.25rem;
+  }
+  .user-registry-layout.has-inspector {
+    grid-template-columns: 1fr;
+  }
 }

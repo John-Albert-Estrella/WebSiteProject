@@ -87,7 +87,7 @@
                 </div>
               </div>
               <div class="notif-dropdown-footer">
-                <button type="button" id="btn-view-all-notifs" class="btn-secondary">
+                <button type="button" id="btn-view-all-notifs" class="btn-secondary w-full">
                   View All in Full Page
                 </button>
               </div>
@@ -119,13 +119,13 @@
       <!-- PANEL 1: PORTFOLIO METRICS & STORED OUTPUTS -->
       <section id="panel-portfolio-overview" class="tab-panel active">
         <div class="workspace-action-bar">
-          <select id="portfolio-classroom-select" class="form-select" style="max-width: 280px;" aria-label="Select Classroom">
+          <select id="portfolio-classroom-select" class="form-select select-compact" aria-label="Select Classroom">
             <option value="">Loading Classrooms...</option>
           </select>
         </div>
 
         <!-- 6 Required Portfolio Output Metrics -->
-        <div class="stats-row stats-row-6" style="margin-bottom: 1.35rem;">
+        <div class="stats-row stats-row-6">
           <div class="glass-panel stat-card">
             <span class="stat-label">Absenteeism</span>
             <h3 id="port-metric-absenteeism">0%</h3>
@@ -159,9 +159,9 @@
               <h2>Submitted Outputs &amp; Graded Activities</h2>
               <p class="text-muted">Click any activity output card to inspect graded feedback and rubric details.</p>
             </div>
-            <div class="workspace-action-bar" style="margin-bottom: 0;">
-              <input type="text" id="portfolio-search-input" class="form-control" placeholder="Search outputs..." style="max-width: 210px;" />
-              <select id="portfolio-sort-select" class="form-select" style="max-width: 175px;">
+            <div class="workspace-action-bar">
+              <input type="text" id="portfolio-search-input" class="form-control input-search-sm" placeholder="Search outputs..." />
+              <select id="portfolio-sort-select" class="form-select select-sort-sm">
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
                 <option value="graded">Graded Only</option>
@@ -194,11 +194,11 @@
             <div id="settings-profile-status" class="status-msg" aria-live="polite"></div>
 
             <form id="settings-profile-form">
-              <div class="workspace-action-bar" style="margin-bottom: 1.5rem;">
+              <div class="workspace-action-bar">
                 <img id="settings-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Avatar Preview" class="avatar-preview" />
                 <div>
                   <label for="settings-avatar-input" class="form-label">Profile Picture (PNG, JPG, WebP)</label>
-                  <input type="file" id="settings-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" style="max-width: 320px;" />
+                  <input type="file" id="settings-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" />
                 </div>
               </div>
 
@@ -293,14 +293,14 @@
             <span id="notif-detail-badge" class="badge-pill">Alert</span>
           </div>
 
-          <div id="notif-selected-detail-card" class="inspector-meta-item" style="margin-bottom: 1.5rem;">
+          <div id="notif-selected-detail-card" class="inspector-meta-item">
             <h3 id="notif-detail-title">Select a notification</h3>
             <p id="notif-detail-meta" class="text-muted"></p>
-            <div id="notif-detail-body" style="white-space: pre-wrap; margin-top: 0.75rem;"></div>
+            <div id="notif-detail-body" class="faculty-sub-notes"></div>
           </div>
 
           <h3>All Workspace Notifications</h3>
-          <div id="notif-fullpage-all-list" style="display: flex; flex-direction: column; gap: 0.65rem; margin-top: 0.85rem;"></div>
+          <div id="notif-fullpage-all-list" class="admin-feed-list"></div>
         </div>
       </section>
     </main>
@@ -308,53 +308,58 @@
 
   <!-- Modal: Activity Graded Details & Locked Submission Viewer -->
   <div class="modal-backdrop" id="modal-activity-detail" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card" style="max-width: 720px;">
+    <div class="modal-card modal-card-lg">
       <div class="modal-header">
         <h3 id="detail-act-title">Activity Details</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-activity-detail">&times;</button>
       </div>
 
       <input type="hidden" id="detail-act-id" />
-      <div class="workspace-action-bar" style="margin-bottom: 0.85rem;">
+      <div class="workspace-action-bar">
         <span id="detail-act-badge" class="badge-pill">Domain</span>
         <span id="detail-act-points" class="badge-pill">100 pts</span>
         <span id="detail-act-due" class="text-muted"></span>
       </div>
 
-      <div class="text-muted" style="margin-bottom: 0.75rem;">
+      <div class="text-muted">
         <strong>Rubric:</strong> <span id="detail-act-rubric"></span>
       </div>
 
-      <div id="detail-act-desc" class="inspector-meta-item" style="white-space: pre-wrap; margin-bottom: 1.25rem;"></div>
+      <div id="detail-act-desc" class="faculty-sub-notes"></div>
 
-      <div id="student-grade-feedback-box" class="status-msg success" style="display: none;">
-        <strong>Awarded Score: <span id="student-awarded-score"></span></strong>
-        <p id="student-awarded-feedback"></p>
+      <!-- Student Submission View -->
+      <div id="student-submission-section">
+        <div id="student-grade-feedback-box" class="status-msg success is-hidden">
+          <strong>Awarded Score: <span id="student-awarded-score"></span></strong>
+          <p id="student-awarded-feedback"></p>
+        </div>
+
+        <div id="activity-closed-notice" class="submission-lock-banner is-hidden">
+          <i class="fas fa-lock" id="activity-closed-icon"></i>
+          <span id="activity-closed-text">This activity is locked.</span>
+        </div>
+
+        <div id="deliverable-attached-file-info" class="attached-file-card is-hidden"></div>
+
+        <form id="form-submit-deliverable">
+          <div class="form-group">
+            <label for="deliverable-notes" class="form-label">Submitted Answer / Output Notes (Optional if uploading a file)</label>
+            <textarea id="deliverable-notes" class="form-control" rows="4" placeholder="Write your HR analysis, or paste a document link, or upload your file below..."></textarea>
+          </div>
+
+          <div class="form-group" id="deliverable-file-group">
+            <label for="deliverable-file-input" class="form-label">Upload Document or File (PDF, DOC, DOCX, XLSX, PPTX, PNG, JPG)</label>
+            <input type="file" id="deliverable-file-input" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,image/png,image/jpeg,image/webp" />
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" data-close-modal="modal-activity-detail">Close</button>
+            <button type="submit" id="btn-save-deliverable" class="btn-primary">
+              <i class="fas fa-paper-plane"></i> Submit
+            </button>
+          </div>
+        </form>
       </div>
-
-      <div id="activity-closed-notice" class="status-msg error" style="display: none;">
-        <i class="fas fa-lock"></i> <span id="activity-closed-text">This activity is locked. Submissions cannot be edited or removed unless unlocked by your instructor, or the deadline has passed.</span>
-      </div>
-
-      <form id="form-submit-deliverable">
-        <div class="form-group">
-          <label for="deliverable-notes" class="form-label">Submitted Output / Analysis</label>
-          <textarea id="deliverable-notes" class="form-control" rows="4" placeholder="Write your complete HR output or paste your shared document link..." required></textarea>
-        </div>
-
-        <div class="form-group">
-          <label for="deliverable-file-input" class="form-label">Attach Document or Image (PDF, DOC, DOCX, PNG, JPG — Locked Once Submitted)</label>
-          <input type="file" id="deliverable-file-input" class="form-control" accept=".pdf,.doc,.docx,image/png,image/jpeg,image/webp" />
-          <div id="deliverable-attached-file-info" class="text-muted" style="display: none;"></div>
-        </div>
-
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close-modal="modal-activity-detail">Close</button>
-          <button type="submit" id="btn-save-deliverable" class="btn-primary">
-            <i class="fas fa-paper-plane"></i> Submit
-          </button>
-        </div>
-      </form>
     </div>
   </div>
 
