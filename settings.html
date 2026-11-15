@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Portfolio &amp; Profile | AIMSER HR Simulator</title>
+  <title>Account Settings | AIMSER HR Simulator</title>
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon_aimser.png?v=18" />
   <link rel="icon" type="image/png" sizes="48x48" href="/assets/icon_aimser.png?v=18" />
   <link rel="shortcut icon" type="image/png" href="/assets/icon_aimser.png?v=18" />
@@ -42,8 +42,8 @@
 
           <div class="nav-section-label">System</div>
           <a href="settings.html" class="nav-item active" id="nav-settings">
-            <i class="fas fa-briefcase"></i>
-            <span>Portfolio</span>
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
           </a>
         </nav>
       </div>
@@ -64,7 +64,7 @@
     <main class="main-workspace">
       <header class="workspace-header">
         <div class="header-left">
-          <h1 class="page-title">Portfolio</h1>
+          <h1 class="page-title">Settings</h1>
         </div>
 
         <div class="header-right">
@@ -83,7 +83,7 @@
                 <div class="empty-state">
                   <i class="fas fa-bell-slash"></i>
                   <h3>No notifications yet</h3>
-                  <p>Updates and grade alerts will appear here.</p>
+                  <p>Updates and alerts will appear here.</p>
                 </div>
               </div>
               <div class="notif-dropdown-footer">
@@ -104,83 +104,8 @@
         </div>
       </header>
 
-      <!-- Sub-Navigation Tabs: Portfolio Outputs vs Account & Security -->
-      <nav class="office-subnav" aria-label="Portfolio & Account Sections">
-        <button type="button" class="subnav-tab active" data-tab="panel-portfolio-overview">
-          <i class="fas fa-briefcase"></i>
-          <span>Portfolio &amp; Stored Outputs</span>
-        </button>
-        <button type="button" class="subnav-tab" data-tab="panel-account-settings">
-          <i class="fas fa-user-shield"></i>
-          <span>Account &amp; Security</span>
-        </button>
-      </nav>
-
-      <!-- PANEL 1: PORTFOLIO METRICS & STORED OUTPUTS -->
-      <section id="panel-portfolio-overview" class="tab-panel active">
-        <div class="workspace-action-bar">
-          <select id="portfolio-classroom-select" class="form-select select-compact" aria-label="Select Classroom">
-            <option value="">Loading Classrooms...</option>
-          </select>
-        </div>
-
-        <!-- 6 Required Portfolio Output Metrics -->
-        <div class="stats-row stats-row-6">
-          <div class="glass-panel stat-card">
-            <span class="stat-label">Absenteeism</span>
-            <h3 id="port-metric-absenteeism">0%</h3>
-          </div>
-          <div class="glass-panel stat-card">
-            <span class="stat-label">Missing</span>
-            <h3 id="port-metric-missing">0</h3>
-          </div>
-          <div class="glass-panel stat-card">
-            <span class="stat-label">Completed</span>
-            <h3 id="port-metric-completed">0</h3>
-          </div>
-          <div class="glass-panel stat-card">
-            <span class="stat-label">Total Activities</span>
-            <h3 id="port-metric-total">0</h3>
-          </div>
-          <div class="glass-panel stat-card">
-            <span class="stat-label">Completion Rate</span>
-            <h3 id="port-metric-rate">0%</h3>
-          </div>
-          <div class="glass-panel stat-card">
-            <span class="stat-label">Average Score</span>
-            <h3 id="port-metric-avg">—</h3>
-          </div>
-        </div>
-
-        <!-- Filterable & Searchable Stored Outputs Repository -->
-        <div class="glass-panel">
-          <div class="portfolio-toolbar">
-            <div>
-              <h2>Submitted Outputs &amp; Graded Activities</h2>
-              <p class="text-muted">Click any activity output card to inspect graded feedback and rubric details.</p>
-            </div>
-            <div class="workspace-action-bar">
-              <input type="text" id="portfolio-search-input" class="form-control input-search-sm" placeholder="Search outputs..." />
-              <select id="portfolio-sort-select" class="form-select select-sort-sm">
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="graded">Graded Only</option>
-                <option value="missing">Missing / Pending</option>
-              </select>
-            </div>
-          </div>
-
-          <div id="student-portfolio-items" class="cards-grid">
-            <div class="empty-state">
-              <i class="fas fa-spinner fa-spin"></i>
-              <h3>Loading portfolio outputs...</h3>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- PANEL 2: ACCOUNT PROFILE & SECURITY CREDENTIALS -->
-      <section id="panel-account-settings" class="tab-panel">
+      <!-- Main Account Settings Panel -->
+      <section id="panel-account-settings" class="tab-panel active">
         <div class="settings-grid">
           <!-- Profile Card -->
           <section class="settings-card glass-panel">
@@ -286,7 +211,7 @@
           <div class="panel-toolbar">
             <div class="header-left">
               <button type="button" id="btn-back-from-notif" class="btn-secondary">
-                <i class="fas fa-arrow-left"></i> Back to Workspace
+                <i class="fas fa-arrow-left"></i> Back to Settings
               </button>
               <h2>Notification Details</h2>
             </div>
@@ -304,63 +229,6 @@
         </div>
       </section>
     </main>
-  </div>
-
-  <!-- Modal: Activity Graded Details & Locked Submission Viewer -->
-  <div class="modal-backdrop" id="modal-activity-detail" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card modal-card-lg">
-      <div class="modal-header">
-        <h3 id="detail-act-title">Activity Details</h3>
-        <button type="button" class="btn-close-modal" data-close-modal="modal-activity-detail">&times;</button>
-      </div>
-
-      <input type="hidden" id="detail-act-id" />
-      <div class="workspace-action-bar">
-        <span id="detail-act-badge" class="badge-pill">Domain</span>
-        <span id="detail-act-points" class="badge-pill">100 pts</span>
-        <span id="detail-act-due" class="text-muted"></span>
-      </div>
-
-      <div class="text-muted">
-        <strong>Rubric:</strong> <span id="detail-act-rubric"></span>
-      </div>
-
-      <div id="detail-act-desc" class="faculty-sub-notes"></div>
-
-      <!-- Student Submission View -->
-      <div id="student-submission-section">
-        <div id="student-grade-feedback-box" class="status-msg success is-hidden">
-          <strong>Awarded Score: <span id="student-awarded-score"></span></strong>
-          <p id="student-awarded-feedback"></p>
-        </div>
-
-        <div id="activity-closed-notice" class="submission-lock-banner is-hidden">
-          <i class="fas fa-lock" id="activity-closed-icon"></i>
-          <span id="activity-closed-text">This activity is locked.</span>
-        </div>
-
-        <div id="deliverable-attached-file-info" class="attached-file-card is-hidden"></div>
-
-        <form id="form-submit-deliverable">
-          <div class="form-group">
-            <label for="deliverable-notes" class="form-label">Submitted Answer / Output Notes (Optional if uploading a file)</label>
-            <textarea id="deliverable-notes" class="form-control" rows="4" placeholder="Write your HR analysis, or paste a document link, or upload your file below..."></textarea>
-          </div>
-
-          <div class="form-group" id="deliverable-file-group">
-            <label for="deliverable-file-input" class="form-label">Upload Document or File (PDF, DOC, DOCX, XLSX, PPTX, PNG, JPG)</label>
-            <input type="file" id="deliverable-file-input" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,image/png,image/jpeg,image/webp" />
-          </div>
-
-          <div class="modal-actions">
-            <button type="button" class="btn-secondary" data-close-modal="modal-activity-detail">Close</button>
-            <button type="submit" id="btn-save-deliverable" class="btn-primary">
-              <i class="fas fa-paper-plane"></i> Submit
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   </div>
 
   <script type="module" src="js/theme.js?v=18"></script>

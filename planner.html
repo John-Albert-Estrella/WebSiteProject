@@ -42,8 +42,8 @@
 
           <div class="nav-section-label">System</div>
           <a href="settings.html" class="nav-item" id="nav-settings">
-            <i class="fas fa-briefcase"></i>
-            <span>Portfolio</span>
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
           </a>
         </nav>
       </div>
@@ -86,7 +86,7 @@
                 </div>
               </div>
               <div class="notif-dropdown-footer">
-                <button type="button" id="btn-view-all-notifs" class="btn-secondary">
+                <button type="button" id="btn-view-all-notifs" class="btn-secondary w-full">
                   View All in Full Page
                 </button>
               </div>
@@ -105,7 +105,7 @@
 
       <!-- Team Room Selector & Action Bar -->
       <div class="workspace-action-bar">
-        <select id="planner-team-select" class="form-select" style="max-width: 260px;" aria-label="Select Team Room">
+        <select id="planner-team-select" class="form-select select-compact" aria-label="Select Team Room">
           <option value="">Loading Team Rooms...</option>
         </select>
         <button type="button" id="btn-open-team-modal" class="btn-secondary">
@@ -113,6 +113,9 @@
         </button>
         <button type="button" id="btn-open-task-modal" class="btn-primary">
           <i class="fas fa-plus"></i> Assign Task
+        </button>
+        <button type="button" id="btn-open-status-colors-modal" class="btn-secondary" title="Edit Status Colors">
+          <i class="fas fa-palette"></i> Status Colors
         </button>
       </div>
 
@@ -154,37 +157,49 @@
 
       <!-- PANEL 1: KANBAN PROGRESS COLUMNS & DEADLINES -->
       <section id="panel-kanban" class="tab-panel active">
-        <div class="cards-grid">
-          <div class="glass-panel">
+        <div class="kanban-board-grid">
+          <div class="glass-panel kanban-col-card" data-status-col="todo">
             <div class="panel-toolbar">
-              <h3>To Do</h3>
+              <span class="status-chip status-chip-todo">
+                <span class="status-dot"></span>
+                <span>To Do</span>
+              </span>
               <span id="count-todo" class="badge-pill">0</span>
             </div>
-            <div id="col-todo" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 240px;"></div>
+            <div id="col-todo" class="kanban-col-stack"></div>
           </div>
 
-          <div class="glass-panel">
+          <div class="glass-panel kanban-col-card" data-status-col="inprogress">
             <div class="panel-toolbar">
-              <h3>In Progress</h3>
+              <span class="status-chip status-chip-inprogress">
+                <span class="status-dot"></span>
+                <span>In Progress</span>
+              </span>
               <span id="count-inprogress" class="badge-pill">0</span>
             </div>
-            <div id="col-inprogress" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 240px;"></div>
+            <div id="col-inprogress" class="kanban-col-stack"></div>
           </div>
 
-          <div class="glass-panel">
+          <div class="glass-panel kanban-col-card" data-status-col="review">
             <div class="panel-toolbar">
-              <h3>Under Review</h3>
+              <span class="status-chip status-chip-review">
+                <span class="status-dot"></span>
+                <span>Under Review</span>
+              </span>
               <span id="count-review" class="badge-pill">0</span>
             </div>
-            <div id="col-review" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 240px;"></div>
+            <div id="col-review" class="kanban-col-stack"></div>
           </div>
 
-          <div class="glass-panel">
+          <div class="glass-panel kanban-col-card" data-status-col="done">
             <div class="panel-toolbar">
-              <h3>Completed</h3>
+              <span class="status-chip status-chip-done">
+                <span class="status-dot"></span>
+                <span>Completed</span>
+              </span>
               <span id="count-done" class="badge-pill">0</span>
             </div>
-            <div id="col-done" style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 240px;"></div>
+            <div id="col-done" class="kanban-col-stack"></div>
           </div>
         </div>
       </section>
@@ -214,7 +229,7 @@
             </button>
           </div>
 
-          <div id="onboarding-checklist-container" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
+          <div id="onboarding-checklist-container" class="admin-feed-list"></div>
         </div>
       </section>
 
@@ -234,7 +249,7 @@
           <div class="inspector-meta-item">
             <h3 id="notif-detail-title">Project Planner Notification</h3>
             <p id="notif-detail-meta" class="text-muted">Active Workspace Alert</p>
-            <div id="notif-detail-body" style="white-space: pre-wrap; margin-top: 0.75rem;"></div>
+            <div id="notif-detail-body" class="faculty-sub-notes"></div>
           </div>
         </div>
       </section>
@@ -249,7 +264,7 @@
         <button type="button" class="btn-close-modal" data-close-modal="modal-team">&times;</button>
       </div>
 
-      <form id="form-create-team" style="margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-subtle);">
+      <form id="form-create-team">
         <div class="form-group">
           <label for="new-team-name" class="form-label">Create Team Room (You become Team Leader)</label>
           <input type="text" id="new-team-name" class="form-control" placeholder="e.g., Apex HR Operations Team" required />
@@ -258,20 +273,22 @@
           <label for="new-team-project" class="form-label">Onboarding / Simulation Project Scope</label>
           <input type="text" id="new-team-project" class="form-control" placeholder="e.g., Q4 Corporate Onboarding & Policy Rollout" required />
         </div>
-        <button type="submit" class="btn-primary" style="width: 100%;">
+        <button type="submit" class="btn-primary w-full">
           <i class="fas fa-plus"></i> Create Team &amp; Generate Room Code
         </button>
       </form>
 
-      <form id="form-join-team">
-        <div class="form-group">
-          <label for="join-team-code" class="form-label">Join Existing Team Room via Code (Up to 14 Members + 1 Leader)</label>
-          <input type="text" id="join-team-code" class="form-control code-mono" placeholder="e.g., TM-94A2" required />
-        </div>
-        <button type="submit" class="btn-secondary" style="width: 100%;">
-          <i class="fas fa-sign-in-alt"></i> Join Team Room
-        </button>
-      </form>
+      <div class="admin-composer-collapse">
+        <form id="form-join-team">
+          <div class="form-group">
+            <label for="join-team-code" class="form-label">Join Existing Team Room via Code (Up to 14 Members + 1 Leader)</label>
+            <input type="text" id="join-team-code" class="form-control code-mono" placeholder="e.g., TM-94A2" required />
+          </div>
+          <button type="submit" class="btn-secondary w-full">
+            <i class="fas fa-sign-in-alt"></i> Join Team Room
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -284,7 +301,7 @@
 
       <form id="form-create-task">
         <div class="form-group">
-          <label for="task-title" class="form-label">Deliverable Title</label>
+          <label for="task-title" class="form-label">Task</label>
           <input type="text" id="task-title" class="form-control" placeholder="e.g., Finalize New-Hire Orientation Packet" required />
         </div>
         <div class="form-row">
@@ -297,19 +314,13 @@
             <input type="date" id="task-deadline" class="form-control" required />
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="task-position-tag" class="form-label">Task</label>
-            <input type="text" id="task-position-tag" class="form-control" placeholder="e.g., Policy Drafting / Benefits Setup" required />
-          </div>
-          <div class="form-group">
-            <label for="task-priority" class="form-label">Priority Level</label>
-            <select id="task-priority" class="form-select">
-              <option value="Normal">Normal</option>
-              <option value="High">High</option>
-              <option value="Urgent">Urgent</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label for="task-priority" class="form-label">Priority Level</label>
+          <select id="task-priority" class="form-select">
+            <option value="Normal">Normal</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="task-responsibility" class="form-label">Specific Responsibilities</label>
@@ -318,7 +329,7 @@
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-task">Cancel</button>
           <button type="submit" class="btn-primary">
-            <i class="fas fa-plus"></i> Submit
+            <i class="fas fa-plus"></i> Add Task
           </button>
         </div>
       </form>
@@ -335,7 +346,7 @@
       <form id="form-edit-task">
         <input type="hidden" id="edit-task-id" />
         <div class="form-group">
-          <label for="edit-task-title" class="form-label">Deliverable Title</label>
+          <label for="edit-task-title" class="form-label">Task</label>
           <input type="text" id="edit-task-title" class="form-control" required />
         </div>
         <div class="form-row">
@@ -348,19 +359,13 @@
             <input type="date" id="edit-task-deadline" class="form-control" required />
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="edit-task-position-tag" class="form-label">Task</label>
-            <input type="text" id="edit-task-position-tag" class="form-control" required />
-          </div>
-          <div class="form-group">
-            <label for="edit-task-priority" class="form-label">Priority Level</label>
-            <select id="edit-task-priority" class="form-select">
-              <option value="Normal">Normal</option>
-              <option value="High">High</option>
-              <option value="Urgent">Urgent</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label for="edit-task-priority" class="form-label">Priority Level</label>
+          <select id="edit-task-priority" class="form-select">
+            <option value="Normal">Normal</option>
+            <option value="High">High</option>
+            <option value="Urgent">Urgent</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="edit-task-responsibility" class="form-label">Specific Responsibilities</label>
@@ -370,6 +375,58 @@
           <button type="button" class="btn-secondary" data-close-modal="modal-edit-task">Cancel</button>
           <button type="submit" class="btn-primary">
             <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-status-colors" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card modal-card-sm">
+      <div class="modal-header">
+        <h3><i class="fas fa-sliders-h"></i> Edit Status Colors</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-status-colors">&times;</button>
+      </div>
+
+      <form id="form-status-colors">
+        <div class="status-color-picker-list">
+          <div class="status-color-row">
+            <span class="status-chip status-chip-todo">
+              <span class="status-dot"></span>
+              <span>To Do (Not started)</span>
+            </span>
+            <input type="color" id="color-input-todo" class="status-color-input" value="#94a3b8" aria-label="To Do Color" />
+          </div>
+
+          <div class="status-color-row">
+            <span class="status-chip status-chip-inprogress">
+              <span class="status-dot"></span>
+              <span>In Progress</span>
+            </span>
+            <input type="color" id="color-input-inprogress" class="status-color-input" value="#3b82f6" aria-label="In Progress Color" />
+          </div>
+
+          <div class="status-color-row">
+            <span class="status-chip status-chip-review">
+              <span class="status-dot"></span>
+              <span>Under Review</span>
+            </span>
+            <input type="color" id="color-input-review" class="status-color-input" value="#f59e0b" aria-label="Under Review Color" />
+          </div>
+
+          <div class="status-color-row">
+            <span class="status-chip status-chip-done">
+              <span class="status-dot"></span>
+              <span>Completed (Done)</span>
+            </span>
+            <input type="color" id="color-input-done" class="status-color-input" value="#10b981" aria-label="Completed Color" />
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="btn-reset-status-colors" class="btn-secondary">Reset Defaults</button>
+          <button type="submit" class="btn-primary">
+            <i class="fas fa-check"></i> Save Colors
           </button>
         </div>
       </form>

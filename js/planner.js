@@ -1,4 +1,4 @@
-// js/planner.js - Project Planner (15-Member Capacity, Assign Position, Deadlines, Kanban Edit & Notifications)
+// js/planner.js - Project Planner (15-Member Capacity, Customizable Status Color Palette, Task Progression & Onboarding)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -16,11 +16,26 @@ import { FastCache, escapeHtml, checkRateLimit, logAuditEvent } from "./security
 
 const MAX_TEAM_CAPACITY = 15;
 
+const DEFAULT_STATUS_COLORS = {
+  todo: "#94a3b8",
+  inprogress: "#3b82f6",
+  review: "#f59e0b",
+  done: "#10b981"
+};
+
+const STATUS_LABELS = {
+  todo: "To Do",
+  inprogress: "In Progress",
+  review: "Under Review",
+  done: "Completed"
+};
+
 let currentUser = null;
 let userProfile = null;
 let teams = [];
 let activeTeam = null;
 let currentTasks = [];
+let activeStatusColors = { ...DEFAULT_STATUS_COLORS };
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
@@ -39,6 +54,7 @@ onAuthStateChanged(auth, async (user) => {
     FastCache.set("user_profile", userProfile);
   }
 
+  loadSavedStatusColors(null);
   bindPlannerEvents();
 
   const cachedTeams = FastCache.get("planner_teams");
@@ -53,9 +69,52 @@ onAuthStateChanged(auth, async (user) => {
 function renderRoleBadge(role) {
   const normalized = (role || "student").toLowerCase();
   const isFac = normalized === "faculty";
-  const bg = isFac ? "rgba(56, 189, 248, 0.16)" : "rgba(16, 185, 129, 0.16)";
-  const color = isFac ? "#38bdf8" : "#10b981";
-  return `<span class="badge-pill" style="background:${bg};color:${color};border-color:transparent;">${escapeHtml(normalized.toUpperCase())}</span>`;
+  return `<span class="badge-pill ${isFac ? "role-pill-faculty" : "role-pill-student"}">${escapeHtml(normalized.toUpperCase())}</span>`;
+}
+
+function hexToRgba(hex, alpha = 0.16) {
+  const clean = String(hex || "").replace("#", "").trim();
+  if (!/^[0-9a-fA-F]{6}$/.test(clean)) return `rgba(148, 163, 184, ${alpha})`;
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function applyStatusColorsToCSS(colorsObj) {
+  activeStatusColors = {
+    todo: colorsObj?.todo || DEFAULT_STATUS_COLORS.todo,
+    inprogress: colorsObj?.inprogress || DEFAULT_STATUS_COLORS.inprogress,
+    review: colorsObj?.review || DEFAULT_STATUS_COLORS.review,
+    done: colorsObj?.done || DEFAULT_STATUS_COLORS.done
+  };
+
+  const root = document.documentElement;
+  Object.entries(activeStatusColors).forEach(([key, hex]) => {
+    root.style.setProperty(`--status-${key}-color`, hex);
+    root.style.setProperty(`--status-${key}-bg`, hexToRgba(hex, 0.18));
+    root.style.setProperty(`--status-${key}-border`, hexToRgba(hex, 0.42));
+
+    const inputEl = document.getElementById(`color-input-${key}`);
+    if (inputEl) inputEl.value = hex;
+  });
+}
+
+function loadSavedStatusColors(teamObj) {
+  if (teamObj && teamObj.statusColors) {
+    applyStatusColorsToCSS(teamObj.statusColors);
+    return;
+  }
+  try {
+    const localColors = JSON.parse(localStorage.getItem("aimser_status_colors") || "null");
+    if (localColors) {
+      applyStatusColorsToCSS(localColors);
+      return;
+    }
+  } catch {
+    // Ignore storage error
+  }
+  applyStatusColorsToCSS(DEFAULT_STATUS_COLORS);
 }
 
 async function loadTeams() {
@@ -99,6 +158,7 @@ async function selectTeam(teamId) {
   }
 
   localStorage.setItem("aimser_active_team", teamId);
+  loadSavedStatusColors(activeTeam);
 
   const members = activeTeam.members || [];
   document.getElementById("team-invite-code").textContent = activeTeam.inviteCode || "—";
@@ -142,7 +202,7 @@ function renderPlannerNotifications(tasks) {
   }
 
   if (activeAlerts.length === 0) {
-    list.innerHTML = `<div class="empty-state" style="padding:1.25rem;"><i class="fas fa-check-circle"></i><h3>All Team Tasks Completed</h3><p>No pending tasks or overdue milestones.</p></div>`;
+    list.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle"></i><h3>All Team Tasks Completed</h3><p>No pending tasks or overdue milestones.</p></div>`;
     return;
   }
 
@@ -150,11 +210,14 @@ function renderPlannerNotifications(tasks) {
     .map(
       (t) => `
       <div class="inspector-meta-item">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.2rem;">
-          <strong style="font-size:0.84rem;">${escapeHtml(t.title)}</strong>
-          <span class="badge-pill" style="font-size:0.65rem;">${escapeHtml(t.positionTag || "Task")}</span>
+        <div class="panel-toolbar">
+          <strong>${escapeHtml(t.title)}</strong>
+          <span class="status-chip status-chip-${escapeHtml(t.status || "todo")}">
+            <span class="status-dot"></span>
+            <span>${escapeHtml(STATUS_LABELS[t.status] || "To Do")}</span>
+          </span>
         </div>
-        <p class="text-muted" style="font-size:0.78rem;margin:0;">Assignee: ${escapeHtml(t.assigneeName || "Team")} • Due: ${escapeHtml(t.deadline || "Flexible")}</p>
+        <p class="text-muted">Assignee: ${escapeHtml(t.assigneeName || "Team")} • Due: ${escapeHtml(t.deadline || "Flexible")}</p>
       </div>`
     )
     .join("");
@@ -178,36 +241,40 @@ function renderKanbanTasks(tasks, teamId) {
 
     col.innerHTML =
       list.length === 0
-        ? `<div class="text-muted" style="text-align:center;padding:1.5rem 0.5rem;font-size:0.8rem;border:1px dashed var(--border-subtle);border-radius:var(--radius-sm);">No tasks in this stage</div>`
+        ? `<div class="kanban-empty-slot">No tasks in this stage</div>`
         : list
             .map((task) => {
               const isOverdue = task.deadline && status !== "done" && new Date(task.deadline).getTime() < Date.now();
-              const dueColor = isOverdue ? "var(--danger)" : "var(--text-tertiary)";
+              const statusLabel = STATUS_LABELS[status] || "To Do";
 
               return `
-                <div class="inspector-meta-item" style="padding:0.85rem;">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;gap:0.35rem;">
-                    <span class="badge-pill" style="font-size:0.68rem;">${escapeHtml(task.positionTag || task.priority || "Task")}</span>
-                    <div style="display:flex;align-items:center;gap:0.45rem;">
-                      <button type="button" class="btn-edit-task" data-id="${task.id}" style="background:none;border:none;color:var(--aimser-blue-400);cursor:pointer;font-size:0.8rem;" title="Edit Task"><i class="fas fa-pen"></i></button>
-                      <button type="button" class="btn-del-task" data-id="${task.id}" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:1rem;" title="Remove Task">&times;</button>
+                <article class="kanban-task-card kanban-task-${status}">
+                  <div class="panel-toolbar">
+                    <span class="status-chip status-chip-${status}">
+                      <span class="status-dot"></span>
+                      <span>${escapeHtml(statusLabel)}</span>
+                    </span>
+                    <div class="user-cell-flex">
+                      <span class="badge-pill">${escapeHtml(task.priority || "Normal")}</span>
+                      <button type="button" class="btn-close-modal btn-edit-task" data-id="${task.id}" title="Edit Task"><i class="fas fa-pen"></i></button>
+                      <button type="button" class="btn-close-modal btn-del-task" data-id="${task.id}" title="Remove Task">&times;</button>
                     </div>
                   </div>
-                  <div style="font-weight:600;font-size:0.9rem;margin-bottom:0.35rem;color:var(--text-primary);">${escapeHtml(task.title)}</div>
-                  ${task.responsibility ? `<p class="text-muted" style="font-size:0.78rem;line-height:1.4;margin-bottom:0.5rem;">${escapeHtml(task.responsibility)}</p>` : ""}
-                  <div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.3rem;">
+                  <h4 class="kanban-task-title">${escapeHtml(task.title)}</h4>
+                  ${task.responsibility ? `<p class="text-muted">${escapeHtml(task.responsibility)}</p>` : ""}
+                  <div class="text-muted">
                     <i class="fas fa-user-tag"></i> ${escapeHtml(task.assigneeName || task.assignee || "Unassigned")}
                   </div>
-                  <div style="font-size:0.74rem;color:${dueColor};margin-bottom:0.65rem;">
+                  <div class="text-muted ${isOverdue ? "text-danger-strong" : ""}">
                     <i class="far fa-calendar-alt"></i> Deadline: ${escapeHtml(task.deadline || "Flexible")} ${isOverdue ? "(Overdue)" : ""}
                   </div>
-                  <select class="form-select task-status-mover" data-id="${task.id}" style="padding:0.28rem 0.5rem;font-size:0.75rem;">
-                    <option value="todo" ${status === "todo" ? "selected" : ""}>To Do</option>
-                    <option value="inprogress" ${status === "inprogress" ? "selected" : ""}>In Progress</option>
-                    <option value="review" ${status === "review" ? "selected" : ""}>Under Review</option>
-                    <option value="done" ${status === "done" ? "selected" : ""}>Completed</option>
+                  <select class="form-select task-status-mover status-select-${status}" data-id="${task.id}" aria-label="Change Task Status">
+                    <option value="todo" ${status === "todo" ? "selected" : ""}>● To Do (Not started)</option>
+                    <option value="inprogress" ${status === "inprogress" ? "selected" : ""}>● In Progress</option>
+                    <option value="review" ${status === "review" ? "selected" : ""}>● Under Review</option>
+                    <option value="done" ${status === "done" ? "selected" : ""}>● Completed (Done)</option>
                   </select>
-                </div>`;
+                </article>`;
             })
             .join("");
 
@@ -219,7 +286,6 @@ function renderKanbanTasks(tasks, teamId) {
         document.getElementById("edit-task-title").value = targetTask.title || "";
         document.getElementById("edit-task-assignee").value = targetTask.assigneeName || targetTask.assignee || "";
         document.getElementById("edit-task-deadline").value = targetTask.deadline || "";
-        document.getElementById("edit-task-position-tag").value = targetTask.positionTag || "";
         document.getElementById("edit-task-priority").value = targetTask.priority || "Normal";
         document.getElementById("edit-task-responsibility").value = targetTask.responsibility || "";
         openModal("modal-edit-task");
@@ -245,7 +311,6 @@ function renderKanbanTasks(tasks, teamId) {
   });
 }
 
-// Render Team Members & Assigned Positions (Hierarchy Tier Label Removed per Faculty Revision)
 function renderHierarchyAndPositions() {
   const grid = document.getElementById("hierarchy-members-grid");
   const assigneeSelect = document.getElementById("task-assignee");
@@ -279,19 +344,20 @@ function renderHierarchyAndPositions() {
   grid.innerHTML = membersList
     .map(
       (m) => `
-      <div class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;">
+      <div class="glass-panel">
         <div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;gap:0.4rem;flex-wrap:wrap;">
+          <div class="panel-toolbar">
             <span class="badge-pill"><i class="fas fa-id-badge"></i> ${escapeHtml(m.position)}</span>
             ${renderRoleBadge(m.roleBadge)}
           </div>
-          <h3 style="font-size:1.05rem;margin-bottom:0.45rem;">${escapeHtml(m.fullName)}</h3>
-          <p class="text-muted" style="font-size:0.82rem;line-height:1.5;">
+          <h3>${escapeHtml(m.fullName)}</h3>
+          <p class="text-muted">
             <strong>Responsibilities:</strong> ${escapeHtml(m.responsibilities)}
           </p>
         </div>
 
-        <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:flex-end;">
+        <div class="card-footer-bar">
+          <span></span>
           <button type="button" class="btn-secondary btn-open-pos-modal" data-uid="${m.uid}" data-name="${escapeHtml(m.fullName)}" data-tier="${escapeHtml(m.tier)}" data-pos="${escapeHtml(m.position)}" data-resp="${escapeHtml(m.responsibilities)}">
             <i class="fas fa-user-edit"></i> Assign Position
           </button>
@@ -341,19 +407,17 @@ async function loadOnboardingChecklist(teamId) {
     container.innerHTML = items
       .map(
         (item) => `
-        <div class="inspector-meta-item" style="display:flex;justify-content:space-between;align-items:center;padding:0.85rem 1rem;gap:1rem;">
-          <label style="display:flex;align-items:center;gap:0.75rem;cursor:pointer;flex:1;">
-            <input type="checkbox" class="onb-checkbox" data-id="${item.id}" ${item.completed ? "checked" : ""} style="width:18px;height:18px;accent-color:var(--success);" />
+        <div class="inspector-meta-item panel-toolbar">
+          <label class="user-cell-flex">
+            <input type="checkbox" class="onb-checkbox" data-id="${item.id}" ${item.completed ? "checked" : ""} />
             <div>
-              <div style="font-weight:600;font-size:0.9rem;text-decoration:${item.completed ? "line-through" : "none"};color:${item.completed ? "var(--text-tertiary)" : "var(--text-primary)"};">
-                ${escapeHtml(item.title)}
-              </div>
-              <div class="text-muted" style="font-size:0.76rem;">
+              <strong>${escapeHtml(item.title)}</strong>
+              <div class="text-muted">
                 Owner: <strong>${escapeHtml(item.owner || "Team")}</strong> • Target: ${escapeHtml(item.dueDate || "TBD")}
               </div>
             </div>
           </label>
-          <button type="button" class="btn-sidebar-action btn-logout btn-del-onb" data-id="${item.id}" style="width:auto;padding:0.3rem 0.6rem;font-size:0.75rem;">
+          <button type="button" class="btn-sidebar-action btn-logout btn-del-onb" data-id="${item.id}">
             <i class="fas fa-trash"></i>
           </button>
         </div>`
@@ -412,6 +476,57 @@ function bindPlannerEvents() {
     openModal("modal-task");
   });
 
+  document.getElementById("btn-open-status-colors-modal")?.addEventListener("click", () => {
+    openModal("modal-status-colors");
+  });
+
+  // Live preview as user picks a status color
+  ["todo", "inprogress", "review", "done"].forEach((key) => {
+    document.getElementById(`color-input-${key}`)?.addEventListener("input", (e) => {
+      applyStatusColorsToCSS({
+        ...activeStatusColors,
+        [key]: e.target.value
+      });
+    });
+  });
+
+  document.getElementById("btn-reset-status-colors")?.addEventListener("click", async () => {
+    applyStatusColorsToCSS(DEFAULT_STATUS_COLORS);
+    localStorage.setItem("aimser_status_colors", JSON.stringify(DEFAULT_STATUS_COLORS));
+    if (activeTeam) {
+      try {
+        await updateDoc(doc(db, "teams", activeTeam.id), { statusColors: DEFAULT_STATUS_COLORS });
+        activeTeam.statusColors = { ...DEFAULT_STATUS_COLORS };
+      } catch {
+        // Non-blocking
+      }
+    }
+  });
+
+  document.getElementById("form-status-colors")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const updatedColors = {
+      todo: document.getElementById("color-input-todo").value || DEFAULT_STATUS_COLORS.todo,
+      inprogress: document.getElementById("color-input-inprogress").value || DEFAULT_STATUS_COLORS.inprogress,
+      review: document.getElementById("color-input-review").value || DEFAULT_STATUS_COLORS.review,
+      done: document.getElementById("color-input-done").value || DEFAULT_STATUS_COLORS.done
+    };
+
+    applyStatusColorsToCSS(updatedColors);
+    localStorage.setItem("aimser_status_colors", JSON.stringify(updatedColors));
+
+    if (activeTeam) {
+      try {
+        await updateDoc(doc(db, "teams", activeTeam.id), { statusColors: updatedColors });
+        activeTeam.statusColors = updatedColors;
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    closeModal("modal-status-colors");
+  });
+
   document.getElementById("btn-open-onboarding-modal")?.addEventListener("click", () => {
     if (!activeTeam) {
       alert("Create or join a team room first.");
@@ -435,6 +550,7 @@ function bindPlannerEvents() {
         leaderUid: currentUser.uid,
         maxMembers: MAX_TEAM_CAPACITY,
         members: [currentUser.uid],
+        statusColors: activeStatusColors,
         memberProfiles: {
           [currentUser.uid]: {
             fullName: userProfile.fullName,
@@ -501,6 +617,7 @@ function bindPlannerEvents() {
     }
   });
 
+  // Create Task Handler (Target Position Removed)
   document.getElementById("form-create-task")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!activeTeam) return;
@@ -508,7 +625,6 @@ function bindPlannerEvents() {
     const title = document.getElementById("task-title").value.trim();
     const assigneeName = document.getElementById("task-assignee").value;
     const deadline = document.getElementById("task-deadline").value;
-    const positionTag = document.getElementById("task-position-tag").value.trim();
     const priority = document.getElementById("task-priority").value;
     const responsibility = document.getElementById("task-responsibility").value.trim();
 
@@ -516,7 +632,6 @@ function bindPlannerEvents() {
       title,
       assigneeName,
       deadline,
-      positionTag,
       priority,
       responsibility,
       status: "todo",
@@ -528,6 +643,7 @@ function bindPlannerEvents() {
     await loadTasks(activeTeam.id);
   });
 
+  // Edit Task Handler (Target Position Removed)
   document.getElementById("form-edit-task")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!activeTeam) return;
@@ -536,7 +652,6 @@ function bindPlannerEvents() {
     const title = document.getElementById("edit-task-title").value.trim();
     const assigneeName = document.getElementById("edit-task-assignee").value;
     const deadline = document.getElementById("edit-task-deadline").value;
-    const positionTag = document.getElementById("edit-task-position-tag").value.trim();
     const priority = document.getElementById("edit-task-priority").value;
     const responsibility = document.getElementById("edit-task-responsibility").value.trim();
 
@@ -544,7 +659,6 @@ function bindPlannerEvents() {
       title,
       assigneeName,
       deadline,
-      positionTag,
       priority,
       responsibility,
       updatedAt: serverTimestamp()

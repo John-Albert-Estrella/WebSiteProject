@@ -42,8 +42,8 @@
 
           <div class="nav-section-label">System</div>
           <a href="settings.html" class="nav-item" id="nav-settings">
-            <i class="fas fa-briefcase"></i>
-            <span>Portfolio</span>
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
           </a>
         </nav>
       </div>
@@ -184,7 +184,7 @@
         </div>
       </section>
 
-      <!-- PANEL 2: HR WORKFORCE ANALYTICS & PERFORMANCE TELEMETRY -->
+      <!-- PANEL 2: PERFORMANCE TELEMETRY & ANALYTICS -->
       <section id="panel-analytics" class="tab-panel">
         <div id="faculty-analytics-view" class="is-hidden">
           <div class="stats-row">
@@ -240,110 +240,12 @@
               <h3 id="stu-submitted-count">0 / 0</h3>
             </div>
           </div>
-
-          <div class="glass-panel">
-            <div class="panel-toolbar">
-              <div>
-                <h2>HR Workforce Metrics Simulator</h2>
-              </div>
-            </div>
-
-            <form id="form-hr-analytics">
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="an-total-headcount" class="form-label">Total Average Headcount</label>
-                  <input type="number" id="an-total-headcount" class="form-control" min="1" value="120" required />
-                </div>
-                <div class="form-group">
-                  <label for="an-separations" class="form-label">Employee Separations</label>
-                  <input type="number" id="an-separations" class="form-control" min="0" value="9" required />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="an-absent-days" class="form-label">Total Unplanned Absent Days</label>
-                  <input type="number" id="an-absent-days" class="form-control" min="0" value="48" required />
-                </div>
-                <div class="form-group">
-                  <label for="an-work-days" class="form-label">Scheduled Workdays in Period</label>
-                  <input type="number" id="an-work-days" class="form-control" min="1" value="22" required />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="an-training-budget" class="form-label">Total Training Expenditure (₱)</label>
-                  <input type="number" id="an-training-budget" class="form-control" min="0" value="150000" required />
-                </div>
-                <div class="form-group">
-                  <label for="an-trained-staff" class="form-label">Employees Trained</label>
-                  <input type="number" id="an-trained-staff" class="form-control" min="1" value="50" required />
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="an-recruitment-spend" class="form-label">Total Recruitment Cost (₱)</label>
-                  <input type="number" id="an-recruitment-spend" class="form-control" min="0" value="90000" required />
-                </div>
-                <div class="form-group">
-                  <label for="an-new-hires" class="form-label">Total New Hires</label>
-                  <input type="number" id="an-new-hires" class="form-control" min="1" value="12" required />
-                </div>
-              </div>
-
-              <button type="submit" class="btn-primary">
-                <i class="fas fa-calculator"></i> Compute &amp; Save Workforce Report
-              </button>
-            </form>
-
-            <div class="stats-row">
-              <div class="glass-panel stat-card">
-                <span class="stat-label">Turnover Rate</span>
-                <h3 id="res-turnover-rate">7.50%</h3>
-              </div>
-              <div class="glass-panel stat-card">
-                <span class="stat-label">Absenteeism Rate</span>
-                <h3 id="res-absenteeism-rate">1.82%</h3>
-              </div>
-              <div class="glass-panel stat-card">
-                <span class="stat-label">Training Cost / Head</span>
-                <h3 id="res-training-cost">₱3,000</h3>
-              </div>
-              <div class="glass-panel stat-card">
-                <span class="stat-label">Cost per Hire</span>
-                <h3 id="res-recruitment-cost">₱7,500</h3>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
       <!-- PANEL 3: PORTFOLIO & OUTPUT TELEMETRY -->
       <section id="panel-portfolio" class="tab-panel">
         <div id="faculty-portfolio-view" class="is-hidden">
-          <div class="glass-panel">
-            <div class="panel-toolbar">
-              <div>
-                <h2>Class Appraisal Period &amp; KPIs</h2>
-              </div>
-              <button type="button" id="btn-open-kpi-modal" class="btn-primary">
-                <i class="fas fa-sliders-h"></i> Configure Class KPIs
-              </button>
-            </div>
-            <div class="form-row">
-              <div class="inspector-meta-item">
-                <span>Active Appraisal Period</span>
-                <strong id="appraisal-period-text">Not configured yet</strong>
-              </div>
-              <div class="inspector-meta-item">
-                <span>Target HR Competencies &amp; KPIs</span>
-                <strong id="appraisal-kpis-text">Awaiting instructor KPI setup.</strong>
-              </div>
-            </div>
-          </div>
-
           <div class="glass-panel">
             <div class="panel-toolbar">
               <div>
@@ -410,10 +312,6 @@
               <div>
                 <h2>Personal Development Plan &amp; Goals</h2>
               </div>
-            </div>
-
-            <div class="inspector-meta-item">
-              <strong>Class KPIs:</strong> <span id="student-kpi-text">Not configured yet</span>
             </div>
 
             <form id="form-student-devplan">
@@ -487,7 +385,6 @@
   </div>
 
   <!-- MODALS -->
-  <!-- Modal 1: Create or Join Class Room -->
   <div class="modal-backdrop" id="modal-classroom" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -521,7 +418,6 @@
     </div>
   </div>
 
-  <!-- Modal 2: Faculty Post Activity & Rubric -->
   <div class="modal-backdrop" id="modal-activity" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card modal-card-lg">
       <div class="modal-header">
@@ -535,33 +431,22 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="act-category" class="form-label">HR Domain</label>
-            <select id="act-category" class="form-select">
-              <option value="Labor Law & Compliance">Labor Law &amp; Compliance</option>
-              <option value="Recruitment & Selection">Recruitment &amp; Selection</option>
-              <option value="Employee Relations">Employee Relations</option>
-              <option value="Compensation & Benefits">Compensation &amp; Benefits</option>
-              <option value="Organizational Development">Organizational Development</option>
-            </select>
-          </div>
-          <div class="form-group">
             <label for="act-due-date" class="form-label">Submission Deadline</label>
             <input type="datetime-local" id="act-due-date" class="form-control" required />
           </div>
-        </div>
-        <div class="form-row">
           <div class="form-group">
             <label for="act-max-score" class="form-label">Maximum Points</label>
             <input type="number" id="act-max-score" class="form-control" min="10" max="500" value="100" required />
           </div>
-          <div class="form-group">
-            <label for="act-rubric" class="form-label">Grading Rubric Criteria</label>
-            <input type="text" id="act-rubric" class="form-control" placeholder="e.g., Legal Accuracy 40%, Analysis 40%, Clarity 20%" required />
-          </div>
         </div>
         <div class="form-group">
-          <label for="act-instructions" class="form-label">Scenario &amp; Deliverable Instructions</label>
-          <textarea id="act-instructions" class="form-control" rows="4" placeholder="Detail the HR task, required format, and deliverable expectations..." required></textarea>
+          <label for="act-rubric" class="form-label">Grading Rubric Criteria</label>
+          <input type="text" id="act-rubric" class="form-control" placeholder="e.g., Legal Accuracy 40%, Analysis 40%, Clarity 20%" required />
+        </div>
+        <div class="form-group">
+          <label for="act-instructions-file" class="form-label">Upload Instructions</label>
+          <input type="file" id="act-instructions-file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,image/png,image/jpeg,image/webp" />
+          <textarea id="act-instructions" class="form-control" rows="3" placeholder="Optional written instructions or notes (or upload your instruction file above)..."></textarea>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-activity">Cancel</button>
@@ -573,7 +458,6 @@
     </div>
   </div>
 
-  <!-- Modal 3: Activity Detail, Locked Student Submission & Faculty Rubric Grading -->
   <div class="modal-backdrop" id="modal-activity-detail" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card modal-card-lg">
       <div class="modal-header">
@@ -583,7 +467,7 @@
 
       <input type="hidden" id="detail-act-id" />
       <div class="workspace-action-bar">
-        <span id="detail-act-badge" class="badge-pill">Domain</span>
+        <span id="detail-act-badge" class="badge-pill">Activity</span>
         <span id="detail-act-points" class="badge-pill">100 pts</span>
         <span id="detail-act-due" class="text-muted"></span>
       </div>
@@ -594,21 +478,19 @@
 
       <div id="detail-act-desc" class="faculty-sub-notes"></div>
 
-      <!-- Student Submission View -->
+      <div id="detail-act-file-box" class="attached-file-card is-hidden"></div>
+
       <div id="student-submission-section" class="is-hidden">
-        <!-- Graded Output Details Box -->
         <div id="student-grade-feedback-box" class="status-msg success is-hidden">
           <strong>Awarded Score: <span id="student-awarded-score"></span></strong>
           <p id="student-awarded-feedback"></p>
         </div>
 
-        <!-- Automatic Deadline Closure or Locked Submission Banner -->
         <div id="activity-closed-notice" class="submission-lock-banner is-hidden">
           <i class="fas fa-lock" id="activity-closed-icon"></i>
           <span id="activity-closed-text">This activity is locked.</span>
         </div>
 
-        <!-- Read-Only Submitted File Display (Cannot be edited/removed unless Faculty unlocks) -->
         <div id="deliverable-attached-file-info" class="attached-file-card is-hidden"></div>
 
         <form id="form-submit-deliverable">
@@ -631,7 +513,6 @@
         </form>
       </div>
 
-      <!-- Faculty Grading View -->
       <div id="faculty-submissions-section" class="is-hidden">
         <h4>Student Submissions</h4>
         <div id="faculty-submissions-list" class="admin-logs-scroll"></div>
@@ -639,31 +520,6 @@
     </div>
   </div>
 
-  <!-- Modal 4: Faculty KPI Setup -->
-  <div class="modal-backdrop" id="modal-kpi-setup" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3>Configure Class Appraisal Period &amp; KPIs</h3>
-        <button type="button" class="btn-close-modal" data-close-modal="modal-kpi-setup">&times;</button>
-      </div>
-      <form id="form-set-kpis">
-        <div class="form-group">
-          <label for="kpi-period-name" class="form-label">Appraisal Period</label>
-          <input type="text" id="kpi-period-name" class="form-control" placeholder="e.g., Midterm Simulation Cycle (Weeks 1–8)" required />
-        </div>
-        <div class="form-group">
-          <label for="kpi-criteria-list" class="form-label">Target Competencies &amp; KPIs</label>
-          <textarea id="kpi-criteria-list" class="form-control" rows="3" placeholder="e.g., Policy Compliance, Case Investigation Accuracy, Team Leadership" required></textarea>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" data-close-modal="modal-kpi-setup">Cancel</button>
-          <button type="submit" class="btn-primary">Save KPIs</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Modal 5: Add Student Portfolio Output -->
   <div class="modal-backdrop" id="modal-portfolio-artifact" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">

@@ -2,6 +2,25 @@
    AIMSER Workspace & Admin Layout (v=18) — Complete External Stylesheet
    ========================================================================== */
 
+:root {
+  /* Customizable Kanban Status Color Palette */
+  --status-todo-color: #94a3b8;
+  --status-todo-bg: rgba(148, 163, 184, 0.18);
+  --status-todo-border: rgba(148, 163, 184, 0.42);
+
+  --status-inprogress-color: #3b82f6;
+  --status-inprogress-bg: rgba(59, 130, 246, 0.18);
+  --status-inprogress-border: rgba(59, 130, 246, 0.42);
+
+  --status-review-color: #f59e0b;
+  --status-review-bg: rgba(245, 158, 11, 0.18);
+  --status-review-border: rgba(245, 158, 11, 0.42);
+
+  --status-done-color: #10b981;
+  --status-done-bg: rgba(16, 185, 129, 0.18);
+  --status-done-border: rgba(16, 185, 129, 0.42);
+}
+
 .dashboard-layout {
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
@@ -122,14 +141,33 @@
   border-top: 1px solid var(--border-subtle);
 }
 
+/* Base action button: compact inline-flex by default so in-card Delete buttons never stretch */
 .btn-sidebar-action {
-  width: 100%;
-  justify-content: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: auto;
+  flex-shrink: 0;
   background-color: var(--bg-surface-elevated);
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
-  padding: 0.58rem 0.85rem;
+  border-radius: var(--radius-sm);
+  padding: 0.52rem 0.95rem;
+  font-family: var(--font-sans);
   font-size: 0.83rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* Only stretch to 100% width when inside the left sidebar footer */
+.sidebar-footer .btn-sidebar-action {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0.58rem 0.85rem;
 }
 
 .btn-sidebar-action:hover {
@@ -139,14 +177,78 @@
 
 .btn-logout {
   color: #f87171;
-  border-color: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.28);
   background-color: rgba(239, 68, 68, 0.08);
 }
 
 .btn-logout:hover:not(:disabled) {
   background-color: rgba(239, 68, 68, 0.16);
-  border-color: rgba(239, 68, 68, 0.42);
+  border-color: rgba(239, 68, 68, 0.45);
   color: #fca5a5;
+}
+
+/* Prevent buttons and links inside toolbars & action bars from wrapping onto multiple lines */
+.workspace-action-bar .btn-primary,
+.workspace-action-bar .btn-secondary,
+.workspace-action-bar .btn-sidebar-action,
+.panel-toolbar .btn-primary,
+.panel-toolbar .btn-secondary,
+.panel-toolbar .btn-sidebar-action,
+.admin-comment-row .btn-secondary,
+.admin-comment-row .btn-sidebar-action {
+  width: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  height: 38px;
+  padding: 0 0.9rem;
+  font-size: 0.82rem;
+  text-decoration: none;
+}
+
+/* Keep selects & search inputs inside toolbars compact so they never crush sibling buttons */
+.panel-toolbar .workspace-action-bar,
+.portfolio-toolbar .workspace-action-bar,
+.admin-comment-row .workspace-action-bar {
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.panel-toolbar .form-select,
+.portfolio-toolbar .form-select {
+  width: auto;
+  min-width: 145px;
+  max-width: 190px;
+  height: 38px;
+  padding: 0 2rem 0 0.75rem;
+  font-size: 0.83rem;
+  flex-shrink: 0;
+}
+
+.panel-toolbar .form-control,
+.portfolio-toolbar .form-control {
+  width: 220px;
+  max-width: 100%;
+  height: 38px;
+  padding: 0 0.8rem;
+  font-size: 0.83rem;
+  flex-shrink: 0;
+}
+
+/* Compact icon-only trash buttons inside comment rows */
+.btn-admin-del-comment,
+.btn-del-onb {
+  width: 34px !important;
+  height: 34px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
@@ -418,6 +520,194 @@
 .tab-panel.is-active {
   display: block !important;
   animation: feedbackSlideIn 0.18s ease-out;
+}
+
+/* ==========================================================================
+   Kanban Board, Status Pills & Customizable Color Palette
+   ========================================================================== */
+
+.kanban-board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(265px, 1fr));
+  gap: 1.15rem;
+  align-items: start;
+}
+
+.kanban-col-card {
+  border-top: 3px solid var(--border-medium);
+}
+
+.kanban-col-card[data-status-col="todo"] {
+  border-top-color: var(--status-todo-color);
+}
+
+.kanban-col-card[data-status-col="inprogress"] {
+  border-top-color: var(--status-inprogress-color);
+}
+
+.kanban-col-card[data-status-col="review"] {
+  border-top-color: var(--status-review-color);
+}
+
+.kanban-col-card[data-status-col="done"] {
+  border-top-color: var(--status-done-color);
+}
+
+.kanban-col-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 240px;
+}
+
+.kanban-empty-slot {
+  text-align: center;
+  padding: 1.75rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.26rem 0.72rem;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 1px solid transparent;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-chip-todo {
+  background-color: var(--status-todo-bg);
+  color: var(--status-todo-color);
+  border-color: var(--status-todo-border);
+}
+
+.status-chip-todo .status-dot {
+  background-color: var(--status-todo-color);
+}
+
+.status-chip-inprogress {
+  background-color: var(--status-inprogress-bg);
+  color: var(--status-inprogress-color);
+  border-color: var(--status-inprogress-border);
+}
+
+.status-chip-inprogress .status-dot {
+  background-color: var(--status-inprogress-color);
+}
+
+.status-chip-review {
+  background-color: var(--status-review-bg);
+  color: var(--status-review-color);
+  border-color: var(--status-review-border);
+}
+
+.status-chip-review .status-dot {
+  background-color: var(--status-review-color);
+}
+
+.status-chip-done {
+  background-color: var(--status-done-bg);
+  color: var(--status-done-color);
+  border-color: var(--status-done-border);
+}
+
+.status-chip-done .status-dot {
+  background-color: var(--status-done-color);
+}
+
+.kanban-task-card {
+  padding: 0.9rem;
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--status-todo-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.kanban-task-todo {
+  border-left-color: var(--status-todo-color);
+}
+
+.kanban-task-inprogress {
+  border-left-color: var(--status-inprogress-color);
+}
+
+.kanban-task-review {
+  border-left-color: var(--status-review-color);
+}
+
+.kanban-task-done {
+  border-left-color: var(--status-done-color);
+}
+
+.kanban-task-title {
+  font-size: 0.94rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.status-select-todo {
+  border-color: var(--status-todo-border);
+}
+
+.status-select-inprogress {
+  border-color: var(--status-inprogress-border);
+}
+
+.status-select-review {
+  border-color: var(--status-review-border);
+}
+
+.status-select-done {
+  border-color: var(--status-done-border);
+}
+
+.status-color-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.status-color-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+}
+
+.status-color-input {
+  width: 44px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  cursor: pointer;
+}
+
+.text-danger-strong {
+  color: var(--danger) !important;
+  font-weight: 600;
 }
 
 /* ==========================================================================
@@ -901,14 +1191,19 @@
 .admin-comment-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   padding: 0.65rem 0.85rem;
   border-radius: var(--radius-sm);
   background: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
   font-size: 0.83rem;
+}
+
+.admin-comment-row > div:first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 .admin-post-grid {
@@ -1028,6 +1323,10 @@
   max-height: 72vh;
   border-radius: var(--radius-sm);
   object-fit: contain;
+}
+
+.modal-card-sm {
+  max-width: 440px;
 }
 
 .modal-card-lg {

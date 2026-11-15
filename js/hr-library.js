@@ -1,4 +1,4 @@
-// js/hr-library.js - Public HR Case Library, E-Modules, Facebook-Style HR Feed (PNG/Photo Support) & Bell Notifications
+// js/hr-library.js - Public HR Case Library, Direct Document Upload, Facebook-Style HR Feed & Bell Notifications
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -46,7 +46,7 @@ onAuthStateChanged(auth, async (user) => {
   const role = (userProfile.role || "student").toLowerCase();
   if (role === "faculty" || role === "admin") {
     const uploadBtn = document.getElementById("btn-open-case-modal");
-    if (uploadBtn) uploadBtn.style.display = "inline-flex";
+    if (uploadBtn) uploadBtn.classList.remove("is-hidden");
   }
 
   bindLibraryAndFeedEvents();
@@ -71,15 +71,12 @@ onAuthStateChanged(auth, async (user) => {
 function renderRoleBadge(role) {
   const normalized = (role || "student").toLowerCase();
   if (normalized === "admin") {
-    return `<span class="badge-pill" style="background:var(--aimser-blue-700);color:#ffffff;">ADMIN</span>`;
+    return `<span class="badge-pill role-pill-admin">ADMIN</span>`;
   }
   const isFac = normalized === "faculty";
-  const bg = isFac ? "rgba(56, 189, 248, 0.16)" : "rgba(16, 185, 129, 0.16)";
-  const color = isFac ? "#38bdf8" : "#10b981";
-  return `<span class="badge-pill" style="background:${bg};color:${color};border-color:transparent;">${escapeHtml(normalized.toUpperCase())}</span>`;
+  return `<span class="badge-pill ${isFac ? "role-pill-faculty" : "role-pill-student"}">${escapeHtml(normalized.toUpperCase())}</span>`;
 }
 
-// 1. Load & Display Admin Moderation Warnings + Sync to Top-Right Bell Dropdown
 async function loadUserModerationWarnings() {
   const container = document.getElementById("user-warnings-container");
   if (!container || !currentUser) return;
@@ -92,33 +89,28 @@ async function loadUserModerationWarnings() {
       .filter((n) => !n.read && n.type === "MODERATION_WARNING");
 
     if (unreadModerationWarnings.length === 0) {
-      container.style.display = "none";
+      container.classList.add("is-hidden");
       container.innerHTML = "";
       return;
     }
 
-    container.style.display = "flex";
+    container.classList.remove("is-hidden");
     container.innerHTML = unreadModerationWarnings
       .map(
         (w) => `
-        <div class="glass-panel" style="border: 1px solid var(--danger); background: rgba(239, 68, 68, 0.12); padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 240px;">
-            <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--danger); font-weight: 700; font-size: 0.92rem; margin-bottom: 0.3rem;">
-              <i class="fas fa-exclamation-triangle"></i>
-              <span>${escapeHtml(w.title || "Administrator Policy Warning")}</span>
-            </div>
-            <p style="margin: 0 0 0.35rem; font-size: 0.85rem; color: var(--text-primary);">
+        <div class="glass-panel submission-lock-banner panel-toolbar">
+          <div>
+            <strong><i class="fas fa-exclamation-triangle"></i> ${escapeHtml(w.title || "Administrator Policy Warning")}</strong>
+            <p class="text-muted">
               <strong>Moderation Notice:</strong> ${escapeHtml(w.reason || "Your comment violated HR Feed discussion guidelines.")}
             </p>
             ${
               w.commentExcerpt
-                ? `<div style="font-size: 0.78rem; color: var(--text-secondary); background: var(--bg-canvas); padding: 0.45rem 0.7rem; border-radius: var(--radius-xs); border-left: 3px solid var(--danger);">
-                     Moderated comment on "${escapeHtml(w.postTitle || "HR Feed")}": "${escapeHtml(w.commentExcerpt)}"
-                   </div>`
+                ? `<div class="faculty-sub-notes">Moderated comment on "${escapeHtml(w.postTitle || "HR Feed")}": "${escapeHtml(w.commentExcerpt)}"</div>`
                 : ""
             }
           </div>
-          <button type="button" class="btn-secondary btn-ack-warning" data-id="${w.id}" style="border-color: var(--danger);">
+          <button type="button" class="btn-secondary btn-ack-warning" data-id="${w.id}">
             <i class="fas fa-check"></i> Acknowledge Warning
           </button>
         </div>`
@@ -176,7 +168,7 @@ function renderLibraryBellNotifications() {
   }
 
   if (combined.length === 0) {
-    list.innerHTML = `<div class="empty-state" style="padding:1.25rem;"><i class="fas fa-bell-slash"></i><h3>No Active Alerts</h3><p>Forum updates and moderation notices appear here.</p></div>`;
+    list.innerHTML = `<div class="empty-state"><i class="fas fa-bell-slash"></i><h3>No Active Alerts</h3><p>Forum updates and moderation notices appear here.</p></div>`;
     return;
   }
 
@@ -184,17 +176,16 @@ function renderLibraryBellNotifications() {
     .map(
       (item) => `
       <div class="inspector-meta-item">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.2rem;">
-          <strong style="font-size:0.84rem;">${escapeHtml(item.title)}</strong>
-          <span class="badge-pill" style="font-size:0.65rem;">${escapeHtml(item.type)}</span>
+        <div class="panel-toolbar">
+          <strong>${escapeHtml(item.title)}</strong>
+          <span class="badge-pill">${escapeHtml(item.type)}</span>
         </div>
-        <p class="text-muted" style="font-size:0.78rem;margin:0;">${escapeHtml(item.detail)}</p>
+        <p class="text-muted">${escapeHtml(item.detail)}</p>
       </div>`
     )
     .join("");
 }
 
-// 2. Public HR Case Library, E-Modules & Practice Cases
 async function loadLibraryItems() {
   try {
     const snap = await getDocs(collection(db, "cases"));
@@ -239,7 +230,6 @@ function renderFilteredLibrary() {
     const matchesQuery =
       !searchTerm ||
       (item.title || "").toLowerCase().includes(searchTerm) ||
-      (item.category || "").toLowerCase().includes(searchTerm) ||
       (item.body || "").toLowerCase().includes(searchTerm);
     return matchesType && matchesQuery;
   });
@@ -256,28 +246,28 @@ function renderFilteredLibrary() {
       const canDelete = role === "faculty" || role === "admin";
 
       return `
-        <article class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <article class="glass-panel">
           <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.65rem;">
+            <div class="panel-toolbar">
               <span class="badge-pill">${escapeHtml(itemType)}</span>
-              <div style="display:flex;align-items:center;gap:0.4rem;">
-                ${hasAnswerKey ? `<span class="badge-pill" style="background:rgba(16,185,129,0.16);color:#10b981;"><i class="fas fa-key"></i> Key to Correct</span>` : ""}
-                ${canDelete ? `<button type="button" class="btn-del-case" data-id="${item.id}" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;" title="Remove Material"><i class="fas fa-trash-alt"></i></button>` : ""}
+              <div class="user-cell-flex">
+                ${hasAnswerKey ? `<span class="badge-pill role-pill-student"><i class="fas fa-key"></i> Key to Correct</span>` : ""}
+                ${canDelete ? `<button type="button" class="btn-close-modal btn-del-case" data-id="${item.id}" title="Remove Material"><i class="fas fa-trash-alt"></i></button>` : ""}
               </div>
             </div>
-            <h3 style="font-size:1.05rem;margin-bottom:0.4rem;color:var(--text-primary);">${escapeHtml(item.title)}</h3>
-            <div style="font-size:0.76rem;color:var(--text-tertiary);margin-bottom:0.65rem;display:flex;align-items:center;gap:0.4rem;">
+            <h3>${escapeHtml(item.title)}</h3>
+            <div class="user-cell-flex text-muted">
               <span>By ${escapeHtml(item.authorName || "Faculty")}</span>
               ${renderRoleBadge(item.authorRole || "faculty")}
             </div>
-            <p class="text-muted" style="font-size:0.83rem;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">
+            <p class="text-muted">
               ${escapeHtml(item.body)}
             </p>
           </div>
 
-          <div style="margin-top:1.15rem;padding-top:0.75rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
-            <span class="text-muted" style="font-size:0.74rem;">${escapeHtml(item.category || "HR Policy")}</span>
-            <button type="button" class="btn-secondary btn-open-case-reader" data-id="${item.id}" style="padding:0.35rem 0.8rem;font-size:0.78rem;">
+          <div class="card-footer-bar">
+            <span class="text-muted">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Case Material"}</span>
+            <button type="button" class="btn-secondary btn-open-case-reader" data-id="${item.id}">
               <i class="fas fa-book-reader"></i> ${itemType === "Practice Case" ? "Solve & Check Key" : "Open Material"}
             </button>
           </div>
@@ -308,7 +298,6 @@ function openCaseReaderModal(item) {
 
   document.getElementById("read-case-title").textContent = item.title || "Case Study";
   document.getElementById("read-case-type").textContent = itemType;
-  document.getElementById("read-case-cat").textContent = item.category || "HR Domain";
   document.getElementById("read-case-author").innerHTML = `Uploaded by <strong>${escapeHtml(item.authorName || "Faculty")}</strong> ${renderRoleBadge(item.authorRole || "faculty")}`;
   document.getElementById("read-case-body").textContent = item.body || "";
 
@@ -317,9 +306,9 @@ function openCaseReaderModal(item) {
   if (dlBtn) {
     if (safeHref) {
       dlBtn.href = safeHref;
-      dlBtn.style.display = "inline-flex";
+      dlBtn.classList.remove("is-hidden");
     } else {
-      dlBtn.style.display = "none";
+      dlBtn.classList.add("is-hidden");
     }
   }
 
@@ -329,19 +318,18 @@ function openCaseReaderModal(item) {
   const keyText = document.getElementById("read-case-answer-key");
 
   if (itemType === "Practice Case" && item.answerKey) {
-    practiceBox.style.display = "block";
+    practiceBox?.classList.remove("is-hidden");
     answerInput.value = "";
     keyText.textContent = item.answerKey;
-    revealBox.style.display = role === "faculty" || role === "admin" ? "block" : "none";
+    revealBox?.classList.toggle("is-hidden", !(role === "faculty" || role === "admin"));
   } else {
-    practiceBox.style.display = "none";
-    revealBox.style.display = "none";
+    practiceBox?.classList.add("is-hidden");
+    revealBox?.classList.add("is-hidden");
   }
 
   openModal("modal-read-case");
 }
 
-// 3. HR Feed: Facebook-Style Post Cards (Numbers 1-3 Removed & PNG/Photo Support Retained)
 async function loadHrFeed() {
   try {
     let snap;
@@ -425,110 +413,107 @@ function renderFeedStream() {
 
       const moderationControlsHtml = canModeratePost
         ? `
-          <div style="display:flex;align-items:center;gap:0.45rem;">
-            <button type="button" class="btn-secondary btn-archive-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}" style="padding:0.32rem 0.7rem;font-size:0.75rem;">
+          <div class="workspace-action-bar">
+            <button type="button" class="btn-secondary btn-archive-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}">
               <i class="fas ${isArchived ? "fa-box-open" : "fa-archive"}"></i> ${isArchived ? "Unarchive" : "Archive"}
             </button>
-            <button type="button" class="btn-sidebar-action btn-logout btn-del-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" style="width:auto;padding:0.32rem 0.7rem;font-size:0.75rem;">
+            <button type="button" class="btn-sidebar-action btn-logout btn-del-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}">
               <i class="fas fa-trash-alt"></i> Delete
             </button>
           </div>`
         : "";
 
       const imageBlockHtml = safeImage
-        ? `
-          <div style="margin: 0.85rem 0;">
-            <img src="${safeImage}" alt="Supporting attachment for ${escapeHtml(post.title || "scenario")}" class="btn-open-lightbox" data-src="${safeImage}" data-title="${escapeHtml(post.title || "Attached Evidence")}" style="max-height: 360px; width: 100%; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-medium); cursor: zoom-in;" />
-          </div>`
+        ? `<img src="${safeImage}" alt="Supporting attachment for ${escapeHtml(post.title || "scenario")}" class="admin-post-image btn-open-lightbox" data-src="${safeImage}" data-title="${escapeHtml(post.title || "Attached Evidence")}" />`
         : "";
 
       return `
-        <article class="glass-panel" style="${isArchived ? "border-color: var(--warning); opacity: 0.92;" : ""}">
-          <!-- Facebook-Style Author Header -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.65rem;margin-bottom:0.85rem;">
-            <div style="display:flex;align-items:center;gap:0.65rem;">
+        <article class="glass-panel ${isArchived ? "card-archived-border" : ""}">
+          <div class="panel-toolbar">
+            <div class="user-cell-flex">
               <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(post.authorName || "Member")}&background=1b5375&color=faf2dd" alt="" class="avatar-sm" />
               <div>
-                <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;">
-                  <strong style="font-size:0.9rem;">${escapeHtml(post.authorName || "Participant")}</strong>
+                <div class="user-cell-flex">
+                  <strong>${escapeHtml(post.authorName || "Participant")}</strong>
                   ${renderRoleBadge(post.authorRole || "student")}
-                  ${isArchived ? `<span class="badge-pill" style="background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);">ARCHIVED</span>` : ""}
+                  ${isArchived ? `<span class="badge-pill status-pill-archived">ARCHIVED</span>` : ""}
                 </div>
-                <span class="text-muted" style="font-size:0.74rem;">${escapeHtml(ts)}</span>
+                <span class="text-muted">${escapeHtml(ts)}</span>
               </div>
             </div>
             ${moderationControlsHtml}
           </div>
 
-          <h3 style="font-size:1.08rem;margin-bottom:0.75rem;color:var(--text-primary);">${escapeHtml(post.title)}</h3>
+          <h3>${escapeHtml(post.title)}</h3>
 
-          <!-- Clean Post Sections (Redundant Numbers 1-3 Removed) -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.75rem;margin-bottom:0.85rem;">
+          <div class="admin-post-grid">
             <div class="inspector-meta-item">
-              <span style="color:var(--warning);">Workplace Concerns</span>
-              <p style="font-size:0.84rem;line-height:1.5;margin:0;white-space:pre-wrap;">${escapeHtml(post.concerns || "")}</p>
+              <span>Workplace Concerns</span>
+              <p>${escapeHtml(post.concerns || "")}</p>
             </div>
             <div class="inspector-meta-item">
-              <span style="color:var(--aimser-blue-400);">Investigation Plan</span>
-              <p style="font-size:0.84rem;line-height:1.5;margin:0;white-space:pre-wrap;">${escapeHtml(post.investigation || "")}</p>
+              <span>Investigation Plan</span>
+              <p>${escapeHtml(post.investigation || "")}</p>
             </div>
             <div class="inspector-meta-item">
-              <span style="color:var(--success);">Recommended Resolution</span>
-              <p style="font-size:0.84rem;line-height:1.5;margin:0;white-space:pre-wrap;">${escapeHtml(post.resolution || "")}</p>
+              <span>Recommended Resolution</span>
+              <p>${escapeHtml(post.resolution || "")}</p>
             </div>
           </div>
 
           ${imageBlockHtml}
 
-          <div style="padding-top:0.85rem;border-top:1px solid var(--border-subtle);">
-            <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.65rem;color:var(--text-secondary);">
-              <i class="far fa-comment-dots"></i> Comments (${comments.length})
+          <div class="card-footer-bar">
+            <div class="w-full">
+              <p class="text-muted">
+                <i class="far fa-comment-dots"></i> Comments (${comments.length})
+              </p>
+
+              <div class="admin-comments-stack">
+                ${comments
+                  .map((c) => {
+                    const safeCommentImg = sanitizeUrl(c.imageUrl, "");
+                    const commentImgHtml = safeCommentImg
+                      ? `<img src="${safeCommentImg}" alt="Comment attachment" class="admin-comment-image btn-open-lightbox" data-src="${safeCommentImg}" data-title="Comment Photo by ${escapeHtml(c.authorName || "Member")}" />`
+                      : "";
+
+                    return `
+                      <div class="admin-comment-row">
+                        <div>
+                          <div class="user-cell-flex">
+                            <strong>${escapeHtml(c.authorName || "Member")}</strong>
+                            ${renderRoleBadge(c.authorRole || "student")}
+                          </div>
+                          ${c.text ? `<p>${escapeHtml(c.text)}</p>` : ""}
+                          ${commentImgHtml}
+                        </div>
+                      </div>`;
+                  })
+                  .join("")}
+              </div>
+
+              ${
+                isArchived
+                  ? `<div class="text-muted">This post is archived. Unarchive it to reopen comments.</div>`
+                  : `<form class="form-feed-comment" data-post-id="${post.id}">
+                       <div class="workspace-action-bar">
+                         <input type="text" class="form-control input-feed-comment" placeholder="Write a comment..." />
+                         <label class="btn-secondary" title="Attach PNG/JPG Photo">
+                           <i class="fas fa-camera"></i>
+                           <input type="file" class="input-comment-image is-hidden" accept="image/png,image/jpeg,image/webp" />
+                         </label>
+                         <button type="submit" class="btn-secondary btn-submit-comment">
+                           <i class="fas fa-reply"></i> Comment
+                         </button>
+                       </div>
+                       <div class="comment-preview-strip reply-preview-strip">
+                         <img class="comment-preview-img reply-preview-thumb" src="" alt="Comment Preview" />
+                         <span class="comment-preview-name text-muted"></span>
+                         <button type="button" class="btn-clear-comment-img btn-close-modal" title="Remove Photo">&times;</button>
+                       </div>
+                     </form>`
+              }
             </div>
-
-            <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.75rem;">
-              ${comments
-                .map((c) => {
-                  const safeCommentImg = sanitizeUrl(c.imageUrl, "");
-                  const commentImgHtml = safeCommentImg
-                    ? `<div style="margin-top:0.45rem;">
-                         <img src="${safeCommentImg}" alt="Comment attachment" class="btn-open-lightbox" data-src="${safeCommentImg}" data-title="Comment Photo by ${escapeHtml(c.authorName || "Member")}" style="max-height:180px;max-width:100%;border-radius:var(--radius-xs);border:1px solid var(--border-medium);cursor:zoom-in;object-fit:cover;" />
-                       </div>`
-                    : "";
-
-                  return `
-                    <div style="padding:0.6rem 0.85rem;border-radius:var(--radius-sm);background:var(--bg-canvas);border:1px solid var(--border-subtle);font-size:0.83rem;">
-                      <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.2rem;">
-                        <strong>${escapeHtml(c.authorName || "Member")}</strong>
-                        ${renderRoleBadge(c.authorRole || "student")}
-                      </div>
-                      ${c.text ? `<p style="margin:0;color:var(--text-primary);white-space:pre-wrap;">${escapeHtml(c.text)}</p>` : ""}
-                      ${commentImgHtml}
-                    </div>`;
-                })
-                .join("")}
-            </div>
-
-            ${
-              isArchived
-                ? `<div class="text-muted" style="font-size:0.78rem;">This post is archived. Unarchive it to reopen comments.</div>`
-                : `<form class="form-feed-comment" data-post-id="${post.id}" style="display:flex;flex-direction:column;gap:0.5rem;">
-                     <div style="display:flex;gap:0.5rem;align-items:center;">
-                       <input type="text" class="form-control input-feed-comment" placeholder="Write a comment..." style="font-size:0.83rem;flex:1;" />
-                       <label class="btn-secondary" style="padding:0.45rem 0.75rem;font-size:0.8rem;cursor:pointer;margin:0;white-space:nowrap;" title="Attach PNG/JPG Photo">
-                         <i class="fas fa-camera"></i>
-                         <input type="file" class="input-comment-image" accept="image/png,image/jpeg,image/webp" style="display:none;" />
-                       </label>
-                       <button type="submit" class="btn-secondary btn-submit-comment" style="padding:0.45rem 0.9rem;font-size:0.8rem;white-space:nowrap;">
-                         <i class="fas fa-reply"></i> Comment
-                       </button>
-                     </div>
-                     <div class="comment-preview-strip" style="display:none;align-items:center;gap:0.6rem;padding:0.4rem 0.65rem;border-radius:var(--radius-xs);background:var(--bg-surface);border:1px solid var(--border-subtle);width:fit-content;">
-                       <img class="comment-preview-img" src="" alt="Comment Preview" style="height:44px;width:44px;object-fit:cover;border-radius:4px;" />
-                       <span class="comment-preview-name text-muted" style="font-size:0.75rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-                       <button type="button" class="btn-clear-comment-img" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:0.9rem;line-height:1;" title="Remove Photo">&times;</button>
-                     </div>
-                   </form>`
-            }
           </div>
         </article>`;
     })
@@ -620,18 +605,18 @@ function renderFeedStream() {
       fileInput.addEventListener("change", () => {
         const file = fileInput.files[0];
         if (!file) {
-          previewStrip.style.display = "none";
+          previewStrip.classList.remove("is-visible");
           return;
         }
         if (!file.type.startsWith("image/")) {
           alert("Please select a valid image file (PNG, JPG, or WebP).");
           fileInput.value = "";
-          previewStrip.style.display = "none";
+          previewStrip.classList.remove("is-visible");
           return;
         }
         previewImg.src = URL.createObjectURL(file);
         previewName.textContent = file.name;
-        previewStrip.style.display = "flex";
+        previewStrip.classList.add("is-visible");
       });
     }
 
@@ -639,7 +624,7 @@ function renderFeedStream() {
       clearBtn.addEventListener("click", () => {
         fileInput.value = "";
         if (previewImg) previewImg.src = "";
-        previewStrip.style.display = "none";
+        previewStrip.classList.remove("is-visible");
       });
     }
 
@@ -686,7 +671,7 @@ function renderFeedStream() {
 
         input.value = "";
         if (fileInput) fileInput.value = "";
-        if (previewStrip) previewStrip.style.display = "none";
+        if (previewStrip) previewStrip.classList.remove("is-visible");
         await loadHrFeed();
       } catch (err) {
         alert(err.message);
@@ -701,7 +686,6 @@ function renderFeedStream() {
   });
 }
 
-// 4. Event Bindings & Photo Preview
 function bindLibraryAndFeedEvents() {
   document.getElementById("library-type-filter")?.addEventListener("change", renderFilteredLibrary);
   document.getElementById("library-search")?.addEventListener("input", renderFilteredLibrary);
@@ -728,8 +712,8 @@ function bindLibraryAndFeedEvents() {
     feedImgInput.addEventListener("change", () => {
       const file = feedImgInput.files[0];
       if (!file) {
-        previewBox.style.display = "none";
-        clearImgBtn.style.display = "none";
+        previewBox?.classList.add("is-hidden");
+        clearImgBtn?.classList.add("is-hidden");
         return;
       }
       if (!file.type.startsWith("image/")) {
@@ -738,8 +722,8 @@ function bindLibraryAndFeedEvents() {
         return;
       }
       previewImg.src = URL.createObjectURL(file);
-      previewBox.style.display = "block";
-      clearImgBtn.style.display = "inline-flex";
+      previewBox?.classList.remove("is-hidden");
+      clearImgBtn?.classList.remove("is-hidden");
     });
   }
 
@@ -747,8 +731,8 @@ function bindLibraryAndFeedEvents() {
     clearImgBtn.addEventListener("click", () => {
       if (feedImgInput) feedImgInput.value = "";
       previewImg.src = "";
-      previewBox.style.display = "none";
-      clearImgBtn.style.display = "none";
+      previewBox?.classList.add("is-hidden");
+      clearImgBtn?.classList.add("is-hidden");
     });
   }
 
@@ -758,20 +742,34 @@ function bindLibraryAndFeedEvents() {
     e.preventDefault();
     const btn = document.getElementById("btn-submit-case");
     const type = document.getElementById("case-type").value;
-    const category = document.getElementById("case-category").value;
     const title = document.getElementById("case-title").value.trim();
-    const downloadUrl = sanitizeUrl(document.getElementById("case-download-url").value.trim(), "");
+    const fileInput = document.getElementById("case-file-input");
+    const selectedFile = fileInput?.files?.[0] || null;
+    const typedUrl = sanitizeUrl(document.getElementById("case-download-url").value.trim(), "");
     const body = document.getElementById("case-body").value.trim();
     const answerKey = document.getElementById("case-answer-key").value.trim();
 
     btn.disabled = true;
+    btn.innerHTML = selectedFile
+      ? '<i class="fas fa-spinner fa-spin"></i> Uploading File...'
+      : '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
     try {
       checkRateLimit("upload_case", 6, 60000);
+
+      let downloadUrl = typedUrl;
+      let fileName = "";
+      if (selectedFile) {
+        downloadUrl = await uploadToCloudinary(selectedFile, "aimser/hr-library");
+        fileName = selectedFile.name;
+      }
+
       await addDoc(collection(db, "cases"), {
         type,
-        category,
+        category: type,
         title,
         downloadUrl,
+        fileName,
         body,
         answerKey,
         authorUid: currentUser.uid,
@@ -788,6 +786,7 @@ function bindLibraryAndFeedEvents() {
       alert(err.message);
     } finally {
       btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Submit';
     }
   });
 
@@ -798,7 +797,7 @@ function bindLibraryAndFeedEvents() {
       return;
     }
 
-    document.getElementById("answer-key-reveal-box").style.display = "block";
+    document.getElementById("answer-key-reveal-box")?.classList.remove("is-hidden");
 
     if (activeCaseItem) {
       try {
@@ -853,8 +852,8 @@ function bindLibraryAndFeedEvents() {
 
       await logAuditEvent(`Posted workplace conflict scenario "${title}" [${userProfile.role}]`, "HR_FEED", currentUser.email);
       e.target.reset();
-      if (previewBox) previewBox.style.display = "none";
-      if (clearImgBtn) clearImgBtn.style.display = "none";
+      previewBox?.classList.add("is-hidden");
+      clearImgBtn?.classList.add("is-hidden");
       currentFeedView = "active";
       await loadHrFeed();
     } catch (err) {

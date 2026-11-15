@@ -1,4 +1,4 @@
-// js/office.js - Office Workspace (Dashboard, Analytics, Portfolio 6-Metrics, Locked Submissions, Deadlines & Notifications)
+// js/office.js - Office Workspace (Dashboard, Analytics, Portfolio 6-Metrics, Upload Instructions, Locked Submissions & Deadlines)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -29,7 +29,6 @@ let allSubmissionsMap = new Map();
 let notificationsQueue = [];
 let warningNotifications = [];
 let currentPortfolioData = { goals: "", devPlan: "", selfFeedback: "", artifacts: [] };
-let studentAbsenteeismRate = "0%";
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
@@ -68,6 +67,36 @@ function renderRoleBadge(role) {
   const normalized = (role || "student").toLowerCase();
   const isFac = normalized === "faculty";
   return `<span class="badge-pill ${isFac ? "role-pill-faculty" : "role-pill-student"}">${escapeHtml(normalized.toUpperCase())}</span>`;
+}
+
+// Helper to ensure both Cloudinary https:// URLs and Base64 data: URLs open/download reliably
+function bindDocumentDownloadLinks(container) {
+  if (!container) return;
+  container.querySelectorAll(".btn-download-attachment").forEach((link) => {
+    if (link.dataset.bound) return;
+    link.dataset.bound = "true";
+    link.addEventListener("click", async (e) => {
+      const rawHref = link.getAttribute("href") || "";
+      const fileName = link.getAttribute("data-filename") || "Submitted_Document";
+      if (rawHref.startsWith("data:")) {
+        e.preventDefault();
+        try {
+          const res = await fetch(rawHref);
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const tempAnchor = document.createElement("a");
+          tempAnchor.href = blobUrl;
+          tempAnchor.download = fileName;
+          document.body.appendChild(tempAnchor);
+          tempAnchor.click();
+          tempAnchor.remove();
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+        } catch (err) {
+          alert("Unable to download attached file: " + err.message);
+        }
+      }
+    });
+  });
 }
 
 function configureRoleViews() {
@@ -185,19 +214,6 @@ async function selectClassroom(classroomId) {
   if (codeEl) codeEl.textContent = code;
   document.getElementById("stat-member-count").textContent = `${students.length} / ${MAX_CLASS_STUDENTS}`;
   document.getElementById("active-classroom-title").textContent = activeClassroom.name || "Classroom Activities";
-
-  const periodText = activeClassroom.appraisalPeriod || "Not configured yet";
-  const kpisText = activeClassroom.appraisalKpis || "Awaiting instructor KPI setup.";
-  const elPeriod = document.getElementById("appraisal-period-text");
-  const elKpis = document.getElementById("appraisal-kpis-text");
-  const elStuKpi = document.getElementById("student-kpi-text");
-  if (elPeriod) elPeriod.textContent = periodText;
-  if (elKpis) elKpis.textContent = kpisText;
-  if (elStuKpi) elStuKpi.textContent = `${periodText} — ${kpisText}`;
-
-  if (userProfile.role === "student") {
-    await loadStudentAnalyticsReport(classroomId);
-  }
 
   await Promise.all([
     loadClassroomActivitiesAndSubmissions(classroomId, students),
@@ -393,11 +409,16 @@ function renderActivitiesGrid() {
           ? `<button type="button" class="btn-close-modal btn-del-activity" data-id="${act.id}" data-source="${act.source || "sub"}" title="Delete Activity"><i class="fas fa-trash-alt"></i></button>`
           : "";
 
+      const summaryText =
+        act.instructions ||
+        act.description ||
+        (act.instructionFileName ? `Attached Instructions: ${act.instructionFileName}` : "Open activity to view instructions.");
+
       return `
         <article class="glass-panel portfolio-output-card" data-act-id="${act.id}">
           <div>
             <div class="panel-toolbar">
-              <span class="badge-pill">${escapeHtml(act.category || "HR Simulation")}</span>
+              <span class="badge-pill">${maxPts} pts</span>
               <div class="user-cell-flex">
                 <span class="text-muted"><i class="far fa-clock"></i> ${escapeHtml(dueDisplay)}</span>
                 ${deleteBtnHtml}
@@ -405,10 +426,15 @@ function renderActivitiesGrid() {
             </div>
             <h3>${escapeHtml(act.title || "Untitled Activity")}</h3>
             <p class="text-muted">
-              ${escapeHtml(act.instructions || act.description || "")}
+              ${escapeHtml(summaryText)}
             </p>
+            ${
+              act.instructionFileName
+                ? `<div class="text-muted"><i class="fas fa-paperclip"></i> Instruction File: <strong>${escapeHtml(act.instructionFileName)}</strong></div>`
+                : ""
+            }
             <div class="text-muted">
-              <i class="fas fa-list-check"></i> Rubric: ${escapeHtml(act.rubric || "Standard HR Evaluation")} (${maxPts} pts)
+              <i class="fas fa-list-check"></i> Rubric: ${escapeHtml(act.rubric || "Standard HR Evaluation")}
             </div>
           </div>
 
@@ -464,13 +490,45 @@ function openActivityDetailModal(act) {
 
   document.getElementById("detail-act-id").value = act.id;
   document.getElementById("detail-act-title").textContent = act.title || "Activity";
-  document.getElementById("detail-act-badge").textContent = act.category || "HR Simulation";
+  document.getElementById("detail-act-badge").textContent = act.category || "Activity";
   document.getElementById("detail-act-due").textContent = act.dueDate
     ? `Deadline: ${new Date(act.dueDate).toLocaleString()} ${pastDue ? "(CLOSED)" : ""}`
     : "Deadline: Open";
   document.getElementById("detail-act-points").textContent = `${maxPts} pts`;
   document.getElementById("detail-act-rubric").textContent = act.rubric || "Standard Rubric Evaluation";
-  document.getElementById("detail-act-desc").textContent = act.instructions || act.description || "";
+
+  const descEl = document.getElementById("detail-act-desc");
+  const rawInstructions = (act.instructions || act.description || "").trim();
+  if (descEl) {
+    if (rawInstructions) {
+      descEl.textContent = rawInstructions;
+      descEl.classList.remove("is-hidden");
+    } else {
+      descEl.textContent = "";
+      descEl.classList.add("is-hidden");
+    }
+  }
+
+  const instFileBox = document.getElementById("detail-act-file-box");
+  const safeInstUrl = sanitizeUrl(act.instructionFileUrl, "");
+  if (instFileBox) {
+    if (safeInstUrl) {
+      const instName = act.instructionFileName || "Activity_Instructions";
+      instFileBox.classList.remove("is-hidden");
+      instFileBox.innerHTML = `
+        <div class="attached-file-meta">
+          <i class="fas fa-file-download"></i>
+          <span>Instruction File: ${escapeHtml(instName)}</span>
+        </div>
+        <a href="${safeInstUrl}" target="_blank" rel="noopener noreferrer" download="${escapeHtml(instName)}" data-filename="${escapeHtml(instName)}" class="btn-secondary btn-download-attachment">
+          <i class="fas fa-download"></i> View / Download Instructions
+        </a>`;
+      bindDocumentDownloadLinks(instFileBox);
+    } else {
+      instFileBox.classList.add("is-hidden");
+      instFileBox.innerHTML = "";
+    }
+  }
 
   const stuSection = document.getElementById("student-submission-section");
   const facSection = document.getElementById("faculty-submissions-section");
@@ -512,23 +570,32 @@ function openActivityDetailModal(act) {
     const isLocked = pastDue || (hasSubmitted && !facultyUnlocked);
 
     if (fileInfo) {
-      const safeFileUrl = sanitizeUrl(mySub?.fileUrl, "");
-      if (safeFileUrl) {
+      const rawUrl = mySub?.fileUrl || mySub?.attachmentUrl || mySub?.documentUrl || "";
+      const safeFileUrl = sanitizeUrl(rawUrl, "");
+      const hasFileRecord = Boolean(safeFileUrl || mySub?.fileName);
+
+      if (hasFileRecord) {
+        const docName = mySub?.fileName || "Submitted_Document";
         fileInfo.classList.remove("is-hidden");
         fileInfo.innerHTML = `
           <div class="attached-file-meta">
             <i class="fas fa-file-alt"></i>
-            <span>${escapeHtml(mySub.fileName || "Submitted Document")}</span>
+            <span>${escapeHtml(docName)}</span>
           </div>
           <div class="workspace-action-bar">
             <span class="attached-file-lock-tag">
               <i class="fas ${isLocked ? "fa-lock" : "fa-unlock"}"></i>
               ${isLocked ? "Locked" : "Editable"}
             </span>
-            <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" class="btn-secondary">
-              <i class="fas fa-download"></i> View / Download
-            </a>
+            ${
+              safeFileUrl
+                ? `<a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" download="${escapeHtml(docName)}" data-filename="${escapeHtml(docName)}" class="btn-secondary btn-download-attachment">
+                     <i class="fas fa-download"></i> View / Download
+                   </a>`
+                : `<span class="badge-pill">Attached</span>`
+            }
           </div>`;
+        bindDocumentDownloadLinks(fileInfo);
       } else {
         fileInfo.classList.add("is-hidden");
         fileInfo.innerHTML = "";
@@ -591,20 +658,27 @@ function renderFacultySubmissionsList(act, subs) {
       const subId = sub.studentUid || sub.id;
       const currentScore = sub.score !== undefined && sub.score !== null ? sub.score : "";
       const currentFeedback = sub.feedback || "";
-      const safeFileUrl = sanitizeUrl(sub.fileUrl, "");
+      const rawUrl = sub.fileUrl || sub.attachmentUrl || sub.documentUrl || "";
+      const safeFileUrl = sanitizeUrl(rawUrl, "");
+      const docName = sub.fileName || "Submitted_Document";
       const allowEdit = Boolean(sub.allowEdit);
 
-      const fileAttachmentHtml = safeFileUrl
-        ? `<div class="attached-file-card">
-             <div class="attached-file-meta">
-               <i class="fas fa-paperclip"></i>
-               <span>${escapeHtml(sub.fileName || "Attached Document")}</span>
-             </div>
-             <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" class="btn-secondary">
-               <i class="fas fa-file-download"></i> Open Document
-             </a>
-           </div>`
-        : "";
+      const fileAttachmentHtml =
+        safeFileUrl || sub.fileName
+          ? `<div class="attached-file-card">
+               <div class="attached-file-meta">
+                 <i class="fas fa-paperclip"></i>
+                 <span>Submitted File: ${escapeHtml(docName)}</span>
+               </div>
+               ${
+                 safeFileUrl
+                   ? `<a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" download="${escapeHtml(docName)}" data-filename="${escapeHtml(docName)}" class="btn-secondary btn-download-attachment">
+                        <i class="fas fa-file-download"></i> View / Download File
+                      </a>`
+                   : `<span class="badge-pill">File Recorded</span>`
+               }
+             </div>`
+          : "";
 
       return `
         <div class="faculty-sub-card">
@@ -631,6 +705,8 @@ function renderFacultySubmissionsList(act, subs) {
         </div>`;
     })
     .join("");
+
+  bindDocumentDownloadLinks(listEl);
 
   listEl.querySelectorAll(".btn-toggle-sub-lock").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -786,22 +862,6 @@ function computeAnalyticsView(students) {
   }
 }
 
-async function loadStudentAnalyticsReport(classroomId) {
-  try {
-    const snap = await getDoc(doc(db, "classrooms", classroomId, "analytics_reports", currentUser.uid));
-    if (snap.exists()) {
-      const r = snap.data();
-      document.getElementById("res-turnover-rate").textContent = r.turnoverRate || "7.50%";
-      document.getElementById("res-absenteeism-rate").textContent = r.absenteeismRate || "1.82%";
-      document.getElementById("res-training-cost").textContent = r.trainingCost || "₱3,000";
-      document.getElementById("res-recruitment-cost").textContent = r.recruitmentCost || "₱7,500";
-      studentAbsenteeismRate = r.absenteeismRate || "1.82%";
-    }
-  } catch {
-    studentAbsenteeismRate = "0%";
-  }
-}
-
 async function loadPortfolioData(classroomId, students) {
   if (userProfile.role === "faculty") {
     const grid = document.getElementById("class-portfolios-grid");
@@ -948,10 +1008,10 @@ function updateStudentPortfolioMetricsAndView() {
         kind: "activity",
         actId: act.id,
         title: act.title || "Classroom Activity",
-        category: act.category || "Activity",
+        category: "Activity",
         status: isGraded ? "graded" : "submitted",
         scoreText: isGraded ? `${mySub.score} / ${act.maxScore || 100}` : "Submitted (Locked)",
-        summary: mySub.notes || act.instructions || "",
+        summary: mySub.notes || act.instructions || (act.instructionFileName ? `Instruction File: ${act.instructionFileName}` : ""),
         feedback: mySub.feedback || "",
         fileName: mySub.fileName || "",
         timestamp: mySub.submittedAt?.toMillis ? mySub.submittedAt.toMillis() : createdMs
@@ -964,10 +1024,10 @@ function updateStudentPortfolioMetricsAndView() {
         kind: "activity",
         actId: act.id,
         title: act.title || "Classroom Activity",
-        category: act.category || "Activity",
+        category: "Activity",
         status: pastDue ? "missing" : "pending",
         scoreText: pastDue ? "Closed (Missing)" : "Pending Submission",
-        summary: act.instructions || "",
+        summary: act.instructions || (act.instructionFileName ? `Instruction File: ${act.instructionFileName}` : ""),
         feedback: "",
         fileName: "",
         timestamp: createdMs
@@ -978,11 +1038,7 @@ function updateStudentPortfolioMetricsAndView() {
   const completionRate = totalActivities > 0 ? Math.round((completedCount / totalActivities) * 100) : 0;
   const avgScore = gradedCount > 0 ? (scorePctSum / gradedCount).toFixed(1) + "%" : "—";
   const computedAbsenteeism =
-    studentAbsenteeismRate && studentAbsenteeismRate !== "0%"
-      ? studentAbsenteeismRate
-      : totalActivities > 0
-      ? ((missingCount / totalActivities) * 100).toFixed(1) + "%"
-      : "0%";
+    totalActivities > 0 ? ((missingCount / totalActivities) * 100).toFixed(1) + "%" : "0%";
 
   const elAbs = document.getElementById("port-metric-absenteeism");
   const elMiss = document.getElementById("port-metric-missing");
@@ -1381,22 +1437,43 @@ function bindOfficeEvents() {
     const btn = document.getElementById("btn-submit-activity");
 
     const title = document.getElementById("act-title").value.trim();
-    const category = document.getElementById("act-category").value;
     const dueDate = document.getElementById("act-due-date").value;
     const maxScore = Number(document.getElementById("act-max-score").value) || 100;
     const rubric = document.getElementById("act-rubric").value.trim();
     const instructions = document.getElementById("act-instructions").value.trim();
+    const instFileInput = document.getElementById("act-instructions-file");
+    const selectedInstFile = instFileInput?.files?.[0] || null;
+
+    if (!instructions && !selectedInstFile) {
+      alert("Please upload an instruction file or enter written instructions before publishing.");
+      return;
+    }
 
     btn.disabled = true;
+    btn.innerHTML = selectedInstFile
+      ? '<i class="fas fa-spinner fa-spin"></i> Uploading Instructions...'
+      : '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+
     try {
       checkRateLimit("create_act", 8, 60000);
+
+      let instructionFileUrl = "";
+      let instructionFileName = "";
+
+      if (selectedInstFile) {
+        instructionFileUrl = await uploadToCloudinary(selectedInstFile, "aimser/activity-instructions");
+        instructionFileName = selectedInstFile.name;
+      }
+
       await addDoc(collection(db, "classrooms", activeClassroom.id, "activities"), {
         title,
-        category,
+        category: "Activity",
         dueDate,
         maxScore,
         rubric,
         instructions,
+        instructionFileUrl,
+        instructionFileName,
         classroomId: activeClassroom.id,
         createdBy: currentUser.email,
         createdAt: serverTimestamp()
@@ -1414,12 +1491,13 @@ function bindOfficeEvents() {
       alert(err.message);
     } finally {
       btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Publish Activity';
     }
   });
 
   document.getElementById("btn-export-report")?.addEventListener("click", () => {
     if (!activeClassroom) return;
-    const rows = [["Activity Title", "Domain", "Deadline", "Max Points", "Submissions Count", "Average Score"]];
+    const rows = [["Activity Title", "Deadline", "Max Points", "Submissions Count", "Average Score"]];
 
     currentActivities.forEach((act) => {
       const subs = allSubmissionsMap.get(act.id) || [];
@@ -1427,7 +1505,6 @@ function bindOfficeEvents() {
       const avg = graded.length > 0 ? (graded.reduce((sum, s) => sum + Number(s.score), 0) / graded.length).toFixed(2) : "N/A";
       rows.push([
         `"${(act.title || "").replace(/"/g, '""')}"`,
-        `"${act.category || ""}"`,
         `"${act.dueDate || "Open"}"`,
         act.maxScore || 100,
         subs.length,
@@ -1445,7 +1522,6 @@ function bindOfficeEvents() {
     URL.revokeObjectURL(url);
   });
 
-  // Student Submission Handler (Enforces Deadline Closure, File Upload, and Permanent Lock Unless Unlocked by Faculty)
   document.getElementById("form-submit-deliverable")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!activeClassroom) return;
@@ -1525,71 +1601,6 @@ function bindOfficeEvents() {
       btn.disabled = false;
       btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
     }
-  });
-
-  document.getElementById("form-hr-analytics")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const headcount = Math.max(1, Number(document.getElementById("an-total-headcount").value));
-    const separations = Math.max(0, Number(document.getElementById("an-separations").value));
-    const absentDays = Math.max(0, Number(document.getElementById("an-absent-days").value));
-    const workDays = Math.max(1, Number(document.getElementById("an-work-days").value));
-    const trainBudget = Math.max(0, Number(document.getElementById("an-training-budget").value));
-    const trainedStaff = Math.max(1, Number(document.getElementById("an-trained-staff").value));
-    const recruitSpend = Math.max(0, Number(document.getElementById("an-recruitment-spend").value));
-    const newHires = Math.max(1, Number(document.getElementById("an-new-hires").value));
-
-    const turnoverRate = ((separations / headcount) * 100).toFixed(2) + "%";
-    const absenteeismRate = ((absentDays / (headcount * workDays)) * 100).toFixed(2) + "%";
-    const trainingCost = "₱" + Math.round(trainBudget / trainedStaff).toLocaleString();
-    const recruitmentCost = "₱" + Math.round(recruitSpend / newHires).toLocaleString();
-
-    document.getElementById("res-turnover-rate").textContent = turnoverRate;
-    document.getElementById("res-absenteeism-rate").textContent = absenteeismRate;
-    document.getElementById("res-training-cost").textContent = trainingCost;
-    document.getElementById("res-recruitment-cost").textContent = recruitmentCost;
-
-    studentAbsenteeismRate = absenteeismRate;
-    updateStudentPortfolioMetricsAndView();
-
-    if (activeClassroom) {
-      await setDoc(doc(db, "classrooms", activeClassroom.id, "analytics_reports", currentUser.uid), {
-        studentUid: currentUser.uid,
-        studentEmail: currentUser.email,
-        turnoverRate,
-        absenteeismRate,
-        trainingCost,
-        recruitmentCost,
-        updatedAt: serverTimestamp()
-      });
-      await logAuditEvent(`${currentUser.email} saved HR Analytics simulation report`, "ANALYTICS", currentUser.email);
-      alert("HR Workforce Analytics metrics computed and saved!");
-    }
-  });
-
-  document.getElementById("btn-open-kpi-modal")?.addEventListener("click", () => {
-    if (!activeClassroom) return;
-    document.getElementById("kpi-period-name").value = activeClassroom.appraisalPeriod || "";
-    document.getElementById("kpi-criteria-list").value = activeClassroom.appraisalKpis || "";
-    openModal("modal-kpi-setup");
-  });
-
-  document.getElementById("form-set-kpis")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!activeClassroom) return;
-    const period = document.getElementById("kpi-period-name").value.trim();
-    const kpis = document.getElementById("kpi-criteria-list").value.trim();
-
-    await updateDoc(doc(db, "classrooms", activeClassroom.id), {
-      appraisalPeriod: period,
-      appraisalKpis: kpis
-    });
-    activeClassroom.appraisalPeriod = period;
-    activeClassroom.appraisalKpis = kpis;
-
-    document.getElementById("appraisal-period-text").textContent = period;
-    document.getElementById("appraisal-kpis-text").textContent = kpis;
-    closeModal("modal-kpi-setup");
-    await logAuditEvent(`Updated class KPIs & appraisal period for ${activeClassroom.sectionCode}`, "PORTFOLIO", currentUser.email);
   });
 
   document.getElementById("form-student-devplan")?.addEventListener("submit", async (e) => {

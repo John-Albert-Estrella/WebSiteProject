@@ -1,6 +1,7 @@
 // js/cloudinary-config.js - Universal Document (PDF, DOC, DOCX, XLSX, PPTX) & Image Upload Engine
-export const CLOUDINARY_CLOUD_NAME = "dvh6g7k2m";
-export const CLOUDINARY_UPLOAD_PRESET = "Aimser_Avatars";
+export const CLOUDINARY_CLOUD_NAME = "zcco0jvg";
+export const CLOUDINARY_UPLOAD_PRESET = "aimser_uploads";
+export const CLOUDINARY_AVATAR_PRESET = "Aimser_Avatars";
 
 const ALLOWED_EXTENSIONS = [
   "pdf",
@@ -19,6 +20,35 @@ const ALLOWED_EXTENSIONS = [
   "webp"
 ];
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Failed to read the selected file."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function tryCloudinaryPreset(file, folder, presetName) {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", presetName);
+  formData.append("folder", folder);
+
+  // /auto/upload handles PDFs, Word (.doc/.docx), Excel, PowerPoint, and Images automatically
+  const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    body: formData
+  });
+
+  const data = await response.json();
+  if (response.ok && data && data.secure_url) {
+    return data.secure_url;
+  }
+  throw new Error(data?.error?.message || `Upload with preset ${presetName} failed.`);
+}
+
 export async function uploadToCloudinary(file, folder = "aimser/submissions") {
   if (!file) {
     throw new Error("No file selected for upload.");
@@ -36,25 +66,31 @@ export async function uploadToCloudinary(file, folder = "aimser/submissions") {
     throw new Error("File size exceeds the 20 MB maximum upload limit.");
   }
 
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-  formData.append("folder", folder);
+  // Use Aimser_Avatars for profile photos, and aimser_uploads for documents/submissions
+  const isAvatar = folder.includes("avatar");
+  const primaryPreset = isAvatar ? CLOUDINARY_AVATAR_PRESET : CLOUDINARY_UPLOAD_PRESET;
+  const secondaryPreset = isAvatar ? CLOUDINARY_UPLOAD_PRESET : CLOUDINARY_AVATAR_PRESET;
 
-  // /auto/upload accepts PDFs, Word docs, spreadsheets, archives, and images
-  const endpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    body: formData
-  });
-
-  const data = await response.json();
-  if (!response.ok || !data.secure_url) {
-    throw new Error(data.error?.message || "Document upload failed. Please try again.");
+  // 1. Try primary unsigned preset on cloud "zcco0jvg"
+  try {
+    return await tryCloudinaryPreset(file, folder, primaryPreset);
+  } catch (primaryErr) {
+    console.warn(`[Cloudinary] Primary preset (${primaryPreset}) notice:`, primaryErr.message);
   }
 
-  return data.secure_url;
+  // 2. Try secondary unsigned preset on cloud "zcco0jvg"
+  try {
+    return await tryCloudinaryPreset(file, folder, secondaryPreset);
+  } catch (secondaryErr) {
+    console.warn(`[Cloudinary] Secondary preset (${secondaryPreset}) notice:`, secondaryErr.message);
+  }
+
+  // 3. Final safety fallback: encode directly if file <= 750 KB so submission still succeeds
+  if (file.size <= 750 * 1024) {
+    return await fileToDataUrl(file);
+  }
+
+  throw new Error("Document upload failed. Please check your internet connection or try a smaller file.");
 }
 
 export default uploadToCloudinary;

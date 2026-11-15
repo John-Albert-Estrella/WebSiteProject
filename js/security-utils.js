@@ -66,12 +66,18 @@ export function escapeHtml(str) {
 }
 
 /**
- * Validates URLs to prevent javascript: or data: payload execution
+ * Validates URLs to allow https://, blob:, and base64 data: documents while blocking javascript:/vbscript:/text/html
  */
 export function sanitizeUrl(url, fallback = "") {
   if (!url) return fallback;
   const trimmed = String(url).trim();
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^https?:\/\//i.test(trimmed) || /^blob:/i.test(trimmed)) {
+    return trimmed;
+  }
+  // Allow any non-HTML base64 data URI (PDF, DOCX, XLSX, PPTX, TXT, ZIP, PNG, JPG, or generic octet-stream)
+  if (/^data:([a-z0-9.+-]+\/[a-z0-9.+-]+)?;base64,/i.test(trimmed) && !/^data:text\/html/i.test(trimmed)) {
+    return trimmed;
+  }
   return fallback;
 }
 

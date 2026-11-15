@@ -79,14 +79,14 @@ async function safeCloudinaryUpload(file, folder = "aimser/avatars") {
     return await fn(file, folder);
   }
 
-  const cloudName = CloudCfg.CLOUDINARY_CLOUD_NAME || CloudCfg.CLOUD_NAME || "dvh6g7k2m";
-  const preset = CloudCfg.CLOUDINARY_UPLOAD_PRESET || CloudCfg.UPLOAD_PRESET || "Aimser_Avatars";
+  const cloudName = CloudCfg.CLOUDINARY_CLOUD_NAME || "zcco0jvg";
+  const preset = CloudCfg.CLOUDINARY_AVATAR_PRESET || CloudCfg.CLOUDINARY_UPLOAD_PRESET || "Aimser_Avatars";
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", preset);
   formData.append("folder", folder);
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
     method: "POST",
     body: formData
   });
@@ -381,7 +381,6 @@ function applyCaseFilters() {
     const matchesTerm =
       !term ||
       (item.title || "").toLowerCase().includes(term) ||
-      (item.category || "").toLowerCase().includes(term) ||
       (item.authorName || "").toLowerCase().includes(term) ||
       (item.body || "").toLowerCase().includes(term);
     return matchesType && matchesTerm;
@@ -424,7 +423,7 @@ function renderAdminCasesGrid(items) {
             </div>
             <h3>${escapeHtml(item.title || "Untitled Material")}</h3>
             <p class="text-muted">
-              By <strong>${escapeHtml(item.authorName || "Faculty")}</strong> (${escapeHtml(authorRole)}) • ${escapeHtml(item.category || "HR Policy")}
+              By <strong>${escapeHtml(item.authorName || "Faculty")}</strong> (${escapeHtml(authorRole)})
             </p>
             <p class="text-muted">${escapeHtml(item.body || "")}</p>
           </div>
@@ -483,7 +482,8 @@ function setupAdminCaseModal() {
       e.preventDefault();
       const btn = document.getElementById("btn-submit-admin-case");
       const type = document.getElementById("admin-case-type").value;
-      const category = document.getElementById("admin-case-category").value;
+      const categoryEl = document.getElementById("admin-case-category");
+      const category = categoryEl ? categoryEl.value : type;
       const title = document.getElementById("admin-case-title").value.trim();
       const downloadUrl = sanitizeUrl(document.getElementById("admin-case-download-url").value.trim(), "");
       const body = document.getElementById("admin-case-body").value.trim();
