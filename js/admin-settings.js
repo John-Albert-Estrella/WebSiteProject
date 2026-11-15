@@ -1,4 +1,4 @@
-// js/admin-settings.js - System Administration, Global Config, & Avatar Upload Engine
+// js/admin-settings.js - System Administration, Global Config, Bell Notifications & Avatar Upload Engine
 import { auth, db } from "./firebase-init.js";
 import {
   onAuthStateChanged,
@@ -8,18 +8,22 @@ import {
   EmailAuthProvider
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
+  query,
+  orderBy,
+  limit,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { uploadToCloudinary } from "./cloudinary-config.js";
-import { FastCache, sanitizeUrl, logAuditEvent } from "./security-utils.js";
+import { FastCache, escapeHtml, sanitizeUrl, logAuditEvent } from "./security-utils.js";
 
 let currentAdminUser = null;
 
-// 1. Enforce Admin Clearance
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.replace("login.html");
@@ -45,17 +49,17 @@ onAuthStateChanged(auth, async (user) => {
     currentAdminUser = user;
 
     populateAdminUI(user, userData);
-    await loadSystemConfig();
+    await Promise.all([loadSystemConfig(), loadAdminSettingsNotifications()]);
     setupAvatarPreview();
     setupAdminProfileSubmit();
     setupSystemConfigSubmit();
     setupAdminPasswordSubmit();
+    setupPasswordVisibilityToggles();
   } catch (err) {
     console.error("Admin settings bootstrap error:", err);
   }
 });
 
-// 2. Populate View Data
 function populateAdminUI(user, data) {
   const nameInput = document.getElementById("admin-fullname");
   const emailInput = document.getElementById("admin-email");
@@ -77,7 +81,6 @@ function populateAdminUI(user, data) {
   if (headerAvatar) headerAvatar.src = resolvedAvatar;
 }
 
-// 3. Load Firestore System Config (system/config)
 async function loadSystemConfig() {
   try {
     const configSnap = await getDoc(doc(db, "system", "config"));
@@ -96,7 +99,46 @@ async function loadSystemConfig() {
   }
 }
 
-// 4. Instant Local Avatar Preview
+async function loadAdminSettingsNotifications() {
+  const badge = document.getElementById("notif-badge");
+  const list = document.getElementById("notifications-feed-list");
+  if (!list) return;
+
+  try {
+    const snap = await getDocs(query(collection(db, "audit_logs"), orderBy("timestamp", "desc"), limit(5)));
+    const logs = snap.docs.map((d) => d.data());
+
+    if (badge) {
+      if (logs.length > 0) {
+        badge.style.display = "inline-block";
+        badge.textContent = logs.length;
+      } else {
+        badge.style.display = "none";
+      }
+    }
+
+    if (logs.length === 0) {
+      list.innerHTML = `<div class="empty-state"><i class="fas fa-bell-slash"></i><h3>No System Alerts</h3><p>Recent security and policy logs will appear here.</p></div>`;
+      return;
+    }
+
+    list.innerHTML = logs
+      .map(
+        (l) => `
+        <div class="inspector-meta-item">
+          <div class="panel-toolbar">
+            <strong>${escapeHtml(l.category || "SYSTEM")}</strong>
+            <span class="badge-pill">Audit</span>
+          </div>
+          <p class="text-muted">${escapeHtml(l.message || "System policy event recorded.")}</p>
+        </div>`
+      )
+      .join("");
+  } catch {
+    // Non-blocking
+  }
+}
+
 function setupAvatarPreview() {
   const fileInput = document.getElementById("admin-avatar-input");
   const previewImg = document.getElementById("admin-avatar-preview");
@@ -117,7 +159,6 @@ function setupAvatarPreview() {
   });
 }
 
-// 5. Admin Profile & Cloudinary Upload Submit
 function setupAdminProfileSubmit() {
   const form = document.getElementById("admin-profile-form");
   const submitBtn = document.getElementById("btn-save-admin-profile");
@@ -170,7 +211,6 @@ function setupAdminProfileSubmit() {
         })
       ]);
 
-      // Sync FastCache
       const cached = FastCache.get("user_profile") || {};
       FastCache.set("user_profile", {
         ...cached,
@@ -190,6 +230,7 @@ function setupAdminProfileSubmit() {
 
       if (fileInput) fileInput.value = "";
       await logAuditEvent(`Administrator updated profile identity (${fullName})`, "ADMIN_PROFILE", currentAdminUser.email);
+      await loadAdminSettingsNotifications();
       showStatus(statusMsg, "Administrator profile updated successfully!", "success");
     } catch (err) {
       console.error("Admin profile error:", err);
@@ -201,7 +242,6 @@ function setupAdminProfileSubmit() {
   });
 }
 
-// 6. Global Simulation Policy Update
 function setupSystemConfigSubmit() {
   const form = document.getElementById("system-config-form");
   const submitBtn = document.getElementById("btn-save-system-config");
@@ -239,6 +279,7 @@ function setupSystemConfigSubmit() {
         "SYSTEM_CONFIG",
         currentAdminUser.email
       );
+      await loadAdminSettingsNotifications();
       showStatus(statusMsg, "Global policies saved and enforced across simulator instances!", "success");
     } catch (err) {
       console.error("Config save error:", err);
@@ -250,7 +291,6 @@ function setupSystemConfigSubmit() {
   });
 }
 
-// 7. Admin Master Password Update
 function setupAdminPasswordSubmit() {
   const form = document.getElementById("admin-password-form");
   const submitBtn = document.getElementById("btn-save-admin-pw");
@@ -286,6 +326,7 @@ function setupAdminPasswordSubmit() {
       await updatePassword(currentAdminUser, newPw);
 
       await logAuditEvent("Administrator rotated master login password", "SECURITY", currentAdminUser.email);
+      await loadAdminSettingsNotifications();
       showStatus(statusMsg, "Master administrator password changed successfully!", "success");
       form.reset();
     } catch (err) {
@@ -299,6 +340,23 @@ function setupAdminPasswordSubmit() {
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-lock"></i> Update Master Password';
     }
+  });
+}
+
+function setupPasswordVisibilityToggles() {
+  document.querySelectorAll(".btn-toggle-pw").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
+    btn.addEventListener("click", () => {
+      const input = document.getElementById(btn.getAttribute("data-target"));
+      const icon = btn.querySelector("i");
+      if (!input) return;
+      const isPassword = input.type === "password";
+      input.type = isPassword ? "text" : "password";
+      if (icon) {
+        icon.className = isPassword ? "far fa-eye-slash" : "far fa-eye";
+      }
+    });
   });
 }
 

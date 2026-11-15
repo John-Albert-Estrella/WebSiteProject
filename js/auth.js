@@ -1,4 +1,4 @@
-// js/auth.js - Sign-In, Role-Based Routing, Password Reset & Policy-Enforced Registration
+// js/auth.js - Sign-In, Role-Based Routing, Password Reset, Landing CTA & Policy-Enforced Registration
 import { auth, db } from "./firebase-init.js";
 import {
   signInWithEmailAndPassword,
@@ -17,6 +17,9 @@ import { FastCache, checkRateLimit, logAuditEvent } from "./security-utils.js";
 let currentRegistrationMode = "open"; // "open" | "faculty-only" | "locked"
 
 document.addEventListener("DOMContentLoaded", async () => {
+  setupLogoFallbacks();
+  setupLandingPageSessionCheck();
+  setupPasswordVisibilityToggles();
   setupLoginForm();
   setupForgotPasswordModal();
   if (document.getElementById("register-form")) {
@@ -24,6 +27,55 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupRegisterForm();
   }
 });
+
+function setupLogoFallbacks() {
+  document.querySelectorAll("#auth-brand-logo, #landing-brand-logo").forEach((img) => {
+    img.addEventListener("error", () => {
+      if (img.src.includes("assets/")) {
+        img.src = "aimser-logo.png";
+      } else {
+        img.classList.add("is-hidden");
+      }
+    });
+  });
+}
+
+function setupLandingPageSessionCheck() {
+  const profile = FastCache.get("user_profile");
+  if (!profile || !profile.role) return;
+
+  const target = profile.role.toLowerCase() === "admin" ? "admin-dashboard.html" : "office.html";
+  const primaryCta = document.getElementById("hero-primary-cta");
+  const navSignIn = document.getElementById("nav-signin-btn");
+
+  if (primaryCta) {
+    primaryCta.href = target;
+    primaryCta.innerHTML = '<i class="fas fa-arrow-right"></i> Return to Active Workspace';
+  }
+  if (navSignIn) {
+    navSignIn.href = target;
+    navSignIn.textContent = "Open Workspace";
+  }
+}
+
+function setupPasswordVisibilityToggles() {
+  document.querySelectorAll(".btn-toggle-pw").forEach((btn) => {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "true";
+    btn.addEventListener("click", () => {
+      const targetId = btn.getAttribute("data-target");
+      const input = document.getElementById(targetId);
+      const icon = btn.querySelector("i");
+      if (!input) return;
+
+      const isPassword = input.type === "password";
+      input.type = isPassword ? "text" : "password";
+      if (icon) {
+        icon.className = isPassword ? "far fa-eye-slash" : "far fa-eye";
+      }
+    });
+  });
+}
 
 function showAuthStatus(el, msg, type) {
   if (!el) return;
@@ -163,8 +215,8 @@ async function enforceRegistrationPolicy() {
 
   if (currentRegistrationMode === "locked") {
     if (banner) {
-      banner.style.display = "block";
-      banner.innerHTML = '<i class="fas fa-lock" style="margin-right: 0.45rem;"></i><strong>Registration Closed:</strong> New account creation is currently locked by the platform administrator.';
+      banner.classList.remove("is-hidden");
+      banner.innerHTML = '<i class="fas fa-lock"></i> <strong>Registration Closed:</strong> New account creation is currently locked by the platform administrator.';
     }
     if (form) {
       form.querySelectorAll("input, select, button").forEach((el) => {
@@ -174,8 +226,8 @@ async function enforceRegistrationPolicy() {
     if (submitBtn) submitBtn.disabled = true;
   } else if (currentRegistrationMode === "faculty-only") {
     if (banner) {
-      banner.style.display = "block";
-      banner.innerHTML = '<i class="fas fa-info-circle" style="margin-right: 0.45rem;"></i><strong>Restricted Registration:</strong> Only Faculty accounts may register directly at this time.';
+      banner.classList.remove("is-hidden");
+      banner.innerHTML = '<i class="fas fa-info-circle"></i> <strong>Restricted Registration:</strong> Only Faculty accounts may register directly at this time.';
     }
     if (roleSelect) {
       const studentOpt = roleSelect.querySelector('option[value="student"]');
@@ -208,7 +260,6 @@ function setupRegisterForm() {
     const password = document.getElementById("reg-password").value;
     const confirmPassword = document.getElementById("reg-confirm-password").value;
 
-    // Prevent privilege escalation or policy bypass
     if (selectedRole !== "student" && selectedRole !== "faculty") {
       showAuthStatus(statusEl, "Invalid account role selected.", "error");
       return;

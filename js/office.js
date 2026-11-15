@@ -1,4 +1,4 @@
-// js/office.js - Office Workspace (Dashboard, Analytics, Portfolio, Rubrics, 100-Student Classrooms & Notifications)
+// js/office.js - Office Workspace (Dashboard, Analytics, Portfolio 6-Metrics, Locked Submissions, Deadlines & Notifications)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -15,7 +15,8 @@ import {
   arrayUnion,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { FastCache, escapeHtml, checkRateLimit, logAuditEvent } from "./security-utils.js";
+import { uploadToCloudinary } from "./cloudinary-config.js";
+import { FastCache, escapeHtml, sanitizeUrl, checkRateLimit, logAuditEvent } from "./security-utils.js";
 
 const MAX_CLASS_STUDENTS = 100;
 
@@ -27,6 +28,8 @@ let currentActivities = [];
 let allSubmissionsMap = new Map();
 let notificationsQueue = [];
 let warningNotifications = [];
+let currentPortfolioData = { goals: "", devPlan: "", selfFeedback: "", artifacts: [] };
+let studentAbsenteeismRate = "0%";
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
@@ -66,11 +69,16 @@ function renderRoleBadge(role) {
   const isFac = normalized === "faculty";
   const bg = isFac ? "rgba(56, 189, 248, 0.16)" : "rgba(16, 185, 129, 0.16)";
   const color = isFac ? "#38bdf8" : "#10b981";
-  return `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:${bg};color:${color};letter-spacing:0.04em;">${escapeHtml(normalized)}</span>`;
+  return `<span class="badge-pill" style="background:${bg};color:${color};border-color:transparent;">${escapeHtml(normalized.toUpperCase())}</span>`;
 }
 
 function configureRoleViews() {
   const isFaculty = userProfile.role === "faculty";
+
+  const roomCodeCard = document.getElementById("card-room-code");
+  if (roomCodeCard) {
+    roomCodeCard.style.display = isFaculty ? "" : "none";
+  }
 
   const actionLabel = document.getElementById("classroom-action-label");
   const newActBtn = document.getElementById("btn-open-new-activity");
@@ -147,8 +155,12 @@ async function populateClassroomDropdown() {
     return;
   }
 
+  const isFaculty = userProfile.role === "faculty";
   select.innerHTML = classrooms
-    .map((c) => `<option value="${c.id}">${escapeHtml(c.name || "Classroom")} (${escapeHtml(c.sectionCode || c.code || "AIM")})</option>`)
+    .map((c) => {
+      const codeSuffix = isFaculty ? ` (${escapeHtml(c.sectionCode || c.code || "AIM")})` : "";
+      return `<option value="${c.id}">${escapeHtml(c.name || "Classroom")}${codeSuffix}</option>`;
+    })
     .join("");
 
   const savedId = localStorage.getItem("aimser_active_classroom");
@@ -170,13 +182,10 @@ async function selectClassroom(classroomId) {
   const code = activeClassroom.sectionCode || activeClassroom.code || "N/A";
   const students = activeClassroom.students || activeClassroom.enrolled || [];
 
-  document.getElementById("stat-section-code").textContent = code;
+  const codeEl = document.getElementById("stat-section-code");
+  if (codeEl) codeEl.textContent = code;
   document.getElementById("stat-member-count").textContent = `${students.length} / ${MAX_CLASS_STUDENTS}`;
-  document.getElementById("active-classroom-title").textContent = activeClassroom.name || "Classroom Dashboard";
-  const descEl = document.getElementById("active-classroom-desc");
-  if (descEl) {
-    descEl.textContent = activeClassroom.description || `Room Code: ${code} • Instructor: ${activeClassroom.instructorEmail || "Faculty"}`;
-  }
+  document.getElementById("active-classroom-title").textContent = activeClassroom.name || "Classroom Activities";
 
   const periodText = activeClassroom.appraisalPeriod || "Not configured yet";
   const kpisText = activeClassroom.appraisalKpis || "Awaiting instructor KPI setup.";
@@ -187,6 +196,10 @@ async function selectClassroom(classroomId) {
   if (elKpis) elKpis.textContent = kpisText;
   if (elStuKpi) elStuKpi.textContent = `${periodText} — ${kpisText}`;
 
+  if (userProfile.role === "student") {
+    await loadStudentAnalyticsReport(classroomId);
+  }
+
   await Promise.all([
     loadClassroomActivitiesAndSubmissions(classroomId, students),
     loadRosterAndRequests(classroomId, students),
@@ -194,8 +207,8 @@ async function selectClassroom(classroomId) {
     loadModerationWarningsIntoBell()
   ]);
 
-  if (userProfile.role === "student") {
-    await loadStudentAnalyticsReport(classroomId);
+  if (userProfile.role !== "faculty") {
+    updateStudentPortfolioMetricsAndView();
   }
 
   renderNotificationsBell();
@@ -258,10 +271,19 @@ async function loadClassroomActivitiesAndSubmissions(classroomId, students) {
     checkDeadlinesAndBuildNotifications();
     renderActivitiesGrid();
     computeAnalyticsView(students);
+    if (userProfile.role !== "faculty") {
+      updateStudentPortfolioMetricsAndView();
+    }
   } catch (err) {
     console.error("Failed loading activities:", err);
     container.innerHTML = `<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><h3>Unable to load activities</h3></div>`;
   }
+}
+
+function isActivityPastDeadline(act) {
+  if (!act || !act.dueDate) return false;
+  const dueMs = new Date(act.dueDate).getTime();
+  return !isNaN(dueMs) && Date.now() > dueMs;
 }
 
 function checkDeadlinesAndBuildNotifications() {
@@ -283,18 +305,18 @@ function checkDeadlinesAndBuildNotifications() {
         notificationsQueue.push({
           type: "GRADE",
           title: `Graded: ${act.title}`,
-          detail: `Score: ${mySub.score}/${act.maxScore || 100} — "${mySub.feedback || "Reviewed"}"`
+          detail: `Score: ${mySub.score}/${act.maxScore || 100} — "${mySub.feedback || "Reviewed by instructor."}"`
         });
       }
       if (!mySub && hoursLeft > 0 && hoursLeft <= 72) {
-        const msg = `"${act.title}" is due in ${Math.ceil(hoursLeft)} hour(s) (${new Date(dueMs).toLocaleString()}).`;
+        const msg = `"${act.title}" closes in ${Math.ceil(hoursLeft)} hour(s) (${new Date(dueMs).toLocaleString()}).`;
         urgentReminders.push(msg);
-        notificationsQueue.push({ type: "DEADLINE", title: "Upcoming Deadline", detail: msg });
+        notificationsQueue.push({ type: "DEADLINE", title: `Upcoming Deadline: ${act.title}`, detail: msg });
       } else if (!mySub && hoursLeft <= 0) {
         notificationsQueue.push({
-          type: "OVERDUE",
-          title: `Past Due: ${act.title}`,
-          detail: `Deadline passed on ${new Date(dueMs).toLocaleString()}.`
+          type: "CLOSED",
+          title: `Closed & Missing: ${act.title}`,
+          detail: `Activity closed automatically when the deadline passed on ${new Date(dueMs).toLocaleString()}.`
         });
       }
     } else {
@@ -337,19 +359,32 @@ function renderActivitiesGrid() {
     .map((act) => {
       const subs = allSubmissionsMap.get(act.id) || [];
       const maxPts = act.maxScore || 100;
-      const dueDisplay = act.dueDate ? new Date(act.dueDate).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "Open";
+      const pastDue = isActivityPastDeadline(act);
+      const dueDisplay = act.dueDate
+        ? new Date(act.dueDate).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })
+        : "Open";
 
       let statusHtml = "";
+      let buttonLabel = "Open";
+
       if (userProfile.role === "faculty") {
-        statusHtml = `<span style="font-size:0.75rem;color:var(--text-secondary);">Submissions: <strong>${subs.length}</strong></span>`;
+        statusHtml = `<span style="font-size:0.75rem;color:var(--text-secondary);">Submissions: <strong>${subs.length}</strong> ${pastDue ? "• <strong style='color:var(--danger);'>Closed</strong>" : ""}</span>`;
+        buttonLabel = "Grade & Review";
       } else {
         const mySub = subs.find((s) => s.studentUid === currentUser.uid || s.id === currentUser.uid);
         if (mySub && mySub.score !== undefined && mySub.score !== null) {
-          statusHtml = `<span style="font-size:0.75rem;color:var(--success);font-weight:700;">Graded: ${mySub.score}/${maxPts}</span>`;
+          statusHtml = `<span style="font-size:0.75rem;color:var(--success);font-weight:700;"><i class="fas fa-check-circle"></i> Graded: ${mySub.score}/${maxPts}</span>`;
+          buttonLabel = "View Graded Output";
         } else if (mySub) {
-          statusHtml = `<span style="font-size:0.75rem;color:#38bdf8;font-weight:600;">Submitted (Pending Grade)</span>`;
+          const isUnlocked = Boolean(mySub.allowEdit) && !pastDue;
+          statusHtml = `<span style="font-size:0.75rem;color:#38bdf8;font-weight:600;"><i class="fas ${isUnlocked ? "fa-unlock" : "fa-lock"}"></i> Submitted ${isUnlocked ? "(Edit Allowed)" : "(Locked)"}</span>`;
+          buttonLabel = isUnlocked ? "Edit Submission" : "View Submission";
+        } else if (pastDue) {
+          statusHtml = `<span style="font-size:0.75rem;color:var(--danger);font-weight:700;"><i class="fas fa-ban"></i> Closed (Missing)</span>`;
+          buttonLabel = "View Closed Activity";
         } else {
-          statusHtml = `<span style="font-size:0.75rem;color:var(--warning);font-weight:600;">Not Submitted</span>`;
+          statusHtml = `<span style="font-size:0.75rem;color:var(--warning);font-weight:600;">Pending Submission</span>`;
+          buttonLabel = "Submit";
         }
       }
 
@@ -359,12 +394,12 @@ function renderActivitiesGrid() {
           : "";
 
       return `
-        <article class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <article class="glass-panel portfolio-output-card" data-act-id="${act.id}" style="display:flex;flex-direction:column;justify-content:space-between;">
           <div>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;gap:0.5rem;flex-wrap:wrap;">
               <span class="badge-pill">${escapeHtml(act.category || "HR Simulation")}</span>
               <div style="display:flex;align-items:center;gap:0.5rem;">
-                <span class="text-muted" style="font-size:0.74rem;"><i class="far fa-clock"></i> ${escapeHtml(dueDisplay)}</span>
+                <span class="text-muted" style="font-size:0.74rem;${pastDue ? "color:var(--danger)!important;font-weight:600;" : ""}"><i class="far fa-clock"></i> ${escapeHtml(dueDisplay)}</span>
                 ${deleteBtnHtml}
               </div>
             </div>
@@ -380,7 +415,7 @@ function renderActivitiesGrid() {
           <div style="margin-top:1.15rem;padding-top:0.75rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
             ${statusHtml}
             <button type="button" class="btn-secondary btn-open-act-detail" data-id="${act.id}" style="padding:0.35rem 0.8rem;font-size:0.78rem;">
-              <i class="fas fa-folder-open"></i> ${userProfile.role === "faculty" ? "Grade & Review" : "Open & Submit"}
+              <i class="fas fa-folder-open"></i> ${buttonLabel}
             </button>
           </div>
         </article>`;
@@ -388,14 +423,24 @@ function renderActivitiesGrid() {
     .join("");
 
   container.querySelectorAll(".btn-open-act-detail").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const act = currentActivities.find((a) => a.id === btn.dataset.id);
       if (act) openActivityDetailModal(act);
     });
   });
 
+  container.querySelectorAll("article[data-act-id]").forEach((card) => {
+    card.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      const act = currentActivities.find((a) => a.id === card.dataset.actId);
+      if (act) openActivityDetailModal(act);
+    });
+  });
+
   container.querySelectorAll(".btn-del-activity").forEach((btn) => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
       if (!confirm("Delete this activity and its records?")) return;
       const actId = btn.dataset.id;
       const src = btn.dataset.source;
@@ -415,11 +460,13 @@ function renderActivitiesGrid() {
 
 function openActivityDetailModal(act) {
   const maxPts = act.maxScore || 100;
+  const pastDue = isActivityPastDeadline(act);
+
   document.getElementById("detail-act-id").value = act.id;
   document.getElementById("detail-act-title").textContent = act.title || "Activity";
   document.getElementById("detail-act-badge").textContent = act.category || "HR Simulation";
   document.getElementById("detail-act-due").textContent = act.dueDate
-    ? `Deadline: ${new Date(act.dueDate).toLocaleString()}`
+    ? `Deadline: ${new Date(act.dueDate).toLocaleString()} ${pastDue ? "(CLOSED)" : ""}`
     : "Deadline: Open";
   document.getElementById("detail-act-points").textContent = `${maxPts} pts`;
   document.getElementById("detail-act-rubric").textContent = act.rubric || "Standard Rubric Evaluation";
@@ -439,16 +486,59 @@ function openActivityDetailModal(act) {
 
     const mySub = subs.find((s) => s.studentUid === currentUser.uid || s.id === currentUser.uid);
     const notesInput = document.getElementById("deliverable-notes");
+    const fileInput = document.getElementById("deliverable-file-input");
+    const fileInfo = document.getElementById("deliverable-attached-file-info");
+    const saveBtn = document.getElementById("btn-save-deliverable");
     const gradeBox = document.getElementById("student-grade-feedback-box");
+    const closedNotice = document.getElementById("activity-closed-notice");
+    const closedText = document.getElementById("activity-closed-text");
 
     notesInput.value = mySub ? mySub.notes || "" : "";
+    if (fileInput) fileInput.value = "";
 
+    // Display attached document link if already uploaded
+    if (fileInfo) {
+      const safeFileUrl = sanitizeUrl(mySub?.fileUrl, "");
+      if (safeFileUrl) {
+        fileInfo.style.display = "block";
+        fileInfo.innerHTML = `<i class="fas fa-paperclip"></i> Submitted Document: <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--aimser-blue-400);font-weight:600;">${escapeHtml(mySub.fileName || "View Attached File")}</a>`;
+      } else {
+        fileInfo.style.display = "none";
+        fileInfo.innerHTML = "";
+      }
+    }
+
+    // Show graded feedback details
     if (mySub && mySub.score !== undefined && mySub.score !== null) {
       gradeBox.style.display = "block";
       document.getElementById("student-awarded-score").textContent = `${mySub.score} / ${maxPts}`;
-      document.getElementById("student-awarded-feedback").textContent = mySub.feedback || "No written comments.";
+      document.getElementById("student-awarded-feedback").textContent = mySub.feedback || "Reviewed by instructor.";
     } else {
       gradeBox.style.display = "none";
+    }
+
+    // Enforce automatic deadline closure AND submission lock (students cannot edit/remove once submitted unless unlocked by faculty)
+    const isSubmittedAndLocked = Boolean(mySub) && !mySub.allowEdit;
+    const isLocked = pastDue || isSubmittedAndLocked;
+
+    if (closedNotice && closedText) {
+      if (pastDue) {
+        closedNotice.style.display = "block";
+        closedText.textContent = "This activity is closed because the deadline has passed. Submissions and edits are no longer accepted.";
+      } else if (isSubmittedAndLocked) {
+        closedNotice.style.display = "block";
+        closedText.textContent = "Your output has been submitted and locked. Submitted documents cannot be edited or removed unless unlocked by your instructor.";
+      } else {
+        closedNotice.style.display = "none";
+      }
+    }
+
+    notesInput.disabled = isLocked;
+    if (fileInput) fileInput.disabled = isLocked;
+    if (saveBtn) {
+      saveBtn.disabled = isLocked;
+      saveBtn.style.display = isLocked ? "none" : "inline-flex";
+      saveBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
     }
   }
 
@@ -469,27 +559,63 @@ function renderFacultySubmissionsList(act, subs) {
       const subId = sub.studentUid || sub.id;
       const currentScore = sub.score !== undefined && sub.score !== null ? sub.score : "";
       const currentFeedback = sub.feedback || "";
+      const safeFileUrl = sanitizeUrl(sub.fileUrl, "");
+      const allowEdit = Boolean(sub.allowEdit);
+
+      const fileAttachmentHtml = safeFileUrl
+        ? `<div style="margin-bottom:0.65rem;">
+             <a href="${safeFileUrl}" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding:0.32rem 0.7rem;font-size:0.76rem;">
+               <i class="fas fa-file-download"></i> Open Attached File (${escapeHtml(sub.fileName || "Document")})
+             </a>
+           </div>`
+        : "";
 
       return `
-        <div style="padding:0.9rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-medium);">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+        <div class="inspector-meta-item" style="padding:0.9rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.45rem;flex-wrap:wrap;gap:0.4rem;">
             <div style="display:flex;align-items:center;gap:0.45rem;">
               <strong>${escapeHtml(sub.studentName || sub.studentEmail)}</strong>
               ${renderRoleBadge("student")}
             </div>
-            <span class="text-muted" style="font-size:0.74rem;">${escapeHtml(sub.studentEmail || "")}</span>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <button type="button" class="btn-secondary btn-toggle-sub-lock" data-act-id="${act.id}" data-sub-id="${subId}" data-allow="${allowEdit}" style="padding:0.25rem 0.6rem;font-size:0.72rem;">
+                <i class="fas ${allowEdit ? "fa-lock" : "fa-unlock"}"></i> ${allowEdit ? "Lock Submission" : "Allow Resubmission"}
+              </button>
+            </div>
           </div>
-          <p style="font-size:0.84rem;white-space:pre-wrap;color:var(--text-primary);background:var(--bg-canvas);padding:0.65rem;border-radius:var(--radius-xs);margin-bottom:0.75rem;">${escapeHtml(sub.notes || "")}</p>
+          <p style="font-size:0.84rem;white-space:pre-wrap;color:var(--text-primary);background:var(--bg-canvas);padding:0.65rem;border-radius:var(--radius-xs);margin-bottom:0.65rem;">${escapeHtml(sub.notes || "")}</p>
+          ${fileAttachmentHtml}
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
-            <input type="number" class="form-control input-rubric-score" data-sub-id="${subId}" min="0" max="${maxPts}" value="${currentScore}" placeholder="Score / ${maxPts}" style="width:120px;padding:0.35rem 0.6rem;font-size:0.8rem;" />
-            <input type="text" class="form-control input-rubric-feedback" data-sub-id="${subId}" value="${escapeHtml(currentFeedback)}" placeholder="Rubric evaluation feedback..." style="flex:1;min-width:180px;padding:0.35rem 0.6rem;font-size:0.8rem;" />
-            <button type="button" class="btn-primary btn-save-rubric-grade" data-act-id="${act.id}" data-sub-id="${subId}" data-student="${escapeHtml(sub.studentEmail || subId)}" style="padding:0.38rem 0.75rem;font-size:0.78rem;">
+            <input type="number" class="form-control input-rubric-score" data-sub-id="${subId}" min="0" max="${maxPts}" value="${currentScore}" placeholder="Score / ${maxPts}" style="width:120px;" />
+            <input type="text" class="form-control input-rubric-feedback" data-sub-id="${subId}" value="${escapeHtml(currentFeedback)}" placeholder="Rubric evaluation feedback..." style="flex:1;min-width:180px;" />
+            <button type="button" class="btn-primary btn-save-rubric-grade" data-act-id="${act.id}" data-sub-id="${subId}" data-student="${escapeHtml(sub.studentEmail || subId)}">
               <i class="fas fa-check"></i> Save Grade
             </button>
           </div>
         </div>`;
     })
     .join("");
+
+  listEl.querySelectorAll(".btn-toggle-sub-lock").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const subId = btn.dataset.subId;
+      const actId = btn.dataset.actId;
+      const nextAllow = btn.dataset.allow !== "true";
+      btn.disabled = true;
+      try {
+        await updateDoc(doc(db, "classrooms", activeClassroom.id, "activities", actId, "submissions", subId), {
+          allowEdit: nextAllow
+        });
+        await loadClassroomActivitiesAndSubmissions(activeClassroom.id, activeClassroom.students || []);
+        const updatedSubs = allSubmissionsMap.get(actId) || [];
+        renderFacultySubmissionsList(act, updatedSubs);
+      } catch (err) {
+        alert("Failed to update submission lock: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
 
   listEl.querySelectorAll(".btn-save-rubric-grade").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -509,6 +635,7 @@ function renderFacultySubmissionsList(act, subs) {
         await updateDoc(doc(db, "classrooms", activeClassroom.id, "activities", actId, "submissions", subId), {
           score: numericScore,
           feedback: fbInput.value.trim(),
+          allowEdit: false,
           gradedBy: currentUser.email,
           gradedAt: serverTimestamp()
         });
@@ -625,9 +752,10 @@ async function loadStudentAnalyticsReport(classroomId) {
       document.getElementById("res-absenteeism-rate").textContent = r.absenteeismRate || "1.82%";
       document.getElementById("res-training-cost").textContent = r.trainingCost || "₱3,000";
       document.getElementById("res-recruitment-cost").textContent = r.recruitmentCost || "₱7,500";
+      studentAbsenteeismRate = r.absenteeismRate || "1.82%";
     }
   } catch {
-    // Keep defaults
+    studentAbsenteeismRate = "0%";
   }
 }
 
@@ -686,10 +814,10 @@ async function loadPortfolioData(classroomId, students) {
 
               <div style="padding-top:0.75rem;border-top:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:0.45rem;">
                 <div style="display:flex;gap:0.45rem;">
-                  <input type="number" class="form-control port-grade-input" data-uid="${p.uid}" min="0" max="100" value="${p.facultyScore ?? ""}" placeholder="Score / 100" style="width:110px;padding:0.35rem 0.5rem;font-size:0.78rem;" />
-                  <input type="text" class="form-control port-fb-input" data-uid="${p.uid}" value="${escapeHtml(p.facultyFeedback || "")}" placeholder="Portfolio feedback..." style="flex:1;padding:0.35rem 0.5rem;font-size:0.78rem;" />
+                  <input type="number" class="form-control port-grade-input" data-uid="${p.uid}" min="0" max="100" value="${p.facultyScore ?? ""}" placeholder="Score / 100" style="width:110px;" />
+                  <input type="text" class="form-control port-fb-input" data-uid="${p.uid}" value="${escapeHtml(p.facultyFeedback || "")}" placeholder="Portfolio feedback..." style="flex:1;" />
                 </div>
-                <button type="button" class="btn-primary btn-grade-portfolio" data-uid="${p.uid}" data-name="${escapeHtml(p.studentName || p.uid)}" style="padding:0.38rem 0.75rem;font-size:0.78rem;">
+                <button type="button" class="btn-primary btn-grade-portfolio" data-uid="${p.uid}" data-name="${escapeHtml(p.studentName || p.uid)}">
                   <i class="fas fa-award"></i> Save Portfolio Grade &amp; Feedback
                 </button>
               </div>
@@ -730,69 +858,203 @@ async function loadPortfolioData(classroomId, students) {
   } else {
     try {
       const snap = await getDoc(doc(db, "classrooms", classroomId, "portfolios", currentUser.uid));
-      const data = snap.exists() ? snap.data() : {};
+      currentPortfolioData = snap.exists() ? snap.data() : { artifacts: [] };
 
-      document.getElementById("port-goals").value = data.goals || "";
-      document.getElementById("port-devplan").value = data.devPlan || "";
-      document.getElementById("port-self-feedback").value = data.selfFeedback || "";
+      document.getElementById("port-goals").value = currentPortfolioData.goals || "";
+      document.getElementById("port-devplan").value = currentPortfolioData.devPlan || "";
+      document.getElementById("port-self-feedback").value = currentPortfolioData.selfFeedback || "";
 
-      if (data.facultyScore !== undefined && data.facultyScore !== null) {
+      if (currentPortfolioData.facultyScore !== undefined && currentPortfolioData.facultyScore !== null) {
         notificationsQueue.push({
           type: "PORTFOLIO",
-          title: `Portfolio Evaluated: ${data.facultyScore}/100`,
-          detail: data.facultyFeedback || "Instructor reviewed your HR portfolio."
+          title: `Portfolio Evaluated: ${currentPortfolioData.facultyScore}/100`,
+          detail: currentPortfolioData.facultyFeedback || "Instructor reviewed your HR portfolio."
         });
       }
 
-      renderStudentPortfolioArtifacts(data.artifacts || [], data);
+      updateStudentPortfolioMetricsAndView();
     } catch (err) {
       console.error("Student portfolio load error:", err);
     }
   }
 }
 
-function renderStudentPortfolioArtifacts(artifacts, portfolioDoc) {
+// Compute 6 Required Student Portfolio Metrics & Render Filterable/Sortable Output Cards
+function updateStudentPortfolioMetricsAndView() {
+  const totalActivities = currentActivities.length;
+  let completedCount = 0;
+  let missingCount = 0;
+  let gradedCount = 0;
+  let scorePctSum = 0;
+
+  const unifiedItems = [];
+
+  currentActivities.forEach((act) => {
+    const subs = allSubmissionsMap.get(act.id) || [];
+    const mySub = subs.find((s) => s.studentUid === currentUser?.uid || s.id === currentUser?.uid);
+    const pastDue = isActivityPastDeadline(act);
+    const createdMs = act.createdAt?.toMillis ? act.createdAt.toMillis() : 0;
+
+    if (mySub) {
+      completedCount++;
+      const isGraded = mySub.score !== undefined && mySub.score !== null;
+      if (isGraded) {
+        gradedCount++;
+        scorePctSum += (Number(mySub.score) / (act.maxScore || 100)) * 100;
+      }
+      unifiedItems.push({
+        kind: "activity",
+        actId: act.id,
+        title: act.title || "Classroom Activity",
+        category: act.category || "Activity",
+        status: isGraded ? "graded" : "submitted",
+        scoreText: isGraded ? `${mySub.score} / ${act.maxScore || 100}` : "Submitted (Pending Grade)",
+        summary: mySub.notes || act.instructions || "",
+        feedback: mySub.feedback || "",
+        fileName: mySub.fileName || "",
+        timestamp: mySub.submittedAt?.toMillis ? mySub.submittedAt.toMillis() : createdMs
+      });
+    } else {
+      if (pastDue) {
+        missingCount++;
+      }
+      unifiedItems.push({
+        kind: "activity",
+        actId: act.id,
+        title: act.title || "Classroom Activity",
+        category: act.category || "Activity",
+        status: pastDue ? "missing" : "pending",
+        scoreText: pastDue ? "Missing (Closed)" : "Pending Submission",
+        summary: act.instructions || "",
+        feedback: "",
+        fileName: "",
+        timestamp: createdMs
+      });
+    }
+  });
+
+  const completionRate = totalActivities > 0 ? Math.round((completedCount / totalActivities) * 100) : 0;
+  const avgScore = gradedCount > 0 ? (scorePctSum / gradedCount).toFixed(1) + "%" : "—";
+  const computedAbsenteeism =
+    studentAbsenteeismRate && studentAbsenteeismRate !== "0%"
+      ? studentAbsenteeismRate
+      : totalActivities > 0
+      ? ((missingCount / totalActivities) * 100).toFixed(1) + "%"
+      : "0%";
+
+  const elAbs = document.getElementById("port-metric-absenteeism");
+  const elMiss = document.getElementById("port-metric-missing");
+  const elComp = document.getElementById("port-metric-completed");
+  const elTot = document.getElementById("port-metric-total");
+  const elRate = document.getElementById("port-metric-rate");
+  const elAvg = document.getElementById("port-metric-avg");
+
+  if (elAbs) elAbs.textContent = computedAbsenteeism;
+  if (elMiss) elMiss.textContent = String(missingCount);
+  if (elComp) elComp.textContent = String(completedCount);
+  if (elTot) elTot.textContent = String(totalActivities);
+  if (elRate) elRate.textContent = `${completionRate}%`;
+  if (elAvg) elAvg.textContent = avgScore;
+
+  // Include custom portfolio outputs
+  const customArtifacts = currentPortfolioData?.artifacts || [];
+  customArtifacts.forEach((art, idx) => {
+    unifiedItems.push({
+      kind: "artifact",
+      artifactIdx: idx,
+      title: art.title || "Portfolio Output",
+      category: "Portfolio Output",
+      status: "submitted",
+      scoreText: "Stored Output",
+      summary: art.link || "",
+      feedback: "",
+      fileName: "",
+      timestamp: art.createdAt ? new Date(art.createdAt).getTime() : 0
+    });
+  });
+
+  renderStudentPortfolioItemsList(unifiedItems);
+}
+
+function renderStudentPortfolioItemsList(items) {
   const container = document.getElementById("student-portfolio-items");
   if (!container) return;
 
-  const gradeBanner =
-    portfolioDoc.facultyScore !== undefined && portfolioDoc.facultyScore !== null
-      ? `<div class="glass-panel" style="border:1px solid var(--success);background:rgba(16,185,129,0.08);">
-           <span class="badge-pill" style="background:var(--success);color:#fff;margin-bottom:0.5rem;display:inline-block;">Faculty Portfolio Evaluation</span>
-           <h3>Score: ${portfolioDoc.facultyScore} / 100</h3>
-           <p class="text-muted" style="font-size:0.84rem;">${escapeHtml(portfolioDoc.facultyFeedback || "Great progress on your HR portfolio.")}</p>
-         </div>`
-      : "";
+  const searchVal = (document.getElementById("portfolio-search-input")?.value || "").toLowerCase().trim();
+  const sortMode = document.getElementById("portfolio-sort-select")?.value || "newest";
 
-  const cards = artifacts
-    .map(
-      (art, idx) => `
-      <div class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;">
-        <div>
-          <span class="badge-pill" style="margin-bottom:0.5rem;display:inline-block;">Portfolio Deliverable</span>
-          <h3 style="font-size:1rem;margin-bottom:0.4rem;">${escapeHtml(art.title)}</h3>
-          <p class="text-muted" style="font-size:0.83rem;word-break:break-word;">${escapeHtml(art.link)}</p>
-        </div>
-        <div style="margin-top:1rem;padding-top:0.65rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:flex-end;">
-          <button type="button" class="btn-sidebar-action btn-logout btn-remove-artifact" data-idx="${idx}" style="width:auto;padding:0.3rem 0.65rem;font-size:0.75rem;">
-            <i class="fas fa-trash"></i> Remove
-          </button>
-        </div>
-      </div>`
-    )
+  let filtered = items.filter((item) => {
+    if (sortMode === "graded" && item.status !== "graded") return false;
+    if (sortMode === "missing" && item.status !== "missing" && item.status !== "pending") return false;
+    if (!searchVal) return true;
+    return (
+      (item.title || "").toLowerCase().includes(searchVal) ||
+      (item.category || "").toLowerCase().includes(searchVal) ||
+      (item.summary || "").toLowerCase().includes(searchVal)
+    );
+  });
+
+  filtered.sort((a, b) => {
+    if (sortMode === "oldest") return (a.timestamp || 0) - (b.timestamp || 0);
+    return (b.timestamp || 0) - (a.timestamp || 0);
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-folder-open"></i>
+        <h3>No Matching Portfolio Outputs</h3>
+        <p>Submit classroom activities or click "Add Output" above to build your portfolio.</p>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered
+    .map((item) => {
+      let badgeColor = "";
+      if (item.status === "graded") badgeColor = "background:rgba(16,185,129,0.16);color:var(--success);border-color:var(--success);";
+      else if (item.status === "missing") badgeColor = "background:rgba(239,68,68,0.16);color:var(--danger);border-color:var(--danger);";
+      else if (item.status === "pending") badgeColor = "background:rgba(245,158,11,0.16);color:var(--warning);border-color:var(--warning);";
+
+      if (item.kind === "activity") {
+        return `
+          <article class="glass-panel portfolio-output-card" data-port-act-id="${item.actId}" style="display:flex;flex-direction:column;justify-content:space-between;">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.55rem;">
+                <span class="badge-pill">${escapeHtml(item.category)}</span>
+                <span class="badge-pill" style="${badgeColor}">${escapeHtml(item.scoreText)}</span>
+              </div>
+              <h3 style="font-size:1rem;margin-bottom:0.35rem;">${escapeHtml(item.title)}</h3>
+              <p class="text-muted" style="font-size:0.82rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:0.5rem;">
+                ${escapeHtml(item.summary || "Click to inspect activity and rubric details.")}
+              </p>
+              ${item.feedback ? `<div style="font-size:0.78rem;color:var(--success);"><strong>Feedback:</strong> ${escapeHtml(item.feedback)}</div>` : ""}
+            </div>
+            <div style="margin-top:0.9rem;padding-top:0.65rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:space-between;align-items:center;">
+              <span class="text-muted" style="font-size:0.74rem;">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Click to view graded details"}</span>
+              <i class="fas fa-chevron-right" style="color:var(--aimser-blue-400);font-size:0.8rem;"></i>
+            </div>
+          </article>`;
+      }
+
+      return `
+        <article class="glass-panel portfolio-output-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.55rem;">
+              <span class="badge-pill">Portfolio Output</span>
+              <span class="badge-pill">Locked</span>
+            </div>
+            <h3 style="font-size:1rem;margin-bottom:0.35rem;">${escapeHtml(item.title)}</h3>
+            <p class="text-muted" style="font-size:0.82rem;word-break:break-word;">${escapeHtml(item.summary)}</p>
+          </div>
+        </article>`;
+    })
     .join("");
 
-  container.innerHTML =
-    gradeBanner +
-    (cards ||
-      `<div class="empty-state"><i class="fas fa-folder-open"></i><h3>No Portfolio Outputs Stored</h3><p>Click "Add Portfolio Output" to showcase your completed HR simulation deliverables.</p></div>`);
-
-  container.querySelectorAll(".btn-remove-artifact").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const idx = Number(btn.dataset.idx);
-      const updated = artifacts.filter((_, i) => i !== idx);
-      await setDoc(doc(db, "classrooms", activeClassroom.id, "portfolios", currentUser.uid), { artifacts: updated }, { merge: true });
-      await loadPortfolioData(activeClassroom.id, []);
+  container.querySelectorAll("[data-port-act-id]").forEach((card) => {
+    card.addEventListener("click", () => {
+      const targetAct = currentActivities.find((a) => a.id === card.getAttribute("data-port-act-id"));
+      if (targetAct) openActivityDetailModal(targetAct);
     });
   });
 }
@@ -849,17 +1111,17 @@ async function loadRosterAndRequests(classroomId, students) {
         reqList.innerHTML = pending
           .map(
             (req) => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-medium);">
+            <div class="inspector-meta-item" style="display:flex;justify-content:space-between;align-items:center;">
               <div style="display:flex;align-items:center;gap:0.5rem;">
                 <strong>${escapeHtml(req.studentName || req.studentEmail)}</strong>
                 ${renderRoleBadge("student")}
                 <span class="text-muted" style="font-size:0.8rem;">(${escapeHtml(req.studentEmail)})</span>
               </div>
               <div style="display:flex;gap:0.5rem;">
-                <button type="button" class="btn-primary btn-approve-req" data-req-id="${req.id}" data-uid="${req.studentUid}" data-name="${escapeHtml(req.studentName || req.studentEmail)}" data-email="${escapeHtml(req.studentEmail)}" style="padding:0.35rem 0.75rem;font-size:0.78rem;">
+                <button type="button" class="btn-primary btn-approve-req" data-req-id="${req.id}" data-uid="${req.studentUid}" data-name="${escapeHtml(req.studentName || req.studentEmail)}" data-email="${escapeHtml(req.studentEmail)}">
                   <i class="fas fa-check"></i> Approve
                 </button>
-                <button type="button" class="btn-sidebar-action btn-logout btn-reject-req" data-req-id="${req.id}" style="width:auto;padding:0.35rem 0.75rem;font-size:0.78rem;">
+                <button type="button" class="btn-sidebar-action btn-logout btn-reject-req" data-req-id="${req.id}" style="width:auto;">
                   Decline
                 </button>
               </div>
@@ -923,41 +1185,25 @@ function renderNotificationsBell() {
         : merged
             .map((n) => {
               const isWarning = n.type === "WARNING";
-              const borderStyle = isWarning ? "border:1px solid var(--danger);background:rgba(239,68,68,0.1);" : "border:1px solid var(--border-medium);background:var(--bg-surface);";
-              const ackBtn = isWarning && n.id
-                ? `<button type="button" class="btn-secondary btn-ack-bell-warning" data-id="${n.id}" style="margin-top:0.5rem;padding:0.28rem 0.65rem;font-size:0.74rem;border-color:var(--danger);"><i class="fas fa-check"></i> Acknowledge Warning</button>`
-                : "";
+              const borderStyle = isWarning
+                ? "border:1px solid var(--danger);background:rgba(239,68,68,0.1);"
+                : "border:1px solid var(--border-subtle);background:var(--bg-surface-elevated);";
               return `
-                <div style="padding:0.75rem 1rem;border-radius:var(--radius-sm);${borderStyle}">
-                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">
-                    <strong style="font-size:0.88rem;${isWarning ? "color:var(--danger);" : ""}">${escapeHtml(n.title)}</strong>
-                    <span class="badge-pill" style="font-size:0.68rem;${isWarning ? "background:rgba(239,68,68,0.2);color:var(--danger);border-color:var(--danger);" : ""}">${escapeHtml(n.type)}</span>
+                <div style="padding:0.75rem 0.9rem;border-radius:var(--radius-sm);${borderStyle}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;gap:0.4rem;">
+                    <strong style="font-size:0.84rem;${isWarning ? "color:var(--danger);" : ""}">${escapeHtml(n.title)}</strong>
+                    <span class="badge-pill" style="font-size:0.65rem;">${escapeHtml(n.type)}</span>
                   </div>
-                  <p class="text-muted" style="font-size:0.8rem;margin:0;">${escapeHtml(n.detail)}</p>
-                  ${ackBtn}
+                  <p class="text-muted" style="font-size:0.78rem;margin:0;">${escapeHtml(n.detail)}</p>
                 </div>`;
             })
             .join("");
-
-    list.querySelectorAll(".btn-ack-bell-warning").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        btn.disabled = true;
-        try {
-          await updateDoc(doc(db, "notifications", btn.dataset.id), {
-            read: true,
-            acknowledgedAt: serverTimestamp()
-          });
-          await loadModerationWarningsIntoBell();
-        } catch (err) {
-          alert("Failed to acknowledge warning: " + err.message);
-        }
-      });
-    });
   }
 }
 
 function renderEmptyWorkspace() {
-  document.getElementById("stat-section-code").textContent = "—";
+  const codeEl = document.getElementById("stat-section-code");
+  if (codeEl) codeEl.textContent = "—";
   document.getElementById("stat-member-count").textContent = `0 / ${MAX_CLASS_STUDENTS}`;
   document.getElementById("stat-activity-count").textContent = "0";
   document.getElementById("stat-avg-score").textContent = "—";
@@ -970,19 +1216,6 @@ function renderEmptyWorkspace() {
 }
 
 function bindOfficeEvents() {
-  document.querySelectorAll(".subnav-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".subnav-tab").forEach((t) => t.classList.remove("active"));
-      document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
-      tab.classList.add("active");
-      document.getElementById(tab.dataset.tab)?.classList.add("active");
-    });
-  });
-
-  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
-    btn.addEventListener("click", () => closeModal(btn.dataset.closeModal));
-  });
-
   document.getElementById("active-classroom-select")?.addEventListener("change", (e) => {
     if (e.target.value) selectClassroom(e.target.value);
   });
@@ -992,8 +1225,12 @@ function bindOfficeEvents() {
     else loadModerationWarningsIntoBell();
   });
 
-  document.getElementById("btn-open-notifications")?.addEventListener("click", () => {
-    openModal("modal-notifications");
+  document.getElementById("portfolio-search-input")?.addEventListener("input", () => {
+    updateStudentPortfolioMetricsAndView();
+  });
+
+  document.getElementById("portfolio-sort-select")?.addEventListener("change", () => {
+    updateStudentPortfolioMetricsAndView();
   });
 
   document.getElementById("btn-open-classroom-action")?.addEventListener("click", () => {
@@ -1169,15 +1406,44 @@ function bindOfficeEvents() {
     URL.revokeObjectURL(url);
   });
 
+  // Student Submission Handler (Enforces Deadline Closure, File Upload, and Permanent Lock Unless Unlocked by Faculty)
   document.getElementById("form-submit-deliverable")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!activeClassroom) return;
+
     const btn = document.getElementById("btn-save-deliverable");
     const actId = document.getElementById("detail-act-id").value;
     const notes = document.getElementById("deliverable-notes").value.trim();
+    const fileInput = document.getElementById("deliverable-file-input");
+    const selectedFile = fileInput?.files?.[0] || null;
+
+    const act = currentActivities.find((a) => a.id === actId);
+    if (isActivityPastDeadline(act)) {
+      alert("This activity is closed because the deadline has already passed.");
+      return;
+    }
+
+    const subs = allSubmissionsMap.get(actId) || [];
+    const existingSub = subs.find((s) => s.studentUid === currentUser.uid || s.id === currentUser.uid);
+    if (existingSub && !existingSub.allowEdit) {
+      alert("Your submission is already locked and cannot be edited or removed unless unlocked by your instructor.");
+      return;
+    }
 
     btn.disabled = true;
+    btn.innerHTML = selectedFile
+      ? '<i class="fas fa-spinner fa-spin"></i> Uploading Document...'
+      : '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
     try {
+      let fileUrl = existingSub?.fileUrl || "";
+      let fileName = existingSub?.fileName || "";
+
+      if (selectedFile) {
+        fileUrl = await uploadToCloudinary(selectedFile, "aimser/submissions");
+        fileName = selectedFile.name;
+      }
+
       await setDoc(
         doc(db, "classrooms", activeClassroom.id, "activities", actId, "submissions", currentUser.uid),
         {
@@ -1185,18 +1451,22 @@ function bindOfficeEvents() {
           studentName: userProfile.fullName,
           studentEmail: currentUser.email,
           notes,
+          fileUrl,
+          fileName,
+          allowEdit: false,
           submittedAt: serverTimestamp()
         },
         { merge: true }
       );
+
       await logAuditEvent(`${currentUser.email} submitted output for activity ${actId}`, "SUBMISSION", currentUser.email);
-      alert("Completed output submitted successfully!");
       closeModal("modal-activity-detail");
       await loadClassroomActivitiesAndSubmissions(activeClassroom.id, activeClassroom.students || []);
     } catch (err) {
       alert("Submission failed: " + err.message);
     } finally {
       btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
     }
   });
 
@@ -1220,6 +1490,9 @@ function bindOfficeEvents() {
     document.getElementById("res-absenteeism-rate").textContent = absenteeismRate;
     document.getElementById("res-training-cost").textContent = trainingCost;
     document.getElementById("res-recruitment-cost").textContent = recruitmentCost;
+
+    studentAbsenteeismRate = absenteeismRate;
+    updateStudentPortfolioMetricsAndView();
 
     if (activeClassroom) {
       await setDoc(doc(db, "classrooms", activeClassroom.id, "analytics_reports", currentUser.uid), {
@@ -1286,7 +1559,7 @@ function bindOfficeEvents() {
       },
       { merge: true }
     );
-    alert("Personal goals and development plan saved to your HR Portfolio!");
+    alert("Personal goals and development plan saved to your Portfolio!");
   });
 
   document.getElementById("btn-add-portfolio-item")?.addEventListener("click", () => {
@@ -1317,7 +1590,7 @@ function bindOfficeEvents() {
     e.target.reset();
     await loadPortfolioData(activeClassroom.id, []);
   });
-}
+} 
 
 function openModal(id) {
   const m = document.getElementById(id);

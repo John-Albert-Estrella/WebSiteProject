@@ -5,6 +5,8 @@ function applyTheme(theme) {
   const normalized = theme === "light" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", normalized);
   document.documentElement.classList.toggle("dark-theme", normalized === "dark");
+  document.documentElement.classList.toggle("light-theme", normalized === "light");
+
   try {
     localStorage.setItem(STORAGE_KEY, normalized);
   } catch {

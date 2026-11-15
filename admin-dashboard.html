@@ -11,11 +11,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="css/style.css?v=18" />
   <link rel="stylesheet" href="css/dashboard.css?v=18" />
-  <style>
-    .tab-panel { display: none; }
-    .tab-panel.active, .tab-panel.is-active { display: block !important; }
-    .modal-backdrop:not(.is-open) { display: none !important; pointer-events: none !important; }
-  </style>
 </head>
 <body>
   <div class="dashboard-layout">
@@ -82,10 +77,35 @@
       <header class="workspace-header">
         <div class="header-left">
           <h1 class="page-title">Executive Management</h1>
-          <span class="badge-pill">Platform Oversight</span>
         </div>
 
         <div class="header-right">
+          <div class="notif-dropdown-wrapper" id="notif-dropdown-wrapper">
+            <button type="button" id="btn-open-notifications" class="btn-secondary notif-trigger-btn" title="Notifications" aria-expanded="false">
+              <i class="fas fa-bell"></i>
+              <span id="notif-badge" class="notif-badge-pill">0</span>
+            </button>
+
+            <div class="notif-dropdown-menu" id="notif-dropdown-menu" role="region" aria-label="Notifications Dropdown">
+              <div class="notif-dropdown-header">
+                <h4><i class="fas fa-bell"></i> Admin Notifications</h4>
+                <span class="text-muted">Click item for details</span>
+              </div>
+              <div id="notifications-feed-list" class="notif-dropdown-list">
+                <div class="empty-state">
+                  <i class="fas fa-bell-slash"></i>
+                  <h3>No new alerts</h3>
+                  <p>System telemetry and moderation alerts appear here.</p>
+                </div>
+              </div>
+              <div class="notif-dropdown-footer">
+                <button type="button" id="btn-view-all-notifs" class="btn-secondary w-full">
+                  View All in Full Page
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="user-profile-chip">
             <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=1b5375&color=faf2dd" alt="Admin Avatar" class="avatar-sm" />
             <div class="user-meta">
@@ -144,39 +164,39 @@
       <section id="panel-users" class="tab-panel">
         <div id="user-registry-layout" class="user-registry-layout">
           <div class="glass-panel">
-            <div class="panel-toolbar" style="align-items: center;">
+            <div class="panel-toolbar">
               <div>
-                <h2 style="margin: 0;">User Registry</h2>
+                <h2>User Registry</h2>
               </div>
-              <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                <select id="admin-role-filter" class="form-select" style="max-width: 150px;" aria-label="Filter by Role">
+              <div class="workspace-action-bar">
+                <select id="admin-role-filter" class="form-select" aria-label="Filter by Role">
                   <option value="all">All Roles</option>
                   <option value="student">Students</option>
                   <option value="faculty">Faculty</option>
                   <option value="admin">Admins</option>
                 </select>
-                <input type="text" id="admin-user-search" class="form-control" placeholder="Search name, email, dept..." style="max-width: 230px;" />
+                <input type="text" id="admin-user-search" class="form-control" placeholder="Search name, email, dept..." />
                 <button type="button" id="btn-refresh-users" class="btn-secondary" title="Refresh Users">
                   <i class="fas fa-sync-alt"></i>
                 </button>
               </div>
             </div>
 
-            <div style="overflow-x: auto;">
-              <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem;">
+            <div class="table-scroll">
+              <table class="admin-table">
                 <thead>
-                  <tr style="border-bottom: 1px solid var(--border-medium); color: var(--text-tertiary);">
-                    <th style="padding: 0.75rem 1rem;">User</th>
-                    <th style="padding: 0.75rem 1rem;">Institutional Email</th>
-                    <th style="padding: 0.75rem 1rem;">Department</th>
-                    <th style="padding: 0.75rem 1rem;">Role</th>
-                    <th style="padding: 0.75rem 1rem; text-align: right;">Profile</th>
+                  <tr>
+                    <th>User</th>
+                    <th>Institutional Email</th>
+                    <th>Department</th>
+                    <th>Role</th>
+                    <th class="text-right">Profile</th>
                   </tr>
                 </thead>
                 <tbody id="admin-users-table-body">
                   <tr>
-                    <td colspan="5" style="text-align: center; padding: 2.5rem; color: var(--text-secondary);">
-                      <i class="fas fa-spinner fa-spin" style="margin-right: 0.5rem;"></i> Loading user directory...
+                    <td colspan="5">
+                      <i class="fas fa-spinner fa-spin"></i> Loading user directory...
                     </td>
                   </tr>
                 </tbody>
@@ -185,33 +205,33 @@
           </div>
 
           <!-- User Profile & Details Inspector Panel -->
-          <aside id="user-inspector-panel" class="glass-panel user-inspector-panel" style="display: none;" aria-label="User Profile Inspector">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.15rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-subtle);">
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <i class="fas fa-id-card" style="color: var(--aimser-blue-400);"></i>
-                <h3 style="margin: 0; font-size: 1.05rem;">User Profile &amp; Details</h3>
+          <aside id="user-inspector-panel" class="glass-panel user-inspector-panel is-hidden" aria-label="User Profile Inspector">
+            <div class="modal-header">
+              <div class="header-left">
+                <i class="fas fa-id-card"></i>
+                <h3>User Profile &amp; Details</h3>
               </div>
               <button type="button" id="btn-close-inspector" class="btn-close-modal" aria-label="Close User Profile Panel">&times;</button>
             </div>
 
             <div id="inspector-status-msg" class="status-msg" aria-live="polite"></div>
 
-            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.15rem;">
-              <img id="inspector-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Selected User Avatar" class="avatar-preview" style="width: 74px; height: 74px;" />
-              <div style="min-width: 0; flex: 1;">
-                <div style="display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 0.2rem;">
-                  <strong id="inspector-header-name" style="font-size: 1.05rem; color: var(--text-primary);">User Name</strong>
-                  <span id="inspector-header-role-badge" class="badge-pill" style="font-size: 0.68rem;">STUDENT</span>
+            <div class="inspector-identity-row">
+              <img id="inspector-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Selected User Avatar" class="avatar-preview inspector-avatar-lg" />
+              <div class="inspector-identity-meta">
+                <div class="inspector-name-row">
+                  <strong id="inspector-header-name">User Name</strong>
+                  <span id="inspector-header-role-badge" class="badge-pill">STUDENT</span>
                 </div>
-                <div id="inspector-header-email" class="text-muted" style="font-size: 0.8rem; word-break: break-all;">user@institution.edu.ph</div>
-                <div style="margin-top: 0.45rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                  <label for="inspector-avatar-input" class="btn-secondary" style="padding: 0.3rem 0.65rem; font-size: 0.74rem; cursor: pointer;">
+                <div id="inspector-header-email" class="text-muted">user@institution.edu.ph</div>
+                <div class="inspector-photo-actions">
+                  <label for="inspector-avatar-input" class="btn-secondary">
                     <i class="fas fa-camera"></i> Change Photo
                   </label>
-                  <button type="button" id="btn-reset-user-avatar" class="btn-secondary" style="padding: 0.3rem 0.65rem; font-size: 0.74rem;">
+                  <button type="button" id="btn-reset-user-avatar" class="btn-secondary">
                     <i class="fas fa-undo"></i> Reset Photo
                   </button>
-                  <input type="file" id="inspector-avatar-input" accept="image/png,image/jpeg,image/webp" style="display: none;" />
+                  <input type="file" id="inspector-avatar-input" class="is-hidden" accept="image/png,image/jpeg,image/webp" />
                 </div>
               </div>
             </div>
@@ -219,7 +239,7 @@
             <div class="inspector-meta-grid">
               <div class="inspector-meta-item">
                 <span>Account UID</span>
-                <strong id="inspector-uid-text" style="font-family: var(--font-mono); font-size: 0.72rem;">—</strong>
+                <strong id="inspector-uid-text" class="code-mono">—</strong>
               </div>
               <div class="inspector-meta-item">
                 <span>Registered On</span>
@@ -255,21 +275,21 @@
                   <option value="faculty">Faculty (Creates &amp; Grades Classrooms/Cases)</option>
                   <option value="admin">Administrator (Full Platform Authority)</option>
                 </select>
-                <small id="inspector-self-note" class="text-muted" style="display: none; font-size: 0.73rem; margin-top: 0.25rem;">
+                <small id="inspector-self-note" class="text-muted is-hidden">
                   Root administrator role cannot be downgraded here.
                 </small>
               </div>
 
-              <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.15rem;">
-                <button type="submit" id="btn-save-inspector-user" class="btn-primary" style="width: 100%; justify-content: center;">
+              <div class="inspector-footer-stack">
+                <button type="submit" id="btn-save-inspector-user" class="btn-primary w-full">
                   <i class="fas fa-save"></i> Save User Details
                 </button>
 
-                <div id="inspector-account-actions" style="display: flex; gap: 0.5rem; padding-top: 0.65rem; border-top: 1px solid var(--border-subtle);">
-                  <button type="button" id="btn-inspector-reset-pw" class="btn-secondary" style="flex: 1; justify-content: center; padding: 0.45rem 0.65rem; font-size: 0.78rem;">
+                <div id="inspector-account-actions" class="inspector-danger-row">
+                  <button type="button" id="btn-inspector-reset-pw" class="btn-secondary">
                     <i class="fas fa-key"></i> Password Reset
                   </button>
-                  <button type="button" id="btn-inspector-delete-user" class="btn-sidebar-action btn-logout" style="flex: 1; justify-content: center; padding: 0.45rem 0.65rem; font-size: 0.78rem;">
+                  <button type="button" id="btn-inspector-delete-user" class="btn-sidebar-action btn-logout">
                     <i class="fas fa-user-times"></i> Remove Account
                   </button>
                 </div>
@@ -282,9 +302,9 @@
       <!-- Panel 2: Classroom Sections Audit -->
       <section id="panel-sections" class="tab-panel">
         <div class="glass-panel">
-          <div class="panel-toolbar" style="align-items: center;">
+          <div class="panel-toolbar">
             <div>
-              <h2 style="margin: 0;">Classroom Sections</h2>
+              <h2>Classroom Sections</h2>
             </div>
             <button type="button" id="btn-refresh-sections" class="btn-secondary" title="Refresh Sections">
               <i class="fas fa-sync-alt"></i> Refresh Sections
@@ -303,28 +323,28 @@
       <!-- Panel 3: HR Case Library & E-Modules Management -->
       <section id="panel-cases" class="tab-panel">
         <div class="glass-panel">
-          <div class="panel-toolbar" style="align-items: center;">
+          <div class="panel-toolbar">
             <div>
-              <h2 style="margin: 0;">HR Case Library &amp; E-Modules</h2>
+              <h2>HR Case Library &amp; E-Modules</h2>
             </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-              <select id="admin-case-type-filter" class="form-select" style="width: 165px;">
+            <div class="workspace-action-bar">
+              <select id="admin-case-type-filter" class="form-select">
                 <option value="all">All Materials</option>
                 <option value="Company Case">Company Cases</option>
                 <option value="HR E-Module">HR E-Modules</option>
                 <option value="Practice Case">Practice Cases</option>
               </select>
-              <input type="text" id="admin-case-search" class="form-control" placeholder="Search title, domain, author..." style="width: 220px;" />
-              <button type="button" id="btn-open-admin-case-modal" class="btn-primary" style="padding: 0.52rem 0.9rem; font-size: 0.8rem;">
+              <input type="text" id="admin-case-search" class="form-control" placeholder="Search title, domain, author..." />
+              <button type="button" id="btn-open-admin-case-modal" class="btn-primary">
                 <i class="fas fa-upload"></i> Upload Case / E-Module
               </button>
-              <button type="button" id="btn-refresh-cases" class="btn-secondary" style="padding: 0.52rem 0.75rem;" title="Refresh Library">
+              <button type="button" id="btn-refresh-cases" class="btn-secondary" title="Refresh Library">
                 <i class="fas fa-sync-alt"></i>
               </button>
             </div>
           </div>
 
-          <div id="admin-cases-status-banner" style="margin-bottom: 1.25rem; padding: 0.75rem 1rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle); font-size: 0.82rem; color: var(--text-secondary);">
+          <div id="admin-cases-status-banner" class="admin-status-banner">
             Checking HR Case Library status...
           </div>
 
@@ -340,27 +360,27 @@
       <!-- Panel 4: HR Feed Moderation -->
       <section id="panel-feed" class="tab-panel">
         <div class="glass-panel">
-          <div class="panel-toolbar" style="align-items: center;">
+          <div class="panel-toolbar">
             <div>
-              <h2 style="margin: 0;">HR Feed Moderation</h2>
+              <h2>HR Feed Moderation</h2>
             </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-              <select id="admin-feed-filter" class="form-select" style="width: 145px;" aria-label="Filter Feed Status">
+            <div class="workspace-action-bar">
+              <select id="admin-feed-filter" class="form-select" aria-label="Filter Feed Status">
                 <option value="all">All Posts</option>
                 <option value="active">Active Only</option>
                 <option value="archived">Archived Only</option>
               </select>
-              <input type="text" id="admin-feed-search" class="form-control" placeholder="Search title, author, text..." style="width: 220px;" />
-              <a href="admin-hr-feed.html" class="btn-primary" style="padding: 0.52rem 0.85rem; font-size: 0.8rem;">
+              <input type="text" id="admin-feed-search" class="form-control" placeholder="Search title, author, text..." />
+              <a href="admin-hr-feed.html" class="btn-primary">
                 <i class="fas fa-comments"></i> Open Admin HR Feed
               </a>
-              <button type="button" id="btn-refresh-feed" class="btn-secondary" style="padding: 0.52rem 0.75rem;" title="Refresh HR Feed">
+              <button type="button" id="btn-refresh-feed" class="btn-secondary" title="Refresh HR Feed">
                 <i class="fas fa-sync-alt"></i>
               </button>
             </div>
           </div>
 
-          <div id="admin-feed-container" style="display: flex; flex-direction: column; gap: 0.9rem;">
+          <div id="admin-feed-container" class="admin-feed-list">
             <div class="empty-state">
               <i class="fas fa-spinner fa-spin"></i>
               <h3>Loading HR Feed posts...</h3>
@@ -372,19 +392,19 @@
       <!-- Panel 5: Security & Activity Telemetry (Audit Trail) -->
       <section id="panel-telemetry" class="tab-panel active">
         <div class="glass-panel" id="audit-trail-card">
-          <div class="panel-toolbar" style="align-items: center;">
+          <div class="panel-toolbar">
             <div>
-              <h2 style="margin: 0;">Platform Activity &amp; Audit Trail</h2>
+              <h2>Platform Activity &amp; Audit Trail</h2>
             </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-              <input type="text" id="admin-log-search" class="form-control" placeholder="Filter events..." style="max-width: 220px;" />
+            <div class="workspace-action-bar">
+              <input type="text" id="admin-log-search" class="form-control" placeholder="Filter events..." />
               <button type="button" id="btn-refresh-logs" class="btn-secondary" title="Refresh Logs">
                 <i class="fas fa-sync-alt"></i> Refresh Logs
               </button>
             </div>
           </div>
 
-          <div id="admin-logs-container" style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 540px; overflow-y: auto; padding-right: 0.35rem;">
+          <div id="admin-logs-container" class="admin-logs-scroll">
             <div class="empty-state">
               <i class="fas fa-spinner fa-spin"></i>
               <h3>Loading telemetry trail...</h3>
@@ -392,12 +412,36 @@
           </div>
         </div>
       </section>
+
+      <!-- IN-PAGE NOTIFICATION FULL DETAILS VIEW -->
+      <section id="panel-notification-view" class="tab-panel">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div class="header-left">
+              <button type="button" id="btn-back-from-notif" class="btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Workspace
+              </button>
+              <h2>Notification Details</h2>
+            </div>
+            <span id="notif-detail-badge" class="badge-pill">System Alert</span>
+          </div>
+
+          <div id="notif-selected-detail-card" class="inspector-meta-item">
+            <h3 id="notif-detail-title">Select a notification</h3>
+            <p id="notif-detail-meta" class="text-muted"></p>
+            <div id="notif-detail-body"></div>
+          </div>
+
+          <h3>All System Notifications</h3>
+          <div id="notif-fullpage-all-list" class="admin-feed-list"></div>
+        </div>
+      </section>
     </main>
   </div>
 
   <!-- Modal: Admin Upload Company Case, E-Module, or Practice Case -->
   <div class="modal-backdrop" id="modal-admin-create-case" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card" style="max-width: 680px;">
+    <div class="modal-card modal-card-lg">
       <div class="modal-header">
         <h3>Upload Company Case, E-Module, or Practice Case</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-admin-create-case">&times;</button>
@@ -447,7 +491,7 @@
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-admin-create-case">Cancel</button>
           <button type="submit" class="btn-primary" id="btn-submit-admin-case">
-            <i class="fas fa-cloud-upload-alt"></i> Publish to HR Library
+            <i class="fas fa-cloud-upload-alt"></i> Submit
           </button>
         </div>
       </form>
@@ -456,12 +500,12 @@
 
   <!-- Modal: Full-Size Photo Viewer for Post & Comment Attachments -->
   <div class="modal-backdrop" id="modal-image-lightbox" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modal-card" style="max-width: 820px; text-align: center;">
+    <div class="modal-card modal-card-xl">
       <div class="modal-header">
         <h3 id="lightbox-title">Attached Evidence Photo</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-image-lightbox">&times;</button>
       </div>
-      <img id="lightbox-img" src="" alt="Full Size Attachment" style="max-width: 100%; max-height: 72vh; border-radius: var(--radius-sm); object-fit: contain;" />
+      <img id="lightbox-img" src="" alt="Full Size Attachment" class="lightbox-preview-img" />
     </div>
   </div>
 

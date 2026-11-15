@@ -1,4 +1,4 @@
-// js/planner.js - Project Planner (15-Member Capacity, Positions, Hierarchy, Deadlines, Kanban Edit & Onboarding)
+// js/planner.js - Project Planner (15-Member Capacity, Assign Position, Deadlines, Kanban Edit & Notifications)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -55,7 +55,7 @@ function renderRoleBadge(role) {
   const isFac = normalized === "faculty";
   const bg = isFac ? "rgba(56, 189, 248, 0.16)" : "rgba(16, 185, 129, 0.16)";
   const color = isFac ? "#38bdf8" : "#10b981";
-  return `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:${bg};color:${color};letter-spacing:0.04em;">${escapeHtml(normalized)}</span>`;
+  return `<span class="badge-pill" style="background:${bg};color:${color};border-color:transparent;">${escapeHtml(normalized.toUpperCase())}</span>`;
 }
 
 async function loadTeams() {
@@ -120,9 +120,44 @@ async function loadTasks(teamId) {
     currentTasks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     FastCache.set(`planner_tasks_${teamId}`, currentTasks);
     renderKanbanTasks(currentTasks, teamId);
+    renderPlannerNotifications(currentTasks);
   } catch (err) {
     console.error("Error loading tasks:", err);
   }
+}
+
+function renderPlannerNotifications(tasks) {
+  const badge = document.getElementById("notif-badge");
+  const list = document.getElementById("notifications-feed-list");
+  if (!list) return;
+
+  const activeAlerts = tasks.filter((t) => t.status !== "done");
+  if (badge) {
+    if (activeAlerts.length > 0) {
+      badge.style.display = "inline-block";
+      badge.textContent = activeAlerts.length;
+    } else {
+      badge.style.display = "none";
+    }
+  }
+
+  if (activeAlerts.length === 0) {
+    list.innerHTML = `<div class="empty-state" style="padding:1.25rem;"><i class="fas fa-check-circle"></i><h3>All Team Tasks Completed</h3><p>No pending tasks or overdue milestones.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = activeAlerts
+    .map(
+      (t) => `
+      <div class="inspector-meta-item">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.2rem;">
+          <strong style="font-size:0.84rem;">${escapeHtml(t.title)}</strong>
+          <span class="badge-pill" style="font-size:0.65rem;">${escapeHtml(t.positionTag || "Task")}</span>
+        </div>
+        <p class="text-muted" style="font-size:0.78rem;margin:0;">Assignee: ${escapeHtml(t.assigneeName || "Team")} • Due: ${escapeHtml(t.deadline || "Flexible")}</p>
+      </div>`
+    )
+    .join("");
 }
 
 function renderKanbanTasks(tasks, teamId) {
@@ -150,7 +185,7 @@ function renderKanbanTasks(tasks, teamId) {
               const dueColor = isOverdue ? "var(--danger)" : "var(--text-tertiary)";
 
               return `
-                <div style="padding:0.85rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-medium);">
+                <div class="inspector-meta-item" style="padding:0.85rem;">
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;gap:0.35rem;">
                     <span class="badge-pill" style="font-size:0.68rem;">${escapeHtml(task.positionTag || task.priority || "Task")}</span>
                     <div style="display:flex;align-items:center;gap:0.45rem;">
@@ -210,6 +245,7 @@ function renderKanbanTasks(tasks, teamId) {
   });
 }
 
+// Render Team Members & Assigned Positions (Hierarchy Tier Label Removed per Faculty Revision)
 function renderHierarchyAndPositions() {
   const grid = document.getElementById("hierarchy-members-grid");
   const assigneeSelect = document.getElementById("task-assignee");
@@ -219,20 +255,19 @@ function renderHierarchyAndPositions() {
   const profilesMap = activeTeam.memberProfiles || {};
   const memberUids = activeTeam.members || [];
 
-  const membersList = memberUids
-    .map((uid) => {
-      const info = profilesMap[uid] || {};
-      const isLeader = uid === activeTeam.leaderUid;
-      return {
-        uid,
-        fullName: info.fullName || (uid === currentUser.uid ? userProfile.fullName : `Member (${uid.slice(0, 5)})`),
-        roleBadge: info.roleBadge || "student",
-        tier: info.tier || (isLeader ? "1 - Team Leader" : "4 - Project Associate"),
-        position: info.position || (isLeader ? "Team Leader" : "HR Project Member"),
-        responsibilities: info.responsibilities || "Collaborate on HR simulation deliverables, onboarding workflows, and assigned tasks."
-      };
-    })
-    .sort((a, b) => a.tier.localeCompare(b.tier));
+  const membersList = memberUids.map((uid) => {
+    const info = profilesMap[uid] || {};
+    const isLeader = uid === activeTeam.leaderUid;
+    return {
+      uid,
+      fullName: info.fullName || (uid === currentUser.uid ? userProfile.fullName : `Member (${uid.slice(0, 5)})`),
+      roleBadge: info.roleBadge || "student",
+      tier: info.tier || (isLeader ? "1 - Team Leader" : "3 - HR Specialist"),
+      position: info.position || (isLeader ? "Team Leader" : "HR Project Member"),
+      responsibilities:
+        info.responsibilities || "Collaborate on HR simulation deliverables, onboarding workflows, and assigned tasks."
+    };
+  });
 
   const optionsHtml = membersList
     .map((m) => `<option value="${escapeHtml(m.fullName)}">${escapeHtml(m.fullName)} (${escapeHtml(m.position)})</option>`)
@@ -247,21 +282,18 @@ function renderHierarchyAndPositions() {
       <div class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;">
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.65rem;gap:0.4rem;flex-wrap:wrap;">
-            <span class="badge-pill">${escapeHtml(m.tier)}</span>
+            <span class="badge-pill"><i class="fas fa-id-badge"></i> ${escapeHtml(m.position)}</span>
             ${renderRoleBadge(m.roleBadge)}
           </div>
-          <h3 style="font-size:1.05rem;margin-bottom:0.2rem;">${escapeHtml(m.fullName)}</h3>
-          <div style="font-size:0.84rem;font-weight:600;color:#38bdf8;margin-bottom:0.65rem;">
-            <i class="fas fa-id-badge"></i> ${escapeHtml(m.position)}
-          </div>
+          <h3 style="font-size:1.05rem;margin-bottom:0.45rem;">${escapeHtml(m.fullName)}</h3>
           <p class="text-muted" style="font-size:0.82rem;line-height:1.5;">
             <strong>Responsibilities:</strong> ${escapeHtml(m.responsibilities)}
           </p>
         </div>
 
         <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border-subtle);display:flex;justify-content:flex-end;">
-          <button type="button" class="btn-secondary btn-open-pos-modal" data-uid="${m.uid}" data-name="${escapeHtml(m.fullName)}" data-tier="${escapeHtml(m.tier)}" data-pos="${escapeHtml(m.position)}" data-resp="${escapeHtml(m.responsibilities)}" style="padding:0.35rem 0.75rem;font-size:0.78rem;">
-            <i class="fas fa-user-edit"></i> Assign Position &amp; Duties
+          <button type="button" class="btn-secondary btn-open-pos-modal" data-uid="${m.uid}" data-name="${escapeHtml(m.fullName)}" data-tier="${escapeHtml(m.tier)}" data-pos="${escapeHtml(m.position)}" data-resp="${escapeHtml(m.responsibilities)}">
+            <i class="fas fa-user-edit"></i> Assign Position
           </button>
         </div>
       </div>`
@@ -272,7 +304,8 @@ function renderHierarchyAndPositions() {
     btn.addEventListener("click", () => {
       document.getElementById("pos-member-uid").value = btn.dataset.uid;
       document.getElementById("pos-member-name").value = btn.dataset.name;
-      document.getElementById("pos-hierarchy-tier").value = btn.dataset.tier;
+      const tierInput = document.getElementById("pos-hierarchy-tier");
+      if (tierInput) tierInput.value = btn.dataset.tier || "3 - HR Specialist";
       document.getElementById("pos-job-title").value = btn.dataset.pos;
       document.getElementById("pos-responsibilities").value = btn.dataset.resp;
       openModal("modal-assign-position");
@@ -308,7 +341,7 @@ async function loadOnboardingChecklist(teamId) {
     container.innerHTML = items
       .map(
         (item) => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.85rem 1rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-medium);gap:1rem;">
+        <div class="inspector-meta-item" style="display:flex;justify-content:space-between;align-items:center;padding:0.85rem 1rem;gap:1rem;">
           <label style="display:flex;align-items:center;gap:0.75rem;cursor:pointer;flex:1;">
             <input type="checkbox" class="onb-checkbox" data-id="${item.id}" ${item.completed ? "checked" : ""} style="width:18px;height:18px;accent-color:var(--success);" />
             <div>
@@ -365,19 +398,6 @@ function clearPlannerViews() {
 }
 
 function bindPlannerEvents() {
-  document.querySelectorAll(".subnav-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".subnav-tab").forEach((t) => t.classList.remove("active"));
-      document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
-      tab.classList.add("active");
-      document.getElementById(tab.dataset.tab)?.classList.add("active");
-    });
-  });
-
-  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
-    btn.addEventListener("click", () => closeModal(btn.dataset.closeModal));
-  });
-
   document.getElementById("planner-team-select")?.addEventListener("change", (e) => {
     if (e.target.value) selectTeam(e.target.value);
   });
@@ -465,7 +485,7 @@ function bindPlannerEvents() {
         [`memberProfiles.${currentUser.uid}`]: {
           fullName: userProfile.fullName,
           roleBadge: userProfile.role,
-          tier: "4 - Project Associate",
+          tier: "3 - HR Specialist",
           position: "HR Project Associate",
           responsibilities: "Execute assigned project tasks and onboarding checklist items."
         }
@@ -540,7 +560,7 @@ function bindPlannerEvents() {
 
     const uid = document.getElementById("pos-member-uid").value;
     const name = document.getElementById("pos-member-name").value;
-    const tier = document.getElementById("pos-hierarchy-tier").value;
+    const tier = document.getElementById("pos-hierarchy-tier")?.value || "3 - HR Specialist";
     const position = document.getElementById("pos-job-title").value.trim();
     const responsibilities = document.getElementById("pos-responsibilities").value.trim();
 

@@ -77,10 +77,35 @@
       <header class="workspace-header">
         <div class="header-left">
           <h1 class="page-title">Admin System Settings</h1>
-          <span class="badge-pill">Master Administration Hub</span>
         </div>
 
         <div class="header-right">
+          <div class="notif-dropdown-wrapper" id="notif-dropdown-wrapper">
+            <button type="button" id="btn-open-notifications" class="btn-secondary notif-trigger-btn" title="Notifications" aria-expanded="false">
+              <i class="fas fa-bell"></i>
+              <span id="notif-badge" class="notif-badge-pill">0</span>
+            </button>
+
+            <div class="notif-dropdown-menu" id="notif-dropdown-menu" role="region" aria-label="Notifications Dropdown">
+              <div class="notif-dropdown-header">
+                <h4><i class="fas fa-bell"></i> System Notifications</h4>
+                <span class="text-muted">Click item for details</span>
+              </div>
+              <div id="notifications-feed-list" class="notif-dropdown-list">
+                <div class="empty-state">
+                  <i class="fas fa-bell-slash"></i>
+                  <h3>No new alerts</h3>
+                  <p>Policy and security notifications appear here.</p>
+                </div>
+              </div>
+              <div class="notif-dropdown-footer">
+                <button type="button" id="btn-view-all-notifs" class="btn-secondary w-full">
+                  View All in Full Page
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="user-profile-chip">
             <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=1b5375&color=faf2dd" alt="Admin Avatar" class="avatar-sm" />
             <div class="user-meta">
@@ -91,136 +116,163 @@
         </div>
       </header>
 
-      <div class="settings-grid">
-        <!-- Administrator Profile Card -->
-        <section class="settings-card glass-panel">
-          <div class="card-header" style="align-items: center;">
-            <i class="fas fa-user-shield"></i>
-            <div>
-              <h3 style="margin: 0;">Administrator Identity</h3>
-            </div>
-          </div>
-
-          <div id="admin-profile-status" class="status-msg" aria-live="polite"></div>
-
-          <form id="admin-profile-form">
-            <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.75rem;">
-              <img id="admin-avatar-preview" src="https://ui-avatars.com/api/?name=Admin&background=1b5375&color=faf2dd" alt="Admin Preview" class="avatar-preview" />
+      <!-- Main Admin Settings Grid (Wrapped in .tab-panel.active for In-Page Notification View) -->
+      <section id="panel-admin-settings-main" class="tab-panel active">
+        <div class="settings-grid">
+          <!-- Administrator Profile Card -->
+          <section class="settings-card glass-panel">
+            <div class="card-header">
+              <i class="fas fa-user-shield"></i>
               <div>
-                <label for="admin-avatar-input" class="form-label" style="margin-bottom: 0.35rem;">Admin Profile Picture</label>
-                <input type="file" id="admin-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" style="max-width: 320px;" />
+                <h3>Administrator Identity</h3>
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="admin-fullname" class="form-label">Full Name</label>
-              <input type="text" id="admin-fullname" class="form-control" placeholder="e.g., Administrator Name" required />
-            </div>
+            <div id="admin-profile-status" class="status-msg" aria-live="polite"></div>
 
-            <div class="form-row">
+            <form id="admin-profile-form">
+              <div class="workspace-action-bar">
+                <img id="admin-avatar-preview" src="https://ui-avatars.com/api/?name=Admin&background=1b5375&color=faf2dd" alt="Admin Preview" class="avatar-preview" />
+                <div>
+                  <label for="admin-avatar-input" class="form-label">Admin Profile Picture (PNG, JPG, WebP)</label>
+                  <input type="file" id="admin-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" />
+                </div>
+              </div>
+
               <div class="form-group">
-                <label for="admin-email" class="form-label">Admin Email</label>
-                <input type="email" id="admin-email" class="form-control" disabled />
+                <label for="admin-fullname" class="form-label">Full Name</label>
+                <input type="text" id="admin-fullname" class="form-control" placeholder="e.g., Administrator Name" required />
               </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="admin-email" class="form-label">Admin Email</label>
+                  <input type="email" id="admin-email" class="form-control" disabled />
+                </div>
+                <div class="form-group">
+                  <label for="admin-role-badge" class="form-label">Authorization Clearance</label>
+                  <input type="text" id="admin-role-badge" class="form-control" value="SYSTEM ADMINISTRATOR" disabled />
+                </div>
+              </div>
+
+              <button type="submit" id="btn-save-admin-profile" class="btn-primary">
+                <i class="fas fa-save"></i> Save Admin Profile
+              </button>
+            </form>
+          </section>
+
+          <!-- Global Simulator Policies -->
+          <section class="settings-card glass-panel">
+            <div class="card-header">
+              <i class="fas fa-cogs"></i>
+              <div>
+                <h3>Global Simulation Policies</h3>
+              </div>
+            </div>
+
+            <div id="system-config-status" class="status-msg" aria-live="polite"></div>
+
+            <form id="system-config-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="config-max-teamsize" class="form-label">Max Members per Team Room</label>
+                  <input type="number" id="config-max-teamsize" class="form-control" min="2" max="15" value="15" required />
+                </div>
+                <div class="form-group">
+                  <label for="config-academic-term" class="form-label">Active Academic Term</label>
+                  <input type="text" id="config-academic-term" class="form-control" placeholder="e.g., 1st Sem A.Y. 2026-2027" required />
+                </div>
+              </div>
+
               <div class="form-group">
-                <label for="admin-role-badge" class="form-label">Authorization Clearance</label>
-                <input type="text" id="admin-role-badge" class="form-control" value="SYSTEM ADMINISTRATOR" disabled />
+                <label for="config-registration-mode" class="form-label">Registration Access Mode</label>
+                <select id="config-registration-mode" class="form-select">
+                  <option value="open">Open (Anyone with an institutional email can register)</option>
+                  <option value="faculty-only">Restricted (Only Faculty can register directly)</option>
+                  <option value="locked">Locked (System Closed to New Accounts)</option>
+                </select>
+              </div>
+
+              <button type="submit" id="btn-save-system-config" class="btn-primary">
+                <i class="fas fa-sliders-h"></i> Update Global Policies
+              </button>
+            </form>
+          </section>
+
+          <!-- Admin Master Password -->
+          <section class="settings-card glass-panel">
+            <div class="card-header">
+              <i class="fas fa-key"></i>
+              <div>
+                <h3>Admin Security Credentials</h3>
               </div>
             </div>
 
-            <button type="submit" id="btn-save-admin-profile" class="btn-primary" style="margin-top: 0.5rem;">
-              <i class="fas fa-save"></i> Save Admin Profile
-            </button>
-          </form>
-        </section>
+            <div id="admin-password-status" class="status-msg" aria-live="polite"></div>
 
-        <!-- Global Simulator Policies -->
-        <section class="settings-card glass-panel">
-          <div class="card-header" style="align-items: center;">
-            <i class="fas fa-cogs"></i>
-            <div>
-              <h3 style="margin: 0;">Global Simulation Policies</h3>
-            </div>
-          </div>
-
-          <div id="system-config-status" class="status-msg" aria-live="polite"></div>
-
-          <form id="system-config-form">
-            <div class="form-row">
+            <form id="admin-password-form">
               <div class="form-group">
-                <label for="config-max-teamsize" class="form-label">Max Members per Team Room</label>
-                <input type="number" id="config-max-teamsize" class="form-control" min="2" max="15" value="15" required />
-              </div>
-              <div class="form-group">
-                <label for="config-academic-term" class="form-label">Active Academic Term</label>
-                <input type="text" id="config-academic-term" class="form-control" placeholder="e.g., 1st Sem A.Y. 2026-2027" required />
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="config-registration-mode" class="form-label">Registration Access Mode</label>
-              <select id="config-registration-mode" class="form-select">
-                <option value="open">Open (Anyone with an institutional email can register)</option>
-                <option value="faculty-only">Restricted (Only Faculty can register directly)</option>
-                <option value="locked">Locked (System Closed to New Accounts)</option>
-              </select>
-            </div>
-
-            <button type="submit" id="btn-save-system-config" class="btn-primary" style="margin-top: 0.5rem;">
-              <i class="fas fa-sliders-h"></i> Update Global Policies
-            </button>
-          </form>
-        </section>
-
-        <!-- Admin Master Password -->
-        <section class="settings-card glass-panel">
-          <div class="card-header" style="align-items: center;">
-            <i class="fas fa-key"></i>
-            <div>
-              <h3 style="margin: 0;">Admin Security Credentials</h3>
-            </div>
-          </div>
-
-          <div id="admin-password-status" class="status-msg" aria-live="polite"></div>
-
-          <form id="admin-password-form">
-            <div class="form-group">
-              <label for="admin-current-pw" class="form-label">Current Admin Password</label>
-              <div class="input-password-wrapper">
-                <input type="password" id="admin-current-pw" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
-                <button type="button" class="btn-toggle-pw" data-target="admin-current-pw" aria-label="Toggle password visibility">
-                  <i class="far fa-eye"></i>
-                </button>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label for="admin-new-pw" class="form-label">New Password</label>
+                <label for="admin-current-pw" class="form-label">Current Admin Password</label>
                 <div class="input-password-wrapper">
-                  <input type="password" id="admin-new-pw" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-pw" data-target="admin-new-pw" aria-label="Toggle password visibility">
+                  <input type="password" id="admin-current-pw" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
+                  <button type="button" class="btn-toggle-pw" data-target="admin-current-pw" aria-label="Toggle password visibility">
                     <i class="far fa-eye"></i>
                   </button>
                 </div>
               </div>
-              <div class="form-group">
-                <label for="admin-confirm-pw" class="form-label">Confirm New Password</label>
-                <div class="input-password-wrapper">
-                  <input type="password" id="admin-confirm-pw" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-pw" data-target="admin-confirm-pw" aria-label="Toggle password visibility">
-                    <i class="far fa-eye"></i>
-                  </button>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="admin-new-pw" class="form-label">New Password</label>
+                  <div class="input-password-wrapper">
+                    <input type="password" id="admin-new-pw" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
+                    <button type="button" class="btn-toggle-pw" data-target="admin-new-pw" aria-label="Toggle password visibility">
+                      <i class="far fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="admin-confirm-pw" class="form-label">Confirm New Password</label>
+                  <div class="input-password-wrapper">
+                    <input type="password" id="admin-confirm-pw" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
+                    <button type="button" class="btn-toggle-pw" data-target="admin-confirm-pw" aria-label="Toggle password visibility">
+                      <i class="far fa-eye"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <button type="submit" id="btn-save-admin-pw" class="btn-primary" style="margin-top: 0.5rem;">
-              <i class="fas fa-lock"></i> Update Master Password
-            </button>
-          </form>
-        </section>
-      </div>
+              <button type="submit" id="btn-save-admin-pw" class="btn-primary">
+                <i class="fas fa-lock"></i> Update Master Password
+              </button>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <!-- IN-PAGE NOTIFICATION FULL DETAILS VIEW -->
+      <section id="panel-notification-view" class="tab-panel">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div class="header-left">
+              <button type="button" id="btn-back-from-notif" class="btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Workspace
+              </button>
+              <h2>Notification Details</h2>
+            </div>
+            <span id="notif-detail-badge" class="badge-pill">System Alert</span>
+          </div>
+
+          <div id="notif-selected-detail-card" class="inspector-meta-item">
+            <h3 id="notif-detail-title">Select a notification</h3>
+            <p id="notif-detail-meta" class="text-muted"></p>
+            <div id="notif-detail-body"></div>
+          </div>
+
+          <h3>All System Notifications</h3>
+          <div id="notif-fullpage-all-list" class="admin-feed-list"></div>
+        </div>
+      </section>
     </main>
   </div>
 

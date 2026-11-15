@@ -32,7 +32,7 @@
   <meta name="twitter:description" content="Academic and enterprise Human Resource Management simulation platform for classrooms, workforce analytics, and case studies." />
   <meta name="twitter:image" content="https://aimser.vercel.app/assets/icon_aimser.png" />
 
-  <!-- Structured Data (Sets Site Name to "AIMSER") -->
+  <!-- Structured Data (JSON-LD) -->
   <script type="application/ld+json">
   [
     {
@@ -56,89 +56,20 @@
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="css/style.css?v=18" />
-  <style>
-    .landing-shell {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      background: var(--bg-canvas);
-      color: var(--text-primary);
-    }
-    .landing-nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 2.25rem;
-      border-bottom: 1px solid var(--border-subtle);
-      background: var(--bg-surface);
-    }
-    .landing-brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      text-decoration: none;
-      color: var(--text-primary);
-    }
-    .landing-brand img {
-      width: 36px;
-      height: 36px;
-      object-fit: contain;
-    }
-    .landing-hero {
-      max-width: 1120px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 4rem 1.5rem 3rem;
-      text-align: center;
-    }
-    .landing-hero h1 {
-      font-size: clamp(2.1rem, 4.2vw, 3.25rem);
-      max-width: 860px;
-      margin: 0 auto 1rem;
-    }
-    .landing-subtitle {
-      font-size: 1.05rem;
-      color: var(--text-secondary);
-      max-width: 680px;
-      margin: 0 auto 2.25rem;
-    }
-    .landing-cta-row {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 0.85rem;
-      flex-wrap: wrap;
-      margin-bottom: 3.5rem;
-    }
-    .landing-features {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.25rem;
-      text-align: left;
-    }
-    .landing-footer {
-      text-align: center;
-      padding: 1.25rem;
-      border-top: 1px solid var(--border-subtle);
-      font-size: 0.8rem;
-      color: var(--text-tertiary);
-    }
-  </style>
 </head>
 <body>
   <div class="landing-shell">
     <!-- Top Navigation -->
     <header class="landing-nav">
       <a href="index.html" class="landing-brand">
-        <img src="assets/aimser-logo.png" alt="AIMSER Logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
+        <img id="landing-brand-logo" src="assets/aimser-logo.png" alt="AIMSER Logo" />
         <div>
-          <strong style="font-size: 1.05rem; letter-spacing: 0.03em; display: block;">AIMSER</strong>
+          <strong>AIMSER</strong>
         </div>
       </a>
 
-      <div style="display: flex; align-items: center; gap: 0.65rem;">
-        <button type="button" id="theme-toggle-btn" class="btn-secondary" style="padding: 0.5rem 0.75rem;" title="Toggle Theme">
+      <div class="landing-nav-actions">
+        <button type="button" id="theme-toggle-btn" class="btn-secondary" title="Toggle Theme">
           <i class="fas fa-sun"></i>
         </button>
         <a href="login.html" id="nav-signin-btn" class="btn-secondary">
@@ -158,41 +89,41 @@
       </p>
 
       <div class="landing-cta-row">
-        <a href="login.html" id="hero-primary-cta" class="btn-primary" style="padding: 0.78rem 1.6rem; font-size: 0.95rem;">
+        <a href="login.html" id="hero-primary-cta" class="btn-primary btn-hero-lg">
           <i class="fas fa-sign-in-alt"></i> Launch Workspace
         </a>
-        <a href="register.html" id="hero-secondary-cta" class="btn-secondary" style="padding: 0.78rem 1.4rem; font-size: 0.95rem;">
+        <a href="register.html" id="hero-secondary-cta" class="btn-secondary btn-hero-lg">
           <i class="fas fa-user-plus"></i> Register Account
         </a>
       </div>
 
       <section class="landing-features" aria-label="Platform Modules">
         <article class="glass-panel">
-          <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.65rem;">
-            <i class="fas fa-building" style="color: var(--aimser-blue-400);"></i>
-            <h2 style="margin: 0; font-size: 1.02rem;">Office &amp; Workforce Analytics</h2>
+          <div class="landing-feature-head">
+            <i class="fas fa-building"></i>
+            <h2>Office &amp; Workforce Analytics</h2>
           </div>
-          <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
+          <p class="text-muted">
             Grade student deliverables against weighted rubrics, compute absenteeism and training ROI, and track individual HR competency portfolios.
           </p>
         </article>
 
         <article class="glass-panel">
-          <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.65rem;">
-            <i class="fas fa-columns" style="color: var(--accent-highlight);"></i>
-            <h2 style="margin: 0; font-size: 1.02rem;">Project Planner &amp; Onboarding</h2>
+          <div class="landing-feature-head">
+            <i class="fas fa-columns"></i>
+            <h2>Project Planner &amp; Onboarding</h2>
           </div>
-          <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
-            Organize 15-member student teams across 4 hierarchy tiers, assign HR specialist roles, and track deliverables from To Do to Completed.
+          <p class="text-muted">
+            Organize 15-member student teams, assign HR specialist roles, and track deliverables from To Do to Completed.
           </p>
         </article>
 
         <article class="glass-panel">
-          <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.65rem;">
-            <i class="fas fa-book-open" style="color: var(--success);"></i>
-            <h2 style="margin: 0; font-size: 1.02rem;">HR Library &amp; Conflict Forum</h2>
+          <div class="landing-feature-head">
+            <i class="fas fa-book-open"></i>
+            <h2>HR Library &amp; Conflict Forum</h2>
           </div>
-          <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
+          <p class="text-muted">
             Publish company case studies with self-checking answer keys and moderate workplace conflict investigations with photo evidence.
           </p>
         </article>
@@ -206,22 +137,6 @@
 
   <script type="module" src="js/theme.js?v=18"></script>
   <script type="module" src="js/auth-guard.js?v=18"></script>
-  <script type="module">
-    import { FastCache } from "./js/security-utils.js?v=18";
-    const profile = FastCache.get("user_profile");
-    if (profile && profile.role) {
-      const target = profile.role.toLowerCase() === "admin" ? "admin-dashboard.html" : "office.html";
-      const primaryCta = document.getElementById("hero-primary-cta");
-      const navSignIn = document.getElementById("nav-signin-btn");
-      if (primaryCta) {
-        primaryCta.href = target;
-        primaryCta.innerHTML = '<i class="fas fa-arrow-right"></i> Return to Active Workspace';
-      }
-      if (navSignIn) {
-        navSignIn.href = target;
-        navSignIn.textContent = "Open Workspace";
-      }
-    }
-  </script>
+  <script type="module" src="js/auth.js?v=18"></script>
 </body>
 </html>

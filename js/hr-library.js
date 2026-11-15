@@ -1,4 +1,4 @@
-// js/hr-library.js - Public HR Case Library, E-Modules, HR Feed Photo Upload (Posts & Comments) & Moderation Alerts
+// js/hr-library.js - Public HR Case Library, E-Modules, Facebook-Style HR Feed (PNG/Photo Support) & Bell Notifications
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -24,6 +24,7 @@ let allLibraryItems = [];
 let activeCaseItem = null;
 let allFeedPosts = [];
 let currentFeedView = "active";
+let unreadModerationWarnings = [];
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
@@ -64,20 +65,21 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   await Promise.all([loadLibraryItems(), loadHrFeed(), loadUserModerationWarnings()]);
+  renderLibraryBellNotifications();
 });
 
 function renderRoleBadge(role) {
   const normalized = (role || "student").toLowerCase();
   if (normalized === "admin") {
-    return `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:var(--aimser-blue-700);color:#ffffff;letter-spacing:0.04em;">ADMIN</span>`;
+    return `<span class="badge-pill" style="background:var(--aimser-blue-700);color:#ffffff;">ADMIN</span>`;
   }
   const isFac = normalized === "faculty";
   const bg = isFac ? "rgba(56, 189, 248, 0.16)" : "rgba(16, 185, 129, 0.16)";
   const color = isFac ? "#38bdf8" : "#10b981";
-  return `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:${bg};color:${color};letter-spacing:0.04em;">${escapeHtml(normalized)}</span>`;
+  return `<span class="badge-pill" style="background:${bg};color:${color};border-color:transparent;">${escapeHtml(normalized.toUpperCase())}</span>`;
 }
 
-// 1. Load & Display Admin Moderation Warnings Issued to Current User
+// 1. Load & Display Admin Moderation Warnings + Sync to Top-Right Bell Dropdown
 async function loadUserModerationWarnings() {
   const container = document.getElementById("user-warnings-container");
   if (!container || !currentUser) return;
@@ -85,18 +87,18 @@ async function loadUserModerationWarnings() {
   try {
     const q = query(collection(db, "notifications"), where("recipientUid", "==", currentUser.uid));
     const snap = await getDocs(q);
-    const unreadWarnings = snap.docs
+    unreadModerationWarnings = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
       .filter((n) => !n.read && n.type === "MODERATION_WARNING");
 
-    if (unreadWarnings.length === 0) {
+    if (unreadModerationWarnings.length === 0) {
       container.style.display = "none";
       container.innerHTML = "";
       return;
     }
 
     container.style.display = "flex";
-    container.innerHTML = unreadWarnings
+    container.innerHTML = unreadModerationWarnings
       .map(
         (w) => `
         <div class="glass-panel" style="border: 1px solid var(--danger); background: rgba(239, 68, 68, 0.12); padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap;">
@@ -111,12 +113,12 @@ async function loadUserModerationWarnings() {
             ${
               w.commentExcerpt
                 ? `<div style="font-size: 0.78rem; color: var(--text-secondary); background: var(--bg-canvas); padding: 0.45rem 0.7rem; border-radius: var(--radius-xs); border-left: 3px solid var(--danger);">
-                     Moderated comment on <em>"${escapeHtml(w.postTitle || "HR Feed")}"</em>: "${escapeHtml(w.commentExcerpt)}"
+                     Moderated comment on "${escapeHtml(w.postTitle || "HR Feed")}": "${escapeHtml(w.commentExcerpt)}"
                    </div>`
                 : ""
             }
           </div>
-          <button type="button" class="btn-secondary btn-ack-warning" data-id="${w.id}" style="padding: 0.4rem 0.85rem; font-size: 0.78rem; border-color: var(--danger); color: var(--text-primary);">
+          <button type="button" class="btn-secondary btn-ack-warning" data-id="${w.id}" style="border-color: var(--danger);">
             <i class="fas fa-check"></i> Acknowledge Warning
           </button>
         </div>`
@@ -132,6 +134,7 @@ async function loadUserModerationWarnings() {
             acknowledgedAt: serverTimestamp()
           });
           await loadUserModerationWarnings();
+          renderLibraryBellNotifications();
         } catch (err) {
           alert("Failed to dismiss warning: " + err.message);
         } finally {
@@ -142,6 +145,53 @@ async function loadUserModerationWarnings() {
   } catch (err) {
     console.warn("Moderation warnings check skipped:", err.message);
   }
+}
+
+function renderLibraryBellNotifications() {
+  const badge = document.getElementById("notif-badge");
+  const list = document.getElementById("notifications-feed-list");
+  if (!list) return;
+
+  const recentFeedAlerts = allFeedPosts.slice(0, 4).map((p) => ({
+    title: `HR Feed: ${p.title || "Workplace Scenario"}`,
+    type: "FORUM",
+    detail: `Posted by ${p.authorName || "Member"} • ${(p.comments || []).length} comment(s)`
+  }));
+
+  const warningItems = unreadModerationWarnings.map((w) => ({
+    title: w.title || "Moderation Warning",
+    type: "WARNING",
+    detail: w.reason || "Please review community guidelines."
+  }));
+
+  const combined = [...warningItems, ...recentFeedAlerts];
+
+  if (badge) {
+    if (warningItems.length > 0) {
+      badge.style.display = "inline-block";
+      badge.textContent = warningItems.length;
+    } else {
+      badge.style.display = "none";
+    }
+  }
+
+  if (combined.length === 0) {
+    list.innerHTML = `<div class="empty-state" style="padding:1.25rem;"><i class="fas fa-bell-slash"></i><h3>No Active Alerts</h3><p>Forum updates and moderation notices appear here.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = combined
+    .map(
+      (item) => `
+      <div class="inspector-meta-item">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.2rem;">
+          <strong style="font-size:0.84rem;">${escapeHtml(item.title)}</strong>
+          <span class="badge-pill" style="font-size:0.65rem;">${escapeHtml(item.type)}</span>
+        </div>
+        <p class="text-muted" style="font-size:0.78rem;margin:0;">${escapeHtml(item.detail)}</p>
+      </div>`
+    )
+    .join("");
 }
 
 // 2. Public HR Case Library, E-Modules & Practice Cases
@@ -291,7 +341,7 @@ function openCaseReaderModal(item) {
   openModal("modal-read-case");
 }
 
-// 3. HR Feed: Workplace Conflict Scenarios with Post & Comment Photo Attachments
+// 3. HR Feed: Facebook-Style Post Cards (Numbers 1-3 Removed & PNG/Photo Support Retained)
 async function loadHrFeed() {
   try {
     let snap;
@@ -311,6 +361,7 @@ async function loadHrFeed() {
 
     FastCache.set("hr_feed_posts", allFeedPosts);
     renderFeedStream();
+    renderLibraryBellNotifications();
   } catch (err) {
     console.error("Failed loading HR Feed:", err);
   }
@@ -352,7 +403,7 @@ function renderFeedStream() {
     const emptyDesc =
       currentFeedView === "archived"
         ? "Archived posts you authored appear here."
-        : "Use the form above to share a workplace conflict case, photo evidence, investigation plan, and resolution.";
+        : "Use the post composer above to share a workplace conflict scenario, PNG diagram, or resolution.";
 
     stream.innerHTML = `
       <div class="glass-panel empty-state">
@@ -370,7 +421,6 @@ function renderFeedStream() {
       const isPoster = post.authorUid === currentUser.uid;
       const isArchived = Boolean(post.archived);
       const safeImage = sanitizeUrl(post.imageUrl, "");
-
       const canModeratePost = isPoster || isAdmin;
 
       const moderationControlsHtml = canModeratePost
@@ -387,48 +437,52 @@ function renderFeedStream() {
 
       const imageBlockHtml = safeImage
         ? `
-          <div style="margin-bottom: 1.15rem;">
-            <img src="${safeImage}" alt="Supporting attachment for ${escapeHtml(post.title || "scenario")}" class="btn-open-lightbox" data-src="${safeImage}" data-title="${escapeHtml(post.title || "Attached Evidence")}" style="max-height: 320px; width: 100%; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-medium); cursor: zoom-in;" />
+          <div style="margin: 0.85rem 0;">
+            <img src="${safeImage}" alt="Supporting attachment for ${escapeHtml(post.title || "scenario")}" class="btn-open-lightbox" data-src="${safeImage}" data-title="${escapeHtml(post.title || "Attached Evidence")}" style="max-height: 360px; width: 100%; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--border-medium); cursor: zoom-in;" />
           </div>`
         : "";
 
       return `
         <article class="glass-panel" style="${isArchived ? "border-color: var(--warning); opacity: 0.92;" : ""}">
+          <!-- Facebook-Style Author Header -->
           <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.65rem;margin-bottom:0.85rem;">
-            <div>
-              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.25rem;">
-                <h3 style="font-size:1.1rem;margin:0;color:var(--text-primary);">${escapeHtml(post.title)}</h3>
-                ${isArchived ? `<span class="badge-pill" style="background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);">ARCHIVED</span>` : ""}
-              </div>
-              <div style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--text-secondary);">
-                <strong>${escapeHtml(post.authorName || "Participant")}</strong>
-                ${renderRoleBadge(post.authorRole || "student")}
-                <span>• ${escapeHtml(ts)}</span>
+            <div style="display:flex;align-items:center;gap:0.65rem;">
+              <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(post.authorName || "Member")}&background=1b5375&color=faf2dd" alt="" class="avatar-sm" />
+              <div>
+                <div style="display:flex;align-items:center;gap:0.45rem;flex-wrap:wrap;">
+                  <strong style="font-size:0.9rem;">${escapeHtml(post.authorName || "Participant")}</strong>
+                  ${renderRoleBadge(post.authorRole || "student")}
+                  ${isArchived ? `<span class="badge-pill" style="background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);">ARCHIVED</span>` : ""}
+                </div>
+                <span class="text-muted" style="font-size:0.74rem;">${escapeHtml(ts)}</span>
               </div>
             </div>
             ${moderationControlsHtml}
           </div>
 
-          ${imageBlockHtml}
+          <h3 style="font-size:1.08rem;margin-bottom:0.75rem;color:var(--text-primary);">${escapeHtml(post.title)}</h3>
 
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0.85rem;margin-bottom:1.15rem;">
-            <div style="padding:0.8rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-subtle);">
-              <div style="font-size:0.74rem;font-weight:700;text-transform:uppercase;color:var(--warning);margin-bottom:0.3rem;">1. Documented Concerns</div>
+          <!-- Clean Post Sections (Redundant Numbers 1-3 Removed) -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.75rem;margin-bottom:0.85rem;">
+            <div class="inspector-meta-item">
+              <span style="color:var(--warning);">Workplace Concerns</span>
               <p style="font-size:0.84rem;line-height:1.5;margin:0;white-space:pre-wrap;">${escapeHtml(post.concerns || "")}</p>
             </div>
-            <div style="padding:0.8rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-subtle);">
-              <div style="font-size:0.74rem;font-weight:700;text-transform:uppercase;color:#38bdf8;margin-bottom:0.3rem;">2. Investigation Plan</div>
+            <div class="inspector-meta-item">
+              <span style="color:var(--aimser-blue-400);">Investigation Plan</span>
               <p style="font-size:0.84rem;line-height:1.5;margin:0;white-space:pre-wrap;">${escapeHtml(post.investigation || "")}</p>
             </div>
-            <div style="padding:0.8rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-subtle);">
-              <div style="font-size:0.74rem;font-weight:700;text-transform:uppercase;color:var(--success);margin-bottom:0.3rem;">3. Recommended Resolution</div>
+            <div class="inspector-meta-item">
+              <span style="color:var(--success);">Recommended Resolution</span>
               <p style="font-size:0.84rem;line-height:1.5;margin:0;white-space:pre-wrap;">${escapeHtml(post.resolution || "")}</p>
             </div>
           </div>
 
+          ${imageBlockHtml}
+
           <div style="padding-top:0.85rem;border-top:1px solid var(--border-subtle);">
             <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.65rem;color:var(--text-secondary);">
-              <i class="far fa-comment-dots"></i> Peer &amp; Faculty Opinions (${comments.length})
+              <i class="far fa-comment-dots"></i> Comments (${comments.length})
             </div>
 
             <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.75rem;">
@@ -442,7 +496,7 @@ function renderFeedStream() {
                     : "";
 
                   return `
-                    <div style="padding:0.6rem 0.85rem;border-radius:var(--radius-xs);background:var(--bg-canvas);border:1px solid var(--border-subtle);font-size:0.83rem;">
+                    <div style="padding:0.6rem 0.85rem;border-radius:var(--radius-sm);background:var(--bg-canvas);border:1px solid var(--border-subtle);font-size:0.83rem;">
                       <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.2rem;">
                         <strong>${escapeHtml(c.authorName || "Member")}</strong>
                         ${renderRoleBadge(c.authorRole || "student")}
@@ -456,11 +510,11 @@ function renderFeedStream() {
 
             ${
               isArchived
-                ? `<div class="text-muted" style="font-size:0.78rem;font-style:italic;">This post is archived. Unarchive it to reopen comments.</div>`
+                ? `<div class="text-muted" style="font-size:0.78rem;">This post is archived. Unarchive it to reopen comments.</div>`
                 : `<form class="form-feed-comment" data-post-id="${post.id}" style="display:flex;flex-direction:column;gap:0.5rem;">
                      <div style="display:flex;gap:0.5rem;align-items:center;">
-                       <input type="text" class="form-control input-feed-comment" placeholder="Share your HR analysis, legal perspective, or opinion..." style="font-size:0.83rem;flex:1;" />
-                       <label class="btn-secondary" style="padding:0.45rem 0.75rem;font-size:0.8rem;cursor:pointer;margin:0;white-space:nowrap;" title="Attach Photo to Comment">
+                       <input type="text" class="form-control input-feed-comment" placeholder="Write a comment..." style="font-size:0.83rem;flex:1;" />
+                       <label class="btn-secondary" style="padding:0.45rem 0.75rem;font-size:0.8rem;cursor:pointer;margin:0;white-space:nowrap;" title="Attach PNG/JPG Photo">
                          <i class="fas fa-camera"></i>
                          <input type="file" class="input-comment-image" accept="image/png,image/jpeg,image/webp" style="display:none;" />
                        </label>
@@ -480,7 +534,6 @@ function renderFeedStream() {
     })
     .join("");
 
-  // Lightbox Image Click (Posts & Comments)
   stream.querySelectorAll(".btn-open-lightbox").forEach((img) => {
     img.addEventListener("click", () => {
       document.getElementById("lightbox-title").textContent = img.dataset.title || "Attached Evidence";
@@ -489,7 +542,6 @@ function renderFeedStream() {
     });
   });
 
-  // Archive / Unarchive Handler
   stream.querySelectorAll(".btn-archive-feed-post").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -526,7 +578,6 @@ function renderFeedStream() {
     });
   });
 
-  // Delete Handler
   stream.querySelectorAll(".btn-del-feed-post").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -558,7 +609,6 @@ function renderFeedStream() {
     });
   });
 
-  // Comment Photo Preview, Clear & Submit Handlers
   stream.querySelectorAll(".form-feed-comment").forEach((form) => {
     const fileInput = form.querySelector(".input-comment-image");
     const previewStrip = form.querySelector(".comment-preview-strip");
@@ -653,19 +703,6 @@ function renderFeedStream() {
 
 // 4. Event Bindings & Photo Preview
 function bindLibraryAndFeedEvents() {
-  document.querySelectorAll(".subnav-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".subnav-tab").forEach((t) => t.classList.remove("active"));
-      document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
-      tab.classList.add("active");
-      document.getElementById(tab.dataset.tab)?.classList.add("active");
-    });
-  });
-
-  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
-    btn.addEventListener("click", () => closeModal(btn.dataset.closeModal));
-  });
-
   document.getElementById("library-type-filter")?.addEventListener("change", renderFilteredLibrary);
   document.getElementById("library-search")?.addEventListener("input", renderFilteredLibrary);
 
@@ -675,7 +712,6 @@ function bindLibraryAndFeedEvents() {
       document.querySelectorAll(".feed-view-btn").forEach((b) => {
         const isCurrent = b.dataset.feedView === currentFeedView;
         b.classList.toggle("active", isCurrent);
-        b.style.borderColor = isCurrent ? "var(--aimser-blue-500)" : "var(--border-medium)";
       });
       renderFeedStream();
     });
@@ -788,7 +824,7 @@ function bindLibraryAndFeedEvents() {
     const resolution = document.getElementById("feed-resolution").value.trim();
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
 
     try {
       checkRateLimit("create_feed_post", 6, 60000);
@@ -799,7 +835,7 @@ function bindLibraryAndFeedEvents() {
         uploadedImageUrl = await uploadToCloudinary(feedImgInput.files[0], "aimser/hr-feed");
       }
 
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Scenario...';
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
       await addDoc(collection(db, "hr_feed"), {
         title,
         concerns,
@@ -825,7 +861,7 @@ function bindLibraryAndFeedEvents() {
       alert(err.message);
     } finally {
       btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Publish Conflict Scenario to HR Feed';
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Post';
     }
   });
 }

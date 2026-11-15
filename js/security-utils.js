@@ -14,10 +14,13 @@ const CACHE_PREFIX = "aimser_v2_";
 export const FastCache = {
   set(key, value) {
     try {
-      sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify({
-        ts: Date.now(),
-        data: value
-      }));
+      sessionStorage.setItem(
+        CACHE_PREFIX + key,
+        JSON.stringify({
+          ts: Date.now(),
+          data: value
+        })
+      );
     } catch {
       // Ignore quota errors
     }
@@ -42,6 +45,7 @@ export const FastCache = {
         if (k.startsWith(CACHE_PREFIX)) sessionStorage.removeItem(k);
       });
       localStorage.removeItem("aimser_active_classroom");
+      localStorage.removeItem("aimser_active_team");
     } catch {
       // Ignore
     }

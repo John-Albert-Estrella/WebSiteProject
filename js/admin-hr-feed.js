@@ -1,4 +1,4 @@
-// js/admin-hr-feed.js - Isolated Admin HR Feed View, Comment Photo Moderation & User Warning Notifications
+// js/admin-hr-feed.js - Isolated Admin HR Feed View, Facebook-Style Cards, PNG Support & Bell Notifications
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -69,6 +69,7 @@ onAuthStateChanged(auth, async (user) => {
       allPosts = cachedFeed;
       updateFeedKPIs();
       renderAdminFeedStream();
+      renderAdminFeedNotificationsBell();
     }
 
     await loadFeedFromFirestore();
@@ -93,12 +94,48 @@ function renderAdminHeader(user, data) {
 function renderRoleBadge(role) {
   const normalized = (role || "student").toLowerCase();
   if (normalized === "admin") {
-    return `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:var(--aimser-blue-700);color:#ffffff;letter-spacing:0.04em;">ADMIN</span>`;
+    return `<span class="badge-pill role-pill-admin">ADMIN</span>`;
   }
-  const isFac = normalized === "faculty";
-  const bg = isFac ? "rgba(56, 189, 248, 0.16)" : "rgba(16, 185, 129, 0.16)";
-  const color = isFac ? "#38bdf8" : "#10b981";
-  return `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:${bg};color:${color};letter-spacing:0.04em;">${escapeHtml(normalized)}</span>`;
+  if (normalized === "faculty") {
+    return `<span class="badge-pill role-pill-faculty">FACULTY</span>`;
+  }
+  return `<span class="badge-pill role-pill-student">STUDENT</span>`;
+}
+
+function renderAdminFeedNotificationsBell() {
+  const badge = document.getElementById("notif-badge");
+  const list = document.getElementById("notifications-feed-list");
+  if (!list) return;
+
+  const recentPosts = allPosts.slice(0, 6);
+
+  if (badge) {
+    if (recentPosts.length > 0) {
+      badge.style.display = "inline-block";
+      badge.textContent = recentPosts.length;
+    } else {
+      badge.style.display = "none";
+    }
+  }
+
+  if (recentPosts.length === 0) {
+    list.innerHTML = `<div class="empty-state"><i class="fas fa-bell-slash"></i><h3>No Active Feed Alerts</h3><p>Workplace scenarios and comments appear here.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = recentPosts
+    .map((p) => {
+      const commentCount = (p.comments || []).length;
+      return `
+        <div class="inspector-meta-item">
+          <div class="panel-toolbar">
+            <strong>${escapeHtml(p.title || "Workplace Scenario")}</strong>
+            <span class="badge-pill">${commentCount} comment(s)</span>
+          </div>
+          <p class="text-muted">By ${escapeHtml(p.authorName || "Member")} • ${escapeHtml(p.concerns || "")}</p>
+        </div>`;
+    })
+    .join("");
 }
 
 async function loadFeedFromFirestore() {
@@ -126,14 +163,15 @@ async function loadFeedFromFirestore() {
     FastCache.set("admin_feed_posts", allPosts);
     updateFeedKPIs();
     renderAdminFeedStream();
+    renderAdminFeedNotificationsBell();
   } catch (err) {
     console.error("Error loading hr_feed:", err);
     if (stream) {
       stream.innerHTML = `
         <div class="glass-panel empty-state">
-          <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+          <i class="fas fa-exclamation-triangle"></i>
           <h3>Unable to Load HR Feed</h3>
-          <p style="font-size: 0.82rem;">${escapeHtml(err.message)}</p>
+          <p>${escapeHtml(err.message)}</p>
         </div>`;
     }
   }
@@ -191,124 +229,121 @@ function renderAdminFeedStream() {
       const safeImage = sanitizeUrl(post.imageUrl, "");
 
       const statusBadge = isArchived
-        ? `<span class="badge-pill" style="background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);">ARCHIVED</span>`
-        : `<span class="badge-pill" style="background:rgba(16,185,129,0.14);color:var(--success);border-color:rgba(16,185,129,0.35);">ACTIVE</span>`;
+        ? `<span class="badge-pill status-pill-archived">ARCHIVED</span>`
+        : `<span class="badge-pill status-pill-active">ACTIVE</span>`;
 
       const imageBlockHtml = safeImage
-        ? `
-          <div style="margin-bottom: 1.15rem;">
-            <img src="${safeImage}" alt="Attached evidence" class="btn-open-lightbox" data-src="${safeImage}" data-title="${escapeHtml(post.title || "Attached Evidence")}" style="max-height: 320px; width: 100%; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--border-medium); cursor: zoom-in;" />
-          </div>`
+        ? `<img src="${safeImage}" alt="Attached evidence" class="admin-post-image btn-open-lightbox" data-src="${safeImage}" data-title="${escapeHtml(post.title || "Attached Evidence")}" />`
         : "";
 
       return `
-        <article class="glass-panel" style="${isArchived ? "border-color: rgba(245, 158, 11, 0.45);" : ""}">
-          <!-- Post Header & Moderation Actions -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:0.75rem;margin-bottom:0.9rem;">
-            <div>
-              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.25rem;">
-                <h3 style="font-size:1.1rem;margin:0;color:var(--text-primary);">${escapeHtml(post.title || "Untitled Scenario")}</h3>
-                ${statusBadge}
-              </div>
-              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;font-size:0.8rem;color:var(--text-secondary);">
-                <strong>${escapeHtml(post.authorName || "Participant")}</strong>
-                ${renderRoleBadge(post.authorRole || "student")}
-                <span>(${escapeHtml(post.authorEmail || "No email")})</span>
-                <span>• ${escapeHtml(dateStr)}</span>
+        <article class="glass-panel ${isArchived ? "card-archived-border" : ""}">
+          <!-- Facebook-Style Post Header & Moderation Actions -->
+          <div class="panel-toolbar">
+            <div class="user-cell-flex">
+              <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(post.authorName || "Participant")}&background=1b5375&color=faf2dd" alt="" class="avatar-sm" />
+              <div>
+                <div class="user-cell-flex">
+                  <strong>${escapeHtml(post.authorName || "Participant")}</strong>
+                  ${renderRoleBadge(post.authorRole || "student")}
+                  ${statusBadge}
+                </div>
+                <span class="text-muted">${escapeHtml(post.authorEmail || "")} • ${escapeHtml(dateStr)}</span>
               </div>
             </div>
 
-            <div style="display:flex;align-items:center;gap:0.45rem;">
-              <button type="button" class="btn-secondary btn-toggle-archive" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}" style="padding:0.38rem 0.78rem;font-size:0.78rem;">
+            <div class="workspace-action-bar">
+              <button type="button" class="btn-secondary btn-toggle-archive" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}">
                 <i class="fas ${isArchived ? "fa-box-open" : "fa-archive"}"></i> ${isArchived ? "Unarchive" : "Archive"}
               </button>
-              <button type="button" class="btn-sidebar-action btn-logout btn-delete-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" style="width:auto;padding:0.38rem 0.78rem;font-size:0.78rem;">
+              <button type="button" class="btn-sidebar-action btn-logout btn-delete-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}">
                 <i class="fas fa-trash-alt"></i> Delete Post
               </button>
             </div>
           </div>
 
-          ${imageBlockHtml}
+          <h3>${escapeHtml(post.title || "Untitled Scenario")}</h3>
 
-          <!-- 3-Column Scenario Breakdown -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:0.85rem;margin-bottom:1.15rem;">
-            <div style="padding:0.8rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-subtle);">
-              <div style="font-size:0.74rem;font-weight:700;text-transform:uppercase;color:var(--warning);margin-bottom:0.3rem;">1. Documented Concerns</div>
-              <p style="font-size:0.84rem;line-height:1.5;margin:0;white-space:pre-wrap;">${escapeHtml(post.concerns || "")}</p>
+          <!-- 3-Column Scenario Breakdown (Redundant Numbers 1-3 Removed) -->
+          <div class="admin-post-grid">
+            <div class="inspector-meta-item">
+              <span>Workplace Concerns</span>
+              <p>${escapeHtml(post.concerns || "")}</p>
             </div>
-            <div style="padding:0.8rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-subtle);">
-              <div style="font-size:0.74rem;font-weight:700;text-transform:uppercase;color:#38bdf8;margin-bottom:0.3rem;">2. Investigation Plan</div>
-              <p style="font-size:0.84rem;line-height:1.5;margin:0;white-space:pre-wrap;">${escapeHtml(post.investigation || "")}</p>
+            <div class="inspector-meta-item">
+              <span>Investigation Plan</span>
+              <p>${escapeHtml(post.investigation || "")}</p>
             </div>
-            <div style="padding:0.8rem;border-radius:var(--radius-sm);background:var(--bg-surface);border:1px solid var(--border-subtle);">
-              <div style="font-size:0.74rem;font-weight:700;text-transform:uppercase;color:var(--success);margin-bottom:0.3rem;">3. Recommended Resolution</div>
-              <p style="font-size:0.84rem;line-height:1.5;margin:0;white-space:pre-wrap;">${escapeHtml(post.resolution || "")}</p>
+            <div class="inspector-meta-item">
+              <span>Recommended Resolution</span>
+              <p>${escapeHtml(post.resolution || "")}</p>
             </div>
           </div>
 
+          ${imageBlockHtml}
+
           <!-- Comments Thread with Photo Display, Warn & Delete Moderation Controls -->
-          <div style="padding-top:0.85rem;border-top:1px solid var(--border-subtle);">
-            <div style="font-size:0.8rem;font-weight:600;margin-bottom:0.65rem;color:var(--text-secondary);">
-              <i class="far fa-comment-dots"></i> Discussion &amp; Opinions (${comments.length})
-            </div>
+          <div class="card-footer-bar">
+            <div class="w-full">
+              <p class="text-muted">
+                <i class="far fa-comment-dots"></i> Discussion &amp; Opinions (${comments.length})
+              </p>
 
-            <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.75rem;">
-              ${comments
-                .map((c, idx) => {
-                  const safeCommentImg = sanitizeUrl(c.imageUrl, "");
-                  const commentImgHtml = safeCommentImg
-                    ? `<div style="margin-top:0.45rem;">
-                         <img src="${safeCommentImg}" alt="Comment attachment" class="btn-open-lightbox" data-src="${safeCommentImg}" data-title="Comment Photo by ${escapeHtml(c.authorName || "Member")}" style="max-height:180px;max-width:100%;border-radius:var(--radius-xs);border:1px solid var(--border-medium);cursor:zoom-in;object-fit:cover;" />
-                       </div>`
-                    : "";
+              <div class="admin-comments-stack">
+                ${comments
+                  .map((c, idx) => {
+                    const safeCommentImg = sanitizeUrl(c.imageUrl, "");
+                    const commentImgHtml = safeCommentImg
+                      ? `<img src="${safeCommentImg}" alt="Comment attachment" class="admin-comment-image btn-open-lightbox" data-src="${safeCommentImg}" data-title="Comment Photo by ${escapeHtml(c.authorName || "Member")}" />`
+                      : "";
 
-                  return `
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;padding:0.65rem 0.85rem;border-radius:var(--radius-xs);background:var(--bg-canvas);border:1px solid var(--border-subtle);font-size:0.83rem;">
-                      <div style="flex: 1; min-width: 220px;">
-                        <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.2rem;flex-wrap:wrap;">
-                          <strong>${escapeHtml(c.authorName || "Member")}</strong>
-                          ${renderRoleBadge(c.authorRole || "student")}
-                          ${c.moderatedWarning ? `<span class="badge-pill" style="font-size:0.65rem;background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);"><i class="fas fa-exclamation-triangle"></i> Warned</span>` : ""}
+                    return `
+                      <div class="admin-comment-row">
+                        <div>
+                          <div class="user-cell-flex">
+                            <strong>${escapeHtml(c.authorName || "Member")}</strong>
+                            ${renderRoleBadge(c.authorRole || "student")}
+                            ${c.moderatedWarning ? `<span class="badge-pill status-pill-archived"><i class="fas fa-exclamation-triangle"></i> Warned</span>` : ""}
+                          </div>
+                          ${c.text ? `<p>${escapeHtml(c.text)}</p>` : ""}
+                          ${commentImgHtml}
                         </div>
-                        ${c.text ? `<p style="margin:0;color:var(--text-primary);white-space:pre-wrap;">${escapeHtml(c.text)}</p>` : ""}
-                        ${commentImgHtml}
-                      </div>
-                      <div style="display:flex;align-items:center;gap:0.4rem;">
-                        <button type="button" class="btn-secondary btn-open-mod-comment" data-post-id="${post.id}" data-idx="${idx}" style="padding:0.28rem 0.6rem;font-size:0.73rem;border-color:rgba(245,158,11,0.45);color:var(--warning);" title="Moderate Comment & Send Warning">
-                          <i class="fas fa-exclamation-triangle"></i> Warn &amp; Moderate
-                        </button>
-                        <button type="button" class="btn-sidebar-action btn-logout btn-del-comment" data-post-id="${post.id}" data-idx="${idx}" style="width:auto;padding:0.28rem 0.6rem;font-size:0.73rem;" title="Delete Comment">
-                          <i class="fas fa-trash"></i> Delete
-                        </button>
-                      </div>
-                    </div>`;
-                })
-                .join("")}
-            </div>
+                        <div class="workspace-action-bar">
+                          <button type="button" class="btn-secondary btn-open-mod-comment" data-post-id="${post.id}" data-idx="${idx}" title="Moderate Comment & Send Warning">
+                            <i class="fas fa-exclamation-triangle"></i> Warn &amp; Moderate
+                          </button>
+                          <button type="button" class="btn-sidebar-action btn-logout btn-del-comment" data-post-id="${post.id}" data-idx="${idx}" title="Delete Comment">
+                            <i class="fas fa-trash"></i> Delete
+                          </button>
+                        </div>
+                      </div>`;
+                  })
+                  .join("")}
+              </div>
 
-            <form class="form-admin-reply" data-post-id="${post.id}" style="display:flex;flex-direction:column;gap:0.5rem;">
-              <div style="display:flex;gap:0.5rem;align-items:center;">
-                <input type="text" class="form-control input-admin-reply" placeholder="Post an official administrator note or guidance..." style="font-size:0.83rem;flex:1;" />
-                <label class="btn-secondary" style="padding:0.45rem 0.75rem;font-size:0.8rem;cursor:pointer;margin:0;white-space:nowrap;" title="Attach Photo to Admin Reply">
-                  <i class="fas fa-camera"></i>
-                  <input type="file" class="input-admin-reply-image" accept="image/png,image/jpeg,image/webp" style="display:none;" />
-                </label>
-                <button type="submit" class="btn-secondary btn-submit-admin-reply" style="padding:0.45rem 0.9rem;font-size:0.8rem;white-space:nowrap;">
-                  <i class="fas fa-reply"></i> Reply as Admin
-                </button>
-              </div>
-              <div class="admin-reply-preview-strip" style="display:none;align-items:center;gap:0.6rem;padding:0.4rem 0.65rem;border-radius:var(--radius-xs);background:var(--bg-surface);border:1px solid var(--border-subtle);width:fit-content;">
-                <img class="admin-reply-preview-img" src="" alt="Reply Preview" style="height:44px;width:44px;object-fit:cover;border-radius:4px;" />
-                <span class="admin-reply-preview-name text-muted" style="font-size:0.75rem;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-                <button type="button" class="btn-clear-admin-reply-img" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:0.9rem;line-height:1;" title="Remove Photo">&times;</button>
-              </div>
-            </form>
+              <form class="form-admin-reply" data-post-id="${post.id}">
+                <div class="workspace-action-bar">
+                  <input type="text" class="form-control input-admin-reply" placeholder="Post an official administrator note or guidance..." />
+                  <label class="btn-secondary" title="Attach Photo to Admin Reply">
+                    <i class="fas fa-camera"></i>
+                    <input type="file" class="input-admin-reply-image is-hidden" accept="image/png,image/jpeg,image/webp" />
+                  </label>
+                  <button type="submit" class="btn-secondary btn-submit-admin-reply">
+                    <i class="fas fa-reply"></i> Reply as Admin
+                  </button>
+                </div>
+                <div class="admin-reply-preview-strip reply-preview-strip">
+                  <img class="admin-reply-preview-img reply-preview-thumb" src="" alt="Reply Preview" />
+                  <span class="admin-reply-preview-name text-muted"></span>
+                  <button type="button" class="btn-clear-admin-reply-img btn-close-modal" title="Remove Photo">&times;</button>
+                </div>
+              </form>
+            </div>
           </div>
         </article>`;
     })
     .join("");
 
-  // Lightbox Image Viewer
   stream.querySelectorAll(".btn-open-lightbox").forEach((img) => {
     img.addEventListener("click", () => {
       document.getElementById("lightbox-title").textContent = img.dataset.title || "Attached Evidence";
@@ -317,7 +352,6 @@ function renderAdminFeedStream() {
     });
   });
 
-  // Archive / Unarchive Post
   stream.querySelectorAll(".btn-toggle-archive").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -348,7 +382,6 @@ function renderAdminFeedStream() {
     });
   });
 
-  // Permanently Delete Post
   stream.querySelectorAll(".btn-delete-post").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.id;
@@ -375,7 +408,6 @@ function renderAdminFeedStream() {
     });
   });
 
-  // Open Moderate & Warn Modal for a Specific Comment
   stream.querySelectorAll(".btn-open-mod-comment").forEach((btn) => {
     btn.addEventListener("click", () => {
       const postId = btn.dataset.postId;
@@ -398,7 +430,6 @@ function renderAdminFeedStream() {
     });
   });
 
-  // Quick Delete Individual Comment
   stream.querySelectorAll(".btn-del-comment").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const postId = btn.dataset.postId;
@@ -432,7 +463,6 @@ function renderAdminFeedStream() {
     });
   });
 
-  // Reply as Admin (With Optional Photo Upload)
   stream.querySelectorAll(".form-admin-reply").forEach((form) => {
     const fileInput = form.querySelector(".input-admin-reply-image");
     const previewStrip = form.querySelector(".admin-reply-preview-strip");
@@ -444,18 +474,18 @@ function renderAdminFeedStream() {
       fileInput.addEventListener("change", () => {
         const file = fileInput.files[0];
         if (!file) {
-          previewStrip.style.display = "none";
+          previewStrip.classList.remove("is-visible");
           return;
         }
         if (!file.type.startsWith("image/")) {
           alert("Please select a valid image file (PNG, JPG, or WebP).");
           fileInput.value = "";
-          previewStrip.style.display = "none";
+          previewStrip.classList.remove("is-visible");
           return;
         }
         previewImg.src = URL.createObjectURL(file);
         previewName.textContent = file.name;
-        previewStrip.style.display = "flex";
+        previewStrip.classList.add("is-visible");
       });
     }
 
@@ -463,7 +493,7 @@ function renderAdminFeedStream() {
       clearBtn.addEventListener("click", () => {
         fileInput.value = "";
         if (previewImg) previewImg.src = "";
-        previewStrip.style.display = "none";
+        previewStrip.classList.remove("is-visible");
       });
     }
 
@@ -510,7 +540,7 @@ function renderAdminFeedStream() {
 
         input.value = "";
         if (fileInput) fileInput.value = "";
-        if (previewStrip) previewStrip.style.display = "none";
+        if (previewStrip) previewStrip.classList.remove("is-visible");
         sessionStorage.removeItem("aimser_v2_hr_feed_posts");
         await loadFeedFromFirestore();
       } catch (err) {
@@ -527,12 +557,6 @@ function renderAdminFeedStream() {
 }
 
 function bindAdminFeedEvents() {
-  document.querySelectorAll("[data-close-modal]").forEach((btn) => {
-    if (btn.dataset.bound) return;
-    btn.dataset.bound = "true";
-    btn.addEventListener("click", () => closeModal(btn.dataset.closeModal));
-  });
-
   document.querySelectorAll(".feed-status-tab").forEach((btn) => {
     if (btn.dataset.bound) return;
     btn.dataset.bound = "true";
@@ -541,7 +565,6 @@ function bindAdminFeedEvents() {
       document.querySelectorAll(".feed-status-tab").forEach((b) => {
         const isCurrent = b.dataset.status === activeStatusFilter;
         b.classList.toggle("active", isCurrent);
-        b.style.borderColor = isCurrent ? "var(--aimser-blue-500)" : "var(--border-medium)";
       });
       renderAdminFeedStream();
     });
@@ -564,9 +587,7 @@ function bindAdminFeedEvents() {
   if (toggleComposerBtn && !toggleComposerBtn.dataset.bound) {
     toggleComposerBtn.dataset.bound = "true";
     toggleComposerBtn.addEventListener("click", () => {
-      if (!composerWrapper) return;
-      const isHidden = composerWrapper.style.display === "none";
-      composerWrapper.style.display = isHidden ? "block" : "none";
+      composerWrapper?.classList.toggle("is-hidden");
     });
   }
 
@@ -574,7 +595,7 @@ function bindAdminFeedEvents() {
   if (cancelComposerBtn && !cancelComposerBtn.dataset.bound) {
     cancelComposerBtn.dataset.bound = "true";
     cancelComposerBtn.addEventListener("click", () => {
-      if (composerWrapper) composerWrapper.style.display = "none";
+      composerWrapper?.classList.add("is-hidden");
     });
   }
 
@@ -676,7 +697,7 @@ function bindAdminFeedEvents() {
       const imgInput = document.getElementById("admin-feed-image-input");
 
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting...';
 
       try {
         checkRateLimit("admin_create_feed", 8, 60000);
@@ -704,14 +725,14 @@ function bindAdminFeedEvents() {
 
         await logAuditEvent(`Admin published HR Feed scenario "${title}"`, "HR_FEED", currentAdminUser.email);
         e.target.reset();
-        if (composerWrapper) composerWrapper.style.display = "none";
+        composerWrapper?.classList.add("is-hidden");
         sessionStorage.removeItem("aimser_v2_hr_feed_posts");
         await loadFeedFromFirestore();
       } catch (err) {
         alert(err.message);
       } finally {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Publish to Live HR Feed';
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Post';
       }
     });
   }

@@ -1,4 +1,4 @@
-// js/admin-dashboard.js - Resilient Administrator Management, User Inspector, Case Library, HR Feed & Telemetry
+// js/admin-dashboard.js - Administrator Management, User Inspector, Case Library, HR Feed & Bell Notifications
 import { auth, db } from "./firebase-init.js";
 import {
   onAuthStateChanged,
@@ -21,7 +21,6 @@ import {
 import * as CloudCfg from "./cloudinary-config.js";
 import * as SecUtils from "./security-utils.js";
 
-// Safe fallbacks so a missing named export in helper modules never blocks script execution
 const FastCache = SecUtils.FastCache || {
   get: (k) => {
     try {
@@ -128,7 +127,6 @@ if (document.readyState === "loading") {
   initAdminConsoleUI();
 }
 
-// Authenticate & Enforce Administrator Clearance
 onAuthStateChanged(auth, async (user) => {
   initAdminConsoleUI();
 
@@ -189,6 +187,7 @@ onAuthStateChanged(auth, async (user) => {
     if (snapLogs) {
       cachedLogs = snapLogs;
       renderAuditLogsList(cachedLogs);
+      renderAdminNotificationsBell();
     }
 
     await Promise.allSettled([
@@ -200,6 +199,8 @@ onAuthStateChanged(auth, async (user) => {
       loadHrFeedAdmin(),
       loadAuditLogs()
     ]);
+
+    renderAdminNotificationsBell();
   } catch (err) {
     console.error("Admin initialization error:", err);
   }
@@ -219,6 +220,53 @@ function renderAdminIdentity(user, data) {
   if (headerAvatar) headerAvatar.src = avatar;
 }
 
+function renderRoleBadgePill(role) {
+  const normalized = (role || "student").toLowerCase();
+  if (normalized === "admin") {
+    return `<span class="badge-pill role-pill-admin">ADMIN</span>`;
+  }
+  if (normalized === "faculty") {
+    return `<span class="badge-pill role-pill-faculty">FACULTY</span>`;
+  }
+  return `<span class="badge-pill role-pill-student">STUDENT</span>`;
+}
+
+function renderAdminNotificationsBell() {
+  const badge = document.getElementById("notif-badge");
+  const list = document.getElementById("notifications-feed-list");
+  if (!list) return;
+
+  const recentEvents = cachedLogs.slice(0, 6);
+
+  if (badge) {
+    if (recentEvents.length > 0) {
+      badge.style.display = "inline-block";
+      badge.textContent = recentEvents.length;
+    } else {
+      badge.style.display = "none";
+    }
+  }
+
+  if (recentEvents.length === 0) {
+    list.innerHTML = `<div class="empty-state"><i class="fas fa-bell-slash"></i><h3>No Active Alerts</h3><p>Recent platform audit events will appear here.</p></div>`;
+    return;
+  }
+
+  list.innerHTML = recentEvents
+    .map((item) => {
+      const timeStr = item.tsMillis ? new Date(item.tsMillis).toLocaleString() : "Recent";
+      return `
+        <div class="inspector-meta-item">
+          <div class="panel-toolbar">
+            <strong>${escapeHtml(item.category || "SYSTEM EVENT")}</strong>
+            <span class="badge-pill">${escapeHtml(timeStr)}</span>
+          </div>
+          <p class="text-muted">${escapeHtml(item.message)}</p>
+        </div>`;
+    })
+    .join("");
+}
+
 function setupLightboxModal() {
   const modal = document.getElementById("modal-image-lightbox");
   document.querySelectorAll('[data-close-modal="modal-image-lightbox"]').forEach((btn) => {
@@ -233,7 +281,6 @@ function setupLightboxModal() {
   });
 }
 
-// Multi-Collection Telemetry Metrics
 async function loadMetrics() {
   const getSafeCount = async (collName) => {
     try {
@@ -288,7 +335,6 @@ async function loadTeamsCache() {
   }
 }
 
-// HR Case Library & E-Modules Management Pipeline
 async function loadCasesAdmin() {
   const grid = document.getElementById("admin-cases-grid");
   const banner = document.getElementById("admin-cases-status-banner");
@@ -308,9 +354,9 @@ async function loadCasesAdmin() {
 
     if (banner) {
       if (cachedCases.length > 0) {
-        banner.innerHTML = `<i class="fas fa-check-circle" style="color: var(--success); margin-right: 0.45rem;"></i><strong>${cachedCases.length} published material(s) active</strong> in the HR Case Library.`;
+        banner.innerHTML = `<i class="fas fa-check-circle"></i> <strong>${cachedCases.length} published material(s) active</strong> in the HR Case Library.`;
       } else {
-        banner.innerHTML = `<i class="fas fa-info-circle" style="color: var(--aimser-blue-400); margin-right: 0.45rem;"></i><strong>HR Case Library is currently empty.</strong> Click "Upload Case / E-Module" to publish Company Cases, E-Modules, or Practice Cases.`;
+        banner.innerHTML = `<i class="fas fa-info-circle"></i> <strong>HR Case Library is currently empty.</strong> Click "Upload Case / E-Module" to publish materials.`;
       }
     }
 
@@ -319,9 +365,9 @@ async function loadCasesAdmin() {
     console.error("Failed loading HR Case Library:", err);
     grid.innerHTML = `
       <div class="empty-state">
-        <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+        <i class="fas fa-exclamation-triangle"></i>
         <h3>Failed to load HR Case Library</h3>
-        <p style="font-size: 0.8rem;">${escapeHtml(err.message)}</p>
+        <p>${escapeHtml(err.message)}</p>
       </div>`;
   }
 }
@@ -365,24 +411,22 @@ function renderAdminCasesGrid(items) {
       const authorRole = (item.authorRole || "faculty").toUpperCase();
 
       return `
-        <article class="glass-panel" style="display:flex;flex-direction:column;justify-content:space-between;background:var(--bg-surface);">
+        <article class="glass-panel">
           <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap;margin-bottom:0.65rem;">
+            <div class="panel-toolbar">
               <span class="badge-pill">${escapeHtml(itemType)}</span>
-              <div style="display:flex;align-items:center;gap:0.4rem;">
-                ${hasAnswerKey ? `<span class="badge-pill" style="background:rgba(16,185,129,0.16);color:#10b981;"><i class="fas fa-key"></i> Key Included</span>` : ""}
-                <button type="button" class="btn-sidebar-action btn-logout btn-admin-del-case" data-id="${item.id}" data-title="${escapeHtml(item.title || "")}" style="width:auto;padding:0.28rem 0.6rem;font-size:0.74rem;" title="Delete Material">
+              <div class="workspace-action-bar">
+                ${hasAnswerKey ? `<span class="badge-pill role-pill-student"><i class="fas fa-key"></i> Key Included</span>` : ""}
+                <button type="button" class="btn-sidebar-action btn-logout btn-admin-del-case" data-id="${item.id}" data-title="${escapeHtml(item.title || "")}" title="Delete Material">
                   <i class="fas fa-trash-alt"></i> Delete
                 </button>
               </div>
             </div>
-            <h3 style="font-size:1.02rem;margin-bottom:0.35rem;color:var(--text-primary);">${escapeHtml(item.title || "Untitled Material")}</h3>
-            <div style="font-size:0.76rem;color:var(--text-tertiary);margin-bottom:0.6rem;">
+            <h3>${escapeHtml(item.title || "Untitled Material")}</h3>
+            <p class="text-muted">
               By <strong>${escapeHtml(item.authorName || "Faculty")}</strong> (${escapeHtml(authorRole)}) • ${escapeHtml(item.category || "HR Policy")}
-            </div>
-            <p class="text-muted" style="font-size:0.82rem;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">
-              ${escapeHtml(item.body || "")}
             </p>
+            <p class="text-muted">${escapeHtml(item.body || "")}</p>
           </div>
         </article>`;
     })
@@ -446,7 +490,7 @@ function setupAdminCaseModal() {
       const answerKey = document.getElementById("admin-case-answer-key").value.trim();
 
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publishing...';
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
 
       try {
         checkRateLimit("admin_upload_case", 8, 60000);
@@ -476,13 +520,12 @@ function setupAdminCaseModal() {
         alert("Failed to publish material: " + err.message);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Publish to HR Library';
+        btn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Submit';
       }
     });
   }
 }
 
-// HR Feed Summary Pipeline
 async function loadHrFeedAdmin() {
   const container = document.getElementById("admin-feed-container");
   if (!container) return;
@@ -513,9 +556,9 @@ async function loadHrFeedAdmin() {
     console.error("Failed loading HR Feed for admin:", err);
     container.innerHTML = `
       <div class="empty-state">
-        <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+        <i class="fas fa-exclamation-triangle"></i>
         <h3>Failed to load HR Feed posts.</h3>
-        <p style="font-size: 0.8rem;">${escapeHtml(err.message)}</p>
+        <p>${escapeHtml(err.message)}</p>
       </div>`;
   }
 }
@@ -560,59 +603,39 @@ function renderAdminFeedList(posts) {
   container.innerHTML = posts
     .map((post) => {
       const isArchived = Boolean(post.archived);
-      const authorRole = (post.authorRole || "student").toLowerCase();
       const comments = post.comments || [];
       const dateStr = post.tsMillis ? new Date(post.tsMillis).toLocaleString() : "Recent";
       const safePostImg = sanitizeUrl(post.imageUrl, "");
 
-      const roleBadge =
-        authorRole === "admin"
-          ? `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:var(--aimser-blue-700);color:#ffffff;">ADMIN</span>`
-          : authorRole === "faculty"
-            ? `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:rgba(56,189,248,0.16);color:#38bdf8;">FACULTY</span>`
-            : `<span style="display:inline-block;padding:0.15rem 0.55rem;border-radius:9999px;font-size:0.68rem;font-weight:700;text-transform:uppercase;background:rgba(16,185,129,0.16);color:#10b981;">STUDENT</span>`;
-
       const statusBadge = isArchived
-        ? `<span class="badge-pill" style="background:rgba(245,158,11,0.18);color:var(--warning);border-color:var(--warning);">ARCHIVED</span>`
-        : `<span class="badge-pill" style="background:rgba(16,185,129,0.14);color:var(--success);border-color:rgba(16,185,129,0.35);">ACTIVE</span>`;
+        ? `<span class="badge-pill status-pill-archived">ARCHIVED</span>`
+        : `<span class="badge-pill status-pill-active">ACTIVE</span>`;
 
       const postImgHtml = safePostImg
-        ? `<div style="margin-bottom: 0.85rem;">
-             <img src="${safePostImg}" alt="Attached post photo" class="btn-admin-lightbox" data-src="${safePostImg}" data-title="${escapeHtml(post.title || "Attached Evidence")}" style="max-height: 240px; width: 100%; object-fit: cover; border-radius: var(--radius-xs); border: 1px solid var(--border-medium); cursor: zoom-in;" />
-           </div>`
+        ? `<img src="${safePostImg}" alt="Attached post photo" class="admin-post-image btn-admin-lightbox" data-src="${safePostImg}" data-title="${escapeHtml(post.title || "Attached Evidence")}" />`
         : "";
 
       const commentsHtml =
         comments.length === 0
-          ? `<div class="text-muted" style="font-size: 0.78rem;">No comments on this post yet.</div>`
+          ? `<div class="text-muted">No comments on this post yet.</div>`
           : comments
               .map((c, idx) => {
-                const cRole = (c.authorRole || "student").toLowerCase();
-                const cBadge =
-                  cRole === "admin"
-                    ? `<span style="display:inline-block;padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.64rem;font-weight:700;text-transform:uppercase;background:var(--aimser-blue-700);color:#ffffff;">ADMIN</span>`
-                    : cRole === "faculty"
-                      ? `<span style="display:inline-block;padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.64rem;font-weight:700;text-transform:uppercase;background:rgba(56,189,248,0.16);color:#38bdf8;">FACULTY</span>`
-                      : `<span style="display:inline-block;padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.64rem;font-weight:700;text-transform:uppercase;background:rgba(16,185,129,0.16);color:#10b981;">STUDENT</span>`;
-
                 const safeCommentImg = sanitizeUrl(c.imageUrl, "");
                 const commentImgHtml = safeCommentImg
-                  ? `<div style="margin-top: 0.4rem;">
-                       <img src="${safeCommentImg}" alt="Photo comment by ${escapeHtml(c.authorName || "Member")}" class="btn-admin-lightbox" data-src="${safeCommentImg}" data-title="Photo Comment by ${escapeHtml(c.authorName || "Member")}" style="max-height: 150px; max-width: 100%; border-radius: var(--radius-xs); border: 1px solid var(--border-medium); cursor: zoom-in; object-fit: cover;" />
-                     </div>`
+                  ? `<img src="${safeCommentImg}" alt="Photo comment by ${escapeHtml(c.authorName || "Member")}" class="admin-comment-image btn-admin-lightbox" data-src="${safeCommentImg}" data-title="Photo Comment by ${escapeHtml(c.authorName || "Member")}" />`
                   : "";
 
                 return `
-                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.65rem; padding: 0.55rem 0.75rem; border-radius: var(--radius-xs); background: var(--bg-canvas); border: 1px solid var(--border-subtle); font-size: 0.8rem;">
-                    <div style="flex: 1; min-width: 200px;">
-                      <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem; flex-wrap: wrap;">
+                  <div class="admin-comment-row">
+                    <div>
+                      <div class="user-cell-flex">
                         <strong>${escapeHtml(c.authorName || "Member")}</strong>
-                        ${cBadge}
+                        ${renderRoleBadgePill(c.authorRole || "student")}
                       </div>
-                      ${c.text ? `<p style="margin: 0; color: var(--text-primary); white-space: pre-wrap;">${escapeHtml(c.text)}</p>` : ""}
+                      ${c.text ? `<p>${escapeHtml(c.text)}</p>` : ""}
                       ${commentImgHtml}
                     </div>
-                    <button type="button" class="btn-sidebar-action btn-logout btn-admin-del-comment" data-post-id="${post.id}" data-idx="${idx}" style="width: auto; padding: 0.24rem 0.55rem; font-size: 0.72rem;" title="Delete Comment">
+                    <button type="button" class="btn-sidebar-action btn-logout btn-admin-del-comment" data-post-id="${post.id}" data-idx="${idx}" title="Delete Comment">
                       <i class="fas fa-trash"></i>
                     </button>
                   </div>`;
@@ -620,55 +643,55 @@ function renderAdminFeedList(posts) {
               .join("");
 
       return `
-        <div class="glass-panel" style="background: var(--bg-surface); ${isArchived ? "border-color: rgba(245, 158, 11, 0.45);" : ""}">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
+        <div class="glass-panel ${isArchived ? "card-archived-border" : ""}">
+          <div class="panel-toolbar">
             <div>
-              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.25rem;">
-                <h3 style="margin: 0; font-size: 1.02rem; color: var(--text-primary);">${escapeHtml(post.title || "Untitled Scenario")}</h3>
+              <div class="user-cell-flex">
+                <h3>${escapeHtml(post.title || "Untitled Scenario")}</h3>
                 ${statusBadge}
               </div>
-              <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; font-size: 0.78rem; color: var(--text-secondary);">
+              <div class="user-cell-flex text-muted">
                 <strong>${escapeHtml(post.authorName || "Unknown")}</strong>
-                ${roleBadge}
+                ${renderRoleBadgePill(post.authorRole || "student")}
                 <span>(${escapeHtml(post.authorEmail || "No email")})</span>
                 <span>• ${escapeHtml(dateStr)}</span>
                 <span>• <i class="far fa-comment-dots"></i> ${comments.length} comment(s)</span>
               </div>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 0.45rem;">
-              <button type="button" class="btn-secondary btn-admin-archive-feed" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}" style="padding: 0.36rem 0.75rem; font-size: 0.78rem;">
+            <div class="workspace-action-bar">
+              <button type="button" class="btn-secondary btn-admin-archive-feed" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}">
                 <i class="fas ${isArchived ? "fa-box-open" : "fa-archive"}"></i> ${isArchived ? "Unarchive" : "Archive"}
               </button>
-              <button type="button" class="btn-sidebar-action btn-logout btn-admin-del-feed" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" style="width: auto; padding: 0.36rem 0.75rem; font-size: 0.78rem;">
+              <button type="button" class="btn-sidebar-action btn-logout btn-admin-del-feed" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}">
                 <i class="fas fa-trash-alt"></i> Delete
               </button>
             </div>
           </div>
 
-          ${postImgHtml}
-
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.65rem; font-size: 0.8rem; margin-bottom: 0.85rem;">
-            <div style="padding: 0.65rem 0.8rem; border-radius: var(--radius-xs); background: var(--bg-canvas); border: 1px solid var(--border-subtle);">
-              <strong style="color: var(--warning); display: block; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.2rem;">Concerns</strong>
-              <span style="color: var(--text-secondary);">${escapeHtml(post.concerns || "—")}</span>
+          <div class="admin-post-grid">
+            <div class="inspector-meta-item">
+              <span>Workplace Concerns</span>
+              <p>${escapeHtml(post.concerns || "—")}</p>
             </div>
-            <div style="padding: 0.65rem 0.8rem; border-radius: var(--radius-xs); background: var(--bg-canvas); border: 1px solid var(--border-subtle);">
-              <strong style="color: #38bdf8; display: block; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.2rem;">Investigation</strong>
-              <span style="color: var(--text-secondary);">${escapeHtml(post.investigation || "—")}</span>
+            <div class="inspector-meta-item">
+              <span>Investigation Plan</span>
+              <p>${escapeHtml(post.investigation || "—")}</p>
             </div>
-            <div style="padding: 0.65rem 0.8rem; border-radius: var(--radius-xs); background: var(--bg-canvas); border: 1px solid var(--border-subtle);">
-              <strong style="color: var(--success); display: block; font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.2rem;">Resolution</strong>
-              <span style="color: var(--text-secondary);">${escapeHtml(post.resolution || "—")}</span>
+            <div class="inspector-meta-item">
+              <span>Recommended Resolution</span>
+              <p>${escapeHtml(post.resolution || "—")}</p>
             </div>
           </div>
 
-          <div style="padding-top: 0.75rem; border-top: 1px solid var(--border-subtle);">
-            <div style="font-size: 0.76rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">
-              <i class="far fa-comment-dots"></i> Comments &amp; Photo Attachments (${comments.length})
-            </div>
-            <div style="display: flex; flex-direction: column; gap: 0.45rem;">
-              ${commentsHtml}
+          ${postImgHtml}
+
+          <div class="card-footer-bar">
+            <div class="w-full">
+              <p class="text-muted"><i class="far fa-comment-dots"></i> Comments (${comments.length})</p>
+              <div class="admin-comments-stack">
+                ${commentsHtml}
+              </div>
             </div>
           </div>
         </div>`;
@@ -780,7 +803,6 @@ function renderAdminFeedList(posts) {
   });
 }
 
-// Telemetry & Platform Audit Trail
 async function loadAuditLogs() {
   const container = document.getElementById("admin-logs-container");
   const elLogs = document.getElementById("stat-total-logs");
@@ -808,6 +830,7 @@ async function loadAuditLogs() {
       cachedLogs = [];
       if (elLogs) elLogs.textContent = "0";
       renderAuditLogsList([]);
+      renderAdminNotificationsBell();
       return;
     }
 
@@ -831,13 +854,14 @@ async function loadAuditLogs() {
     FastCache.set("admin_logs", cachedLogs);
     if (elLogs) elLogs.textContent = cachedLogs.length.toLocaleString();
     renderAuditLogsList(cachedLogs);
+    renderAdminNotificationsBell();
   } catch (err) {
     console.error("Error loading audit logs:", err);
     container.innerHTML = `
-      <div class="empty-state" style="padding: 2.5rem 1.5rem;">
-        <i class="fas fa-exclamation-triangle" style="color: var(--warning);"></i>
+      <div class="empty-state">
+        <i class="fas fa-exclamation-triangle"></i>
         <h3>Audit Trail Unavailable</h3>
-        <p style="font-size: 0.8rem;">${escapeHtml(err.message)}</p>
+        <p>${escapeHtml(err.message)}</p>
       </div>`;
   }
 }
@@ -848,10 +872,10 @@ function renderAuditLogsList(logs) {
 
   if (!logs || logs.length === 0) {
     container.innerHTML = `
-      <div class="empty-state" style="padding: 2.5rem 1.5rem;">
+      <div class="empty-state">
         <i class="fas fa-clipboard-list"></i>
         <h3>No Telemetry Events Logged</h3>
-        <p style="font-size: 0.8rem;">User registrations, classroom join requests, and moderation events will stream here automatically.</p>
+        <p>User registrations, classroom join requests, and moderation events will stream here automatically.</p>
       </div>`;
     return;
   }
@@ -867,18 +891,17 @@ function renderAuditLogsList(logs) {
         : "Recent";
 
       return `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--border-subtle); font-family: var(--font-mono); font-size: 0.8125rem;">
-          <div style="display: flex; align-items: center; gap: 0.65rem; word-break: break-word;">
-            <span style="color: var(--danger); font-weight: 700;">[EVENT]</span>
-            <span style="color: var(--text-primary);">${escapeHtml(item.message)}</span>
+        <div class="admin-log-item">
+          <div>
+            <span class="admin-log-tag">[${escapeHtml(item.category || "EVENT")}]</span>
+            <span>${escapeHtml(item.message)}</span>
           </div>
-          <span style="color: var(--text-tertiary); font-size: 0.75rem; white-space: nowrap; margin-left: 1rem;">${formattedDate}</span>
+          <span class="admin-log-time">${formattedDate}</span>
         </div>`;
     })
     .join("");
 }
 
-// User Directory Pipeline
 async function loadUsers() {
   const tbody = document.getElementById("admin-users-table-body");
   if (!tbody) return;
@@ -902,7 +925,7 @@ async function loadUsers() {
     }
   } catch (err) {
     console.error("Failed to load users:", err);
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 2rem; color: var(--danger);">Failed to load user directory: ${escapeHtml(err.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5">Failed to load user directory: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -911,7 +934,7 @@ function renderUsersTable(users) {
   if (!tbody) return;
 
   if (users.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">No user records found matching your filter.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5">No user records found matching your filter.</td></tr>`;
     return;
   }
 
@@ -923,36 +946,19 @@ function renderUsersTable(users) {
       const isSelf = currentAdminUser && u.uid === currentAdminUser.uid;
       const isSelected = selectedUserUid === u.uid;
 
-      let roleBadgeColor = "var(--text-secondary)";
-      let roleBg = "var(--bg-surface-elevated)";
-      if (role === "admin") {
-        roleBadgeColor = "#ffffff";
-        roleBg = "var(--aimser-blue-700)";
-      } else if (role === "faculty") {
-        roleBadgeColor = "#38bdf8";
-        roleBg = "rgba(56, 189, 248, 0.16)";
-      } else {
-        roleBadgeColor = "#10b981";
-        roleBg = "rgba(16, 185, 129, 0.16)";
-      }
-
       return `
-        <tr class="admin-user-row ${isSelected ? "is-selected" : ""}" data-uid="${u.uid}" style="border-bottom: 1px solid var(--border-subtle); cursor: pointer;">
-          <td style="padding: 0.75rem 1rem;">
-            <div style="display: flex; align-items: center; gap: 0.65rem;">
-              <img src="${avatar}" alt="" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-medium);" />
-              <span style="font-weight: 600; color: var(--text-primary);">${escapeHtml(u.fullName || "Unnamed User")} ${isSelf ? '<small style="color: var(--aimser-blue-400);">(You)</small>' : ""}</span>
+        <tr class="admin-user-row ${isSelected ? "is-selected" : ""}" data-uid="${u.uid}">
+          <td>
+            <div class="user-cell-flex">
+              <img src="${avatar}" alt="" class="avatar-sm" />
+              <strong>${escapeHtml(u.fullName || "Unnamed User")} ${isSelf ? "<small>(You)</small>" : ""}</strong>
             </div>
           </td>
-          <td style="padding: 0.75rem 1rem; color: var(--text-secondary);">${escapeHtml(u.email || "N/A")}</td>
-          <td style="padding: 0.75rem 1rem; color: var(--text-secondary);">${escapeHtml(u.department || "—")}</td>
-          <td style="padding: 0.75rem 1rem;">
-            <span style="display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; background: ${roleBg}; color: ${roleBadgeColor};">
-              ${escapeHtml(role)}
-            </span>
-          </td>
-          <td style="padding: 0.75rem 1rem; text-align: right;">
-            <button type="button" class="btn-secondary btn-inspect-user" data-uid="${u.uid}" style="padding: 0.35rem 0.75rem; font-size: 0.78rem;">
+          <td class="text-muted">${escapeHtml(u.email || "N/A")}</td>
+          <td class="text-muted">${escapeHtml(u.department || "—")}</td>
+          <td>${renderRoleBadgePill(role)}</td>
+          <td class="text-right">
+            <button type="button" class="btn-secondary btn-inspect-user" data-uid="${u.uid}">
               <i class="fas fa-user-edit"></i> Inspect &amp; Edit
             </button>
           </td>
@@ -967,7 +973,6 @@ function renderUsersTable(users) {
   });
 }
 
-// User Profile & Details Inspector Panel
 function openUserInspector(uid) {
   const userObj = cachedUsers.find((u) => u.uid === uid);
   if (!userObj) return;
@@ -980,7 +985,7 @@ function openUserInspector(uid) {
   const statusMsg = document.getElementById("inspector-status-msg");
 
   if (layout) layout.classList.add("has-inspector");
-  if (panel) panel.style.display = "block";
+  if (panel) panel.classList.remove("is-hidden");
   if (statusMsg) {
     statusMsg.style.display = "none";
     statusMsg.textContent = "";
@@ -1022,10 +1027,9 @@ function openUserInspector(uid) {
 
   roleSelect.value = role;
   roleSelect.disabled = Boolean(isSelf);
-  if (selfNote) selfNote.style.display = isSelf ? "block" : "none";
+  if (selfNote) selfNote.classList.toggle("is-hidden", !isSelf);
   if (deleteUserBtn) {
     deleteUserBtn.disabled = Boolean(isSelf);
-    deleteUserBtn.style.opacity = isSelf ? "0.45" : "1";
     deleteUserBtn.title = isSelf ? "Root administrator account cannot be deleted" : "Remove user profile record";
   }
 
@@ -1066,7 +1070,7 @@ function closeUserInspector() {
   resetAvatarRequested = false;
   document.getElementById("user-registry-layout")?.classList.remove("has-inspector");
   const panel = document.getElementById("user-inspector-panel");
-  if (panel) panel.style.display = "none";
+  if (panel) panel.classList.add("is-hidden");
   document.querySelectorAll(".admin-user-row").forEach((r) => r.classList.remove("is-selected"));
 }
 
@@ -1279,7 +1283,6 @@ function showInspectorStatus(el, msg, type) {
   el.style.display = "block";
 }
 
-// Classroom Audit Pipeline
 async function loadSections() {
   const container = document.getElementById("admin-sections-grid");
   if (!container) return;
@@ -1322,23 +1325,24 @@ async function loadSections() {
         const maxCap = sec.maxStudents || 100;
 
         return `
-          <div class="glass-panel" style="display: flex; flex-direction: column; justify-content: space-between;">
+          <div class="glass-panel">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; gap: 0.5rem;">
-                <h3 style="margin: 0; font-size: 1.05rem; color: var(--text-primary);">${escapeHtml(sec.name || sec.title || "Untitled Section")}</h3>
-                <span class="badge-pill">${escapeHtml(code)}</span>
+              <div class="panel-toolbar">
+                <h3>${escapeHtml(sec.name || sec.title || "Untitled Section")}</h3>
+                <span class="badge-pill code-mono">${escapeHtml(code)}</span>
               </div>
-              <p class="text-muted" style="font-size: 0.8rem; margin-bottom: 0.85rem;">
+              <p class="text-muted">
                 <strong>Instructor:</strong> ${escapeHtml(sec.instructorEmail || sec.facultyEmail || sec.createdByName || "Unknown")}
               </p>
-              <div style="font-size: 0.78rem; color: var(--text-secondary); line-height: 1.65;">
-                <div><i class="fas fa-users" style="width: 16px;"></i> Students Enrolled: <strong>${enrolledCount} / ${maxCap}</strong></div>
-                <div><i class="fas fa-tasks" style="width: 16px;"></i> Activities Published: <strong>${sec.activityCount || (sec.activities || []).length || 0}</strong></div>
+              <div class="text-muted">
+                <div><i class="fas fa-users"></i> Students Enrolled: <strong>${enrolledCount} / ${maxCap}</strong></div>
+                <div><i class="fas fa-tasks"></i> Activities Published: <strong>${sec.activityCount || (sec.activities || []).length || 0}</strong></div>
               </div>
             </div>
 
-            <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--border-subtle); display: flex; justify-content: flex-end;">
-              <button type="button" class="btn-sidebar-action btn-logout btn-delete-section" data-id="${sec.id}" data-code="${escapeHtml(code)}" data-coll="${collectionUsed}" style="width: auto; padding: 0.35rem 0.65rem; font-size: 0.75rem;">
+            <div class="card-footer-bar">
+              <span></span>
+              <button type="button" class="btn-sidebar-action btn-logout btn-delete-section" data-id="${sec.id}" data-code="${escapeHtml(code)}" data-coll="${collectionUsed}">
                 <i class="fas fa-trash"></i> Purge Section
               </button>
             </div>
@@ -1366,14 +1370,13 @@ async function loadSections() {
     console.error("Error loading sections:", err);
     container.innerHTML = `
       <div class="empty-state">
-        <i class="fas fa-exclamation-triangle" style="color: var(--danger);"></i>
+        <i class="fas fa-exclamation-triangle"></i>
         <h3>Failed to load sections.</h3>
-        <p style="font-size: 0.8rem;">${escapeHtml(err.message)}</p>
+        <p>${escapeHtml(err.message)}</p>
       </div>`;
   }
 }
 
-// Synchronized Tabs, Sidebar Active Highlight & Hash Routing
 function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
   const tabs = document.querySelectorAll(".subnav-tab");
   const panels = document.querySelectorAll(".tab-panel");
@@ -1389,7 +1392,6 @@ function activateAdminTab(targetPanelId, clickedSidebarKey = null) {
     const isMatch = p.id === targetPanelId;
     p.classList.toggle("active", isMatch);
     p.classList.toggle("is-active", isMatch);
-    p.style.display = isMatch ? "block" : "none";
   });
 
   const resolvedKey =
@@ -1466,7 +1468,6 @@ function setupTabs() {
   });
 }
 
-// Search & Role Filtering
 function applyUserFilters() {
   const term = (document.getElementById("admin-user-search")?.value || "").toLowerCase().trim();
   const roleFilter = (document.getElementById("admin-role-filter")?.value || "all").toLowerCase();

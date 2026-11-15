@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Account Settings | AIMSER HR Simulator</title>
+  <title>Portfolio &amp; Profile | AIMSER HR Simulator</title>
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon_aimser.png?v=18" />
   <link rel="icon" type="image/png" sizes="48x48" href="/assets/icon_aimser.png?v=18" />
   <link rel="shortcut icon" type="image/png" href="/assets/icon_aimser.png?v=18" />
@@ -42,8 +42,8 @@
 
           <div class="nav-section-label">System</div>
           <a href="settings.html" class="nav-item active" id="nav-settings">
-            <i class="fas fa-cog"></i>
-            <span>Settings</span>
+            <i class="fas fa-briefcase"></i>
+            <span>Portfolio</span>
           </a>
         </nav>
       </div>
@@ -64,11 +64,36 @@
     <main class="main-workspace">
       <header class="workspace-header">
         <div class="header-left">
-          <h1 class="page-title">Settings</h1>
-          <span class="badge-pill">Profile &amp; Security</span>
+          <h1 class="page-title">Portfolio</h1>
         </div>
 
         <div class="header-right">
+          <div class="notif-dropdown-wrapper" id="notif-dropdown-wrapper">
+            <button type="button" id="btn-open-notifications" class="btn-secondary notif-trigger-btn" title="Notifications" aria-expanded="false">
+              <i class="fas fa-bell"></i>
+              <span id="notif-badge" class="notif-badge-pill">0</span>
+            </button>
+
+            <div class="notif-dropdown-menu" id="notif-dropdown-menu" role="region" aria-label="Notifications Dropdown">
+              <div class="notif-dropdown-header">
+                <h4><i class="fas fa-bell"></i> Notifications</h4>
+                <span class="text-muted">Click item for details</span>
+              </div>
+              <div id="notifications-feed-list" class="notif-dropdown-list">
+                <div class="empty-state">
+                  <i class="fas fa-bell-slash"></i>
+                  <h3>No notifications yet</h3>
+                  <p>Updates and grade alerts will appear here.</p>
+                </div>
+              </div>
+              <div class="notif-dropdown-footer">
+                <button type="button" id="btn-view-all-notifs" class="btn-secondary">
+                  View All in Full Page
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="user-profile-chip">
             <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Avatar" class="avatar-sm" />
             <div class="user-meta">
@@ -79,104 +104,258 @@
         </div>
       </header>
 
-      <div class="settings-grid">
-        <!-- Profile Card -->
-        <section class="settings-card glass-panel">
-          <div class="card-header" style="align-items: center;">
-            <i class="fas fa-user-circle"></i>
+      <!-- Sub-Navigation Tabs: Portfolio Outputs vs Account & Security -->
+      <nav class="office-subnav" aria-label="Portfolio & Account Sections">
+        <button type="button" class="subnav-tab active" data-tab="panel-portfolio-overview">
+          <i class="fas fa-briefcase"></i>
+          <span>Portfolio &amp; Stored Outputs</span>
+        </button>
+        <button type="button" class="subnav-tab" data-tab="panel-account-settings">
+          <i class="fas fa-user-shield"></i>
+          <span>Account &amp; Security</span>
+        </button>
+      </nav>
+
+      <!-- PANEL 1: PORTFOLIO METRICS & STORED OUTPUTS -->
+      <section id="panel-portfolio-overview" class="tab-panel active">
+        <div class="workspace-action-bar">
+          <select id="portfolio-classroom-select" class="form-select" style="max-width: 280px;" aria-label="Select Classroom">
+            <option value="">Loading Classrooms...</option>
+          </select>
+        </div>
+
+        <!-- 6 Required Portfolio Output Metrics -->
+        <div class="stats-row stats-row-6" style="margin-bottom: 1.35rem;">
+          <div class="glass-panel stat-card">
+            <span class="stat-label">Absenteeism</span>
+            <h3 id="port-metric-absenteeism">0%</h3>
+          </div>
+          <div class="glass-panel stat-card">
+            <span class="stat-label">Missing</span>
+            <h3 id="port-metric-missing">0</h3>
+          </div>
+          <div class="glass-panel stat-card">
+            <span class="stat-label">Completed</span>
+            <h3 id="port-metric-completed">0</h3>
+          </div>
+          <div class="glass-panel stat-card">
+            <span class="stat-label">Total Activities</span>
+            <h3 id="port-metric-total">0</h3>
+          </div>
+          <div class="glass-panel stat-card">
+            <span class="stat-label">Completion Rate</span>
+            <h3 id="port-metric-rate">0%</h3>
+          </div>
+          <div class="glass-panel stat-card">
+            <span class="stat-label">Average Score</span>
+            <h3 id="port-metric-avg">—</h3>
+          </div>
+        </div>
+
+        <!-- Filterable & Searchable Stored Outputs Repository -->
+        <div class="glass-panel">
+          <div class="portfolio-toolbar">
             <div>
-              <h3 style="margin: 0;">Personal Identity</h3>
+              <h2>Submitted Outputs &amp; Graded Activities</h2>
+              <p class="text-muted">Click any activity output card to inspect graded feedback and rubric details.</p>
+            </div>
+            <div class="workspace-action-bar" style="margin-bottom: 0;">
+              <input type="text" id="portfolio-search-input" class="form-control" placeholder="Search outputs..." style="max-width: 210px;" />
+              <select id="portfolio-sort-select" class="form-select" style="max-width: 175px;">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="graded">Graded Only</option>
+                <option value="missing">Missing / Pending</option>
+              </select>
             </div>
           </div>
 
-          <div id="settings-profile-status" class="status-msg" aria-live="polite"></div>
+          <div id="student-portfolio-items" class="cards-grid">
+            <div class="empty-state">
+              <i class="fas fa-spinner fa-spin"></i>
+              <h3>Loading portfolio outputs...</h3>
+            </div>
+          </div>
+        </div>
+      </section>
 
-          <form id="settings-profile-form">
-            <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.75rem;">
-              <img id="settings-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Avatar Preview" class="avatar-preview" />
+      <!-- PANEL 2: ACCOUNT PROFILE & SECURITY CREDENTIALS -->
+      <section id="panel-account-settings" class="tab-panel">
+        <div class="settings-grid">
+          <!-- Profile Card -->
+          <section class="settings-card glass-panel">
+            <div class="card-header">
+              <i class="fas fa-user-circle"></i>
               <div>
-                <label for="settings-avatar-input" class="form-label" style="margin-bottom: 0.35rem;">Profile Picture</label>
-                <input type="file" id="settings-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" style="max-width: 320px;" />
+                <h3>Personal Identity</h3>
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="settings-fullname" class="form-label">Full Name</label>
-              <input type="text" id="settings-fullname" class="form-control" placeholder="e.g., Juan Dela Cruz" required />
-            </div>
+            <div id="settings-profile-status" class="status-msg" aria-live="polite"></div>
 
-            <div class="form-row">
+            <form id="settings-profile-form">
+              <div class="workspace-action-bar" style="margin-bottom: 1.5rem;">
+                <img id="settings-avatar-preview" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Avatar Preview" class="avatar-preview" />
+                <div>
+                  <label for="settings-avatar-input" class="form-label">Profile Picture (PNG, JPG, WebP)</label>
+                  <input type="file" id="settings-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" style="max-width: 320px;" />
+                </div>
+              </div>
+
               <div class="form-group">
-                <label for="settings-email" class="form-label">Institutional Email</label>
-                <input type="email" id="settings-email" class="form-control" disabled />
+                <label for="settings-fullname" class="form-label">Full Name</label>
+                <input type="text" id="settings-fullname" class="form-control" placeholder="e.g., Juan Dela Cruz" required />
               </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="settings-email" class="form-label">Institutional Email</label>
+                  <input type="email" id="settings-email" class="form-control" disabled />
+                </div>
+                <div class="form-group">
+                  <label for="settings-role-badge" class="form-label">Account Role</label>
+                  <input type="text" id="settings-role-badge" class="form-control" disabled />
+                </div>
+              </div>
+
               <div class="form-group">
-                <label for="settings-role-badge" class="form-label">Account Role</label>
-                <input type="text" id="settings-role-badge" class="form-control" disabled />
+                <label for="settings-department" class="form-label">Department / Program / Cohort</label>
+                <input type="text" id="settings-department" class="form-control" placeholder="e.g., BSBA - Human Resource Management" />
+              </div>
+
+              <button type="submit" id="btn-save-settings-profile" class="btn-primary">
+                <i class="fas fa-save"></i> Save Profile Changes
+              </button>
+            </form>
+          </section>
+
+          <!-- Password Card -->
+          <section class="settings-card glass-panel">
+            <div class="card-header">
+              <i class="fas fa-key"></i>
+              <div>
+                <h3>Security Credentials</h3>
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="settings-department" class="form-label">Department / Program / Cohort</label>
-              <input type="text" id="settings-department" class="form-control" placeholder="e.g., BSBA - Human Resource Management" />
-            </div>
+            <div id="settings-password-status" class="status-msg" aria-live="polite"></div>
 
-            <button type="submit" id="btn-save-settings-profile" class="btn-primary" style="margin-top: 0.5rem;">
-              <i class="fas fa-save"></i> Save Profile Changes
-            </button>
-          </form>
-        </section>
+            <form id="settings-password-form">
+              <div class="form-group">
+                <label for="settings-current-pw" class="form-label">Current Password</label>
+                <div class="input-password-wrapper">
+                  <input type="password" id="settings-current-pw" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
+                  <button type="button" class="btn-toggle-pw" data-target="settings-current-pw" aria-label="Toggle password visibility">
+                    <i class="far fa-eye"></i>
+                  </button>
+                </div>
+              </div>
 
-        <!-- Password Card -->
-        <section class="settings-card glass-panel">
-          <div class="card-header" style="align-items: center;">
-            <i class="fas fa-key"></i>
-            <div>
-              <h3 style="margin: 0;">Security Credentials</h3>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="settings-new-pw" class="form-label">New Password</label>
+                  <div class="input-password-wrapper">
+                    <input type="password" id="settings-new-pw" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
+                    <button type="button" class="btn-toggle-pw" data-target="settings-new-pw" aria-label="Toggle password visibility">
+                      <i class="far fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="settings-confirm-pw" class="form-label">Confirm New Password</label>
+                  <div class="input-password-wrapper">
+                    <input type="password" id="settings-confirm-pw" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
+                    <button type="button" class="btn-toggle-pw" data-target="settings-confirm-pw" aria-label="Toggle password visibility">
+                      <i class="far fa-eye"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" id="btn-save-settings-pw" class="btn-primary">
+                <i class="fas fa-lock"></i> Update Password
+              </button>
+            </form>
+          </section>
+        </div>
+      </section>
+
+      <!-- IN-PAGE NOTIFICATION FULL DETAILS VIEW -->
+      <section id="panel-notification-view" class="tab-panel">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div class="header-left">
+              <button type="button" id="btn-back-from-notif" class="btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Workspace
+              </button>
+              <h2>Notification Details</h2>
             </div>
+            <span id="notif-detail-badge" class="badge-pill">Alert</span>
           </div>
 
-          <div id="settings-password-status" class="status-msg" aria-live="polite"></div>
+          <div id="notif-selected-detail-card" class="inspector-meta-item" style="margin-bottom: 1.5rem;">
+            <h3 id="notif-detail-title">Select a notification</h3>
+            <p id="notif-detail-meta" class="text-muted"></p>
+            <div id="notif-detail-body" style="white-space: pre-wrap; margin-top: 0.75rem;"></div>
+          </div>
 
-          <form id="settings-password-form">
-            <div class="form-group">
-              <label for="settings-current-pw" class="form-label">Current Password</label>
-              <div class="input-password-wrapper">
-                <input type="password" id="settings-current-pw" class="form-control" placeholder="Enter current password" required autocomplete="current-password" />
-                <button type="button" class="btn-toggle-pw" data-target="settings-current-pw" aria-label="Toggle password visibility">
-                  <i class="far fa-eye"></i>
-                </button>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label for="settings-new-pw" class="form-label">New Password</label>
-                <div class="input-password-wrapper">
-                  <input type="password" id="settings-new-pw" class="form-control" placeholder="Minimum 6 characters" minlength="6" required autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-pw" data-target="settings-new-pw" aria-label="Toggle password visibility">
-                    <i class="far fa-eye"></i>
-                  </button>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="settings-confirm-pw" class="form-label">Confirm New Password</label>
-                <div class="input-password-wrapper">
-                  <input type="password" id="settings-confirm-pw" class="form-control" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
-                  <button type="button" class="btn-toggle-pw" data-target="settings-confirm-pw" aria-label="Toggle password visibility">
-                    <i class="far fa-eye"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <button type="submit" id="btn-save-settings-pw" class="btn-primary" style="margin-top: 0.5rem;">
-              <i class="fas fa-lock"></i> Update Password
-            </button>
-          </form>
-        </section>
-      </div>
+          <h3>All Workspace Notifications</h3>
+          <div id="notif-fullpage-all-list" style="display: flex; flex-direction: column; gap: 0.65rem; margin-top: 0.85rem;"></div>
+        </div>
+      </section>
     </main>
+  </div>
+
+  <!-- Modal: Activity Graded Details & Locked Submission Viewer -->
+  <div class="modal-backdrop" id="modal-activity-detail" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card" style="max-width: 720px;">
+      <div class="modal-header">
+        <h3 id="detail-act-title">Activity Details</h3>
+        <button type="button" class="btn-close-modal" data-close-modal="modal-activity-detail">&times;</button>
+      </div>
+
+      <input type="hidden" id="detail-act-id" />
+      <div class="workspace-action-bar" style="margin-bottom: 0.85rem;">
+        <span id="detail-act-badge" class="badge-pill">Domain</span>
+        <span id="detail-act-points" class="badge-pill">100 pts</span>
+        <span id="detail-act-due" class="text-muted"></span>
+      </div>
+
+      <div class="text-muted" style="margin-bottom: 0.75rem;">
+        <strong>Rubric:</strong> <span id="detail-act-rubric"></span>
+      </div>
+
+      <div id="detail-act-desc" class="inspector-meta-item" style="white-space: pre-wrap; margin-bottom: 1.25rem;"></div>
+
+      <div id="student-grade-feedback-box" class="status-msg success" style="display: none;">
+        <strong>Awarded Score: <span id="student-awarded-score"></span></strong>
+        <p id="student-awarded-feedback"></p>
+      </div>
+
+      <div id="activity-closed-notice" class="status-msg error" style="display: none;">
+        <i class="fas fa-lock"></i> <span id="activity-closed-text">This activity is locked. Submissions cannot be edited or removed unless unlocked by your instructor, or the deadline has passed.</span>
+      </div>
+
+      <form id="form-submit-deliverable">
+        <div class="form-group">
+          <label for="deliverable-notes" class="form-label">Submitted Output / Analysis</label>
+          <textarea id="deliverable-notes" class="form-control" rows="4" placeholder="Write your complete HR output or paste your shared document link..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="deliverable-file-input" class="form-label">Attach Document or Image (PDF, DOC, DOCX, PNG, JPG — Locked Once Submitted)</label>
+          <input type="file" id="deliverable-file-input" class="form-control" accept=".pdf,.doc,.docx,image/png,image/jpeg,image/webp" />
+          <div id="deliverable-attached-file-info" class="text-muted" style="display: none;"></div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" data-close-modal="modal-activity-detail">Close</button>
+          <button type="submit" id="btn-save-deliverable" class="btn-primary">
+            <i class="fas fa-paper-plane"></i> Submit
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script type="module" src="js/theme.js?v=18"></script>

@@ -42,8 +42,8 @@
 
           <div class="nav-section-label">System</div>
           <a href="settings.html" class="nav-item" id="nav-settings">
-            <i class="fas fa-cog"></i>
-            <span>Settings</span>
+            <i class="fas fa-briefcase"></i>
+            <span>Portfolio</span>
           </a>
         </nav>
       </div>
@@ -65,10 +65,34 @@
       <header class="workspace-header">
         <div class="header-left">
           <h1 class="page-title">HR Library</h1>
-          <span class="badge-pill">Public Repository &amp; Conflict Forum</span>
         </div>
 
         <div class="header-right">
+          <div class="notif-dropdown-wrapper" id="notif-dropdown-wrapper">
+            <button type="button" id="btn-open-notifications" class="btn-secondary notif-trigger-btn" title="Notifications" aria-expanded="false">
+              <i class="fas fa-bell"></i>
+              <span id="notif-badge" class="notif-badge-pill">0</span>
+            </button>
+
+            <div class="notif-dropdown-menu" id="notif-dropdown-menu" role="region" aria-label="Notifications Dropdown">
+              <div class="notif-dropdown-header">
+                <h4><i class="fas fa-bell"></i> Notifications</h4>
+                <span class="text-muted">Click item for details</span>
+              </div>
+              <div id="notifications-feed-list" class="notif-dropdown-list">
+                <div class="inspector-meta-item">
+                  <strong>HR Library &amp; Forum Alerts</strong>
+                  <span class="text-muted">Click to view moderation &amp; discussion updates in-page.</span>
+                </div>
+              </div>
+              <div class="notif-dropdown-footer">
+                <button type="button" id="btn-view-all-notifs" class="btn-secondary">
+                  View All in Full Page
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="user-profile-chip">
             <img id="header-user-avatar" src="https://ui-avatars.com/api/?name=User&background=1b5375&color=faf2dd" alt="Avatar" class="avatar-sm" />
             <div class="user-meta">
@@ -82,7 +106,7 @@
       <!-- Admin Moderation Warning Banner -->
       <div id="user-warnings-container" style="display: none; flex-direction: column; gap: 0.75rem; margin-bottom: 1.35rem;"></div>
 
-      <!-- Sub-Navigation Tabs: HR Case Library vs HR Feed -->
+      <!-- Sub-Navigation Tabs -->
       <nav class="office-subnav" aria-label="HR Library Sections">
         <button type="button" class="subnav-tab active" data-tab="panel-case-library">
           <i class="fas fa-book"></i>
@@ -90,18 +114,18 @@
         </button>
         <button type="button" class="subnav-tab" data-tab="panel-hr-feed">
           <i class="fas fa-comments"></i>
-          <span>HR Feed (Workplace Conflict Forum)</span>
+          <span>HR Feed</span>
         </button>
       </nav>
 
       <!-- SUB-FEATURE 1: PUBLIC HR CASE LIBRARY & E-MODULES -->
       <section id="panel-case-library" class="tab-panel active">
         <div class="glass-panel">
-          <div class="panel-toolbar" style="align-items: center;">
+          <div class="panel-toolbar">
             <div>
-              <h2 style="margin: 0;">Company Cases, HR E-Modules &amp; Practice Cases</h2>
+              <h2>Company Cases, HR E-Modules &amp; Practice Cases</h2>
             </div>
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <div class="workspace-action-bar" style="margin-bottom: 0;">
               <select id="library-type-filter" class="form-select" style="max-width: 180px;">
                 <option value="all">All Materials</option>
                 <option value="Company Case">Company Cases</option>
@@ -124,80 +148,86 @@
         </div>
       </section>
 
-      <!-- SUB-FEATURE 2: HR FEED (WORKPLACE CONFLICT FORUM) -->
+      <!-- SUB-FEATURE 2: HR FEED (FACEBOOK-STYLE POST COMPOSER & STREAM) -->
       <section id="panel-hr-feed" class="tab-panel">
-        <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
-          <!-- Conflict Scenario Composer with Photo Upload -->
-          <div class="glass-panel">
-            <div class="card-header" style="align-items: center;">
-              <i class="fas fa-exclamation-circle"></i>
-              <div>
-                <h3 style="margin: 0;">Post Real-World Workplace Conflict Scenario</h3>
-              </div>
-            </div>
-
+        <div class="social-feed-layout">
+          <div class="glass-panel fb-composer-card">
             <form id="form-create-feed-post">
-              <div class="form-group">
-                <label for="feed-title" class="form-label">Conflict Scenario Headline</label>
-                <input type="text" id="feed-title" class="form-control" placeholder="e.g., Interdepartmental Grievance Over Hybrid Shift Scheduling" required />
+              <div class="fb-composer-top">
+                <i class="fas fa-user-circle" style="font-size: 2rem; color: var(--aimser-blue-400);"></i>
+                <input type="text" id="feed-title" class="form-control" placeholder="Headline — What workplace conflict scenario are you sharing?" required />
               </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="feed-concerns" class="form-label">1. Documented Workplace Concerns</label>
-                  <textarea id="feed-concerns" class="form-control" rows="3" placeholder="Describe the facts, affected parties, and policy/labor implications..." required></textarea>
-                </div>
-                <div class="form-group">
-                  <label for="feed-investigation" class="form-label">2. Investigation Plan</label>
-                  <textarea id="feed-investigation" class="form-control" rows="3" placeholder="Outline fact-finding steps, interviews, evidence gathering, and due process..." required></textarea>
+              <div class="fb-composer-fields">
+                <textarea id="feed-concerns" class="form-control" rows="2" placeholder="Documented workplace concerns, facts, and affected parties..." required></textarea>
+                <div class="form-row" style="margin-bottom: 0;">
+                  <textarea id="feed-investigation" class="form-control" rows="2" placeholder="Investigation plan, interviews, and due process steps..." required></textarea>
+                  <textarea id="feed-resolution" class="form-control" rows="2" placeholder="Recommended HR resolution or policy action..." required></textarea>
                 </div>
               </div>
 
-              <div class="form-group">
-                <label for="feed-resolution" class="form-label">3. Recommended HR Resolution</label>
-                <textarea id="feed-resolution" class="form-control" rows="2" placeholder="Propose corrective measures, mediation steps, or policy updates..." required></textarea>
+              <div id="feed-image-preview-box" style="display: none; margin-top: 0.75rem;">
+                <img id="feed-image-preview" src="" alt="Attachment Preview" style="max-height: 220px; width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-medium); object-fit: cover;" />
               </div>
 
-              <div class="form-group">
-                <label for="feed-image-input" class="form-label">4. Attach Supporting Photo / Evidence Diagram (Optional — PNG, JPG, WebP)</label>
-                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                  <input type="file" id="feed-image-input" class="form-control" accept="image/png,image/jpeg,image/webp" style="max-width: 340px;" />
-                  <button type="button" id="btn-clear-feed-image" class="btn-secondary" style="display: none; padding: 0.45rem 0.8rem; font-size: 0.8rem;">
+              <div class="fb-composer-footer">
+                <div class="workspace-action-bar" style="margin-bottom: 0;">
+                  <label for="feed-image-input" class="fb-photo-upload-btn">
+                    <i class="fas fa-image" style="color: var(--success);"></i> Photo / PNG Diagram
+                  </label>
+                  <input type="file" id="feed-image-input" accept="image/png,image/jpeg,image/webp" style="display: none;" />
+                  <button type="button" id="btn-clear-feed-image" class="btn-secondary" style="display: none;">
                     <i class="fas fa-times"></i> Remove Photo
                   </button>
                 </div>
-                <div id="feed-image-preview-box" style="display: none; margin-top: 0.75rem;">
-                  <img id="feed-image-preview" src="" alt="Attachment Preview" style="max-height: 200px; max-width: 100%; border-radius: var(--radius-sm); border: 1px solid var(--border-medium); object-fit: cover;" />
-                </div>
-              </div>
 
-              <button type="submit" id="btn-submit-feed-post" class="btn-primary">
-                <i class="fas fa-paper-plane"></i> Publish Conflict Scenario to HR Feed
-              </button>
+                <button type="submit" id="btn-submit-feed-post" class="btn-primary">
+                  <i class="fas fa-paper-plane"></i> Post
+                </button>
+              </div>
             </form>
           </div>
 
-          <!-- Feed Filter Bar (Active vs Archived Posts) -->
-          <div class="glass-panel" style="padding: 0.9rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-              <button type="button" class="btn-secondary feed-view-btn active" data-feed-view="active" style="padding: 0.4rem 0.85rem; font-size: 0.8rem; border-color: var(--aimser-blue-500);">
+          <div class="glass-panel panel-toolbar" style="margin-bottom: 0;">
+            <div class="workspace-action-bar" style="margin-bottom: 0;">
+              <button type="button" class="btn-secondary feed-view-btn active" data-feed-view="active">
                 <i class="fas fa-stream"></i> Active Scenarios
               </button>
-              <button type="button" class="btn-secondary feed-view-btn" data-feed-view="archived" style="padding: 0.4rem 0.85rem; font-size: 0.8rem;">
-                <i class="fas fa-archive"></i> Archived Scenarios
+              <button type="button" class="btn-secondary feed-view-btn" data-feed-view="archived">
+                <i class="fas fa-archive"></i> Archived
               </button>
             </div>
-            <input type="text" id="feed-search-input" class="form-control" placeholder="Search conflict discussions..." style="max-width: 260px; padding: 0.45rem 0.8rem; font-size: 0.83rem;" />
+            <input type="text" id="feed-search-input" class="form-control" placeholder="Search discussions..." style="max-width: 240px;" />
           </div>
 
-          <!-- Community HR Feed Stream -->
-          <div id="hr-feed-stream" style="display: flex; flex-direction: column; gap: 1.25rem;"></div>
+          <div id="hr-feed-stream" style="display: flex; flex-direction: column; gap: 1.15rem;"></div>
+        </div>
+      </section>
+
+      <!-- IN-PAGE NOTIFICATION FULL DETAILS VIEW -->
+      <section id="panel-notification-view" class="tab-panel">
+        <div class="glass-panel">
+          <div class="panel-toolbar">
+            <div class="header-left">
+              <button type="button" id="btn-back-from-notif" class="btn-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Workspace
+              </button>
+              <h2>Notification Details</h2>
+            </div>
+            <span class="badge-pill">Library Alert</span>
+          </div>
+
+          <div class="inspector-meta-item">
+            <h3 id="notif-detail-title">HR Library Notification</h3>
+            <p id="notif-detail-meta" class="text-muted">Active Workspace Alert</p>
+            <div id="notif-detail-body" style="white-space: pre-wrap; margin-top: 0.75rem;"></div>
+          </div>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- Modal 1: Create/Upload Company Case, E-Module, or Practice Case -->
+  <!-- MODALS -->
   <div class="modal-backdrop" id="modal-case" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card" style="max-width: 680px;">
       <div class="modal-header">
@@ -249,14 +279,13 @@
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-case">Cancel</button>
           <button type="submit" class="btn-primary" id="btn-submit-case">
-            <i class="fas fa-cloud-upload-alt"></i> Publish to HR Library
+            <i class="fas fa-cloud-upload-alt"></i> Submit
           </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Modal 2: Interactive Case / E-Module Reader & Practice Answer Key Checker -->
   <div class="modal-backdrop" id="modal-read-case" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card" style="max-width: 720px;">
       <div class="modal-header">
@@ -264,18 +293,18 @@
         <button type="button" class="btn-close-modal" data-close-modal="modal-read-case">&times;</button>
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem;">
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <div class="panel-toolbar" style="margin-bottom: 1rem;">
+        <div class="workspace-action-bar" style="margin-bottom: 0;">
           <span id="read-case-type" class="badge-pill">Type</span>
-          <span id="read-case-cat" class="badge-pill" style="background: var(--bg-surface-elevated);">Domain</span>
-          <span id="read-case-author" class="text-muted" style="font-size: 0.8rem;"></span>
+          <span id="read-case-cat" class="badge-pill">Domain</span>
+          <span id="read-case-author" class="text-muted"></span>
         </div>
-        <a id="read-case-download-btn" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; display: none;">
+        <a id="read-case-download-btn" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display: none;">
           <i class="fas fa-download"></i> Download Material
         </a>
       </div>
 
-      <div id="read-case-body" style="white-space: pre-wrap; line-height: 1.65; color: var(--text-primary); background: var(--bg-surface); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); margin-bottom: 1.25rem;"></div>
+      <div id="read-case-body" class="inspector-meta-item" style="white-space: pre-wrap; margin-bottom: 1.25rem;"></div>
 
       <div id="practice-case-interactive-box" style="display: none;">
         <div class="form-group">
@@ -283,21 +312,20 @@
           <textarea id="practice-student-answer" class="form-control" rows="3" placeholder="Draft your answer before checking the official Key to Correct..."></textarea>
         </div>
 
-        <div style="display: flex; gap: 0.65rem; flex-wrap: wrap; margin-bottom: 1rem;">
-          <button type="button" id="btn-submit-practice-answer" class="btn-primary" style="padding: 0.45rem 0.9rem; font-size: 0.82rem;">
-            <i class="fas fa-check-double"></i> Submit &amp; Reveal Key to Correct
+        <div class="workspace-action-bar" style="margin-bottom: 1rem;">
+          <button type="button" id="btn-submit-practice-answer" class="btn-primary">
+            <i class="fas fa-check-double"></i> Submit
           </button>
         </div>
 
-        <div id="answer-key-reveal-box" style="display: none; padding: 1rem; border-radius: var(--radius-sm); background: rgba(16, 185, 129, 0.12); border: 1px solid var(--success);">
-          <h4 style="margin-bottom: 0.4rem; color: var(--success);"><i class="fas fa-key"></i> Official Key to Correct</h4>
-          <p id="read-case-answer-key" style="white-space: pre-wrap; line-height: 1.6; color: var(--text-primary); margin: 0;"></p>
+        <div id="answer-key-reveal-box" class="status-msg success" style="display: none;">
+          <h4><i class="fas fa-key"></i> Official Key to Correct</h4>
+          <p id="read-case-answer-key" style="white-space: pre-wrap; margin: 0;"></p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Modal 3: Full-Size Photo Viewer -->
   <div class="modal-backdrop" id="modal-image-lightbox" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card" style="max-width: 820px; text-align: center;">
       <div class="modal-header">

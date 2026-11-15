@@ -485,3 +485,256 @@ button:disabled,
   gap: 0.65rem;
   margin-top: 1.25rem;
 }
+
+/* ==========================================================================
+   Authentication & Landing Page Layout Classes (Zero Inline Styles)
+   ========================================================================== */
+
+.is-hidden {
+  display: none !important;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--bg-canvas);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 2rem;
+}
+
+.auth-card-wide {
+  max-width: 520px;
+}
+
+.auth-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.auth-back-link {
+  font-size: 0.8rem;
+  text-decoration: none;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.auth-back-link:hover {
+  color: var(--text-primary);
+}
+
+.btn-theme-sm {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+}
+
+.auth-brand-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.auth-brand-header img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  margin-bottom: 0.65rem;
+}
+
+.auth-brand-header h1 {
+  font-size: 1.45rem;
+  margin: 0;
+}
+
+.auth-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.auth-label-row .form-label {
+  margin: 0;
+}
+
+.btn-text-link {
+  background: none;
+  border: none;
+  color: var(--aimser-blue-400);
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.btn-text-link:hover {
+  text-decoration: underline;
+}
+
+.auth-submit-btn {
+  width: 100%;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.auth-footer {
+  margin-top: 1.35rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-subtle);
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.auth-link {
+  color: var(--aimser-blue-400);
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 0.25rem;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+.auth-policy-banner {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+  font-size: 0.82rem;
+  margin-bottom: 1rem;
+}
+
+.modal-card-sm {
+  max-width: 440px;
+}
+
+/* Landing Page Layout */
+.landing-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+}
+
+.landing-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.landing-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.landing-brand img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.landing-brand strong {
+  font-size: 1.05rem;
+  letter-spacing: 0.03em;
+  display: block;
+}
+
+.landing-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.landing-hero {
+  max-width: 1120px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 4rem 1.5rem 3rem;
+  text-align: center;
+}
+
+.landing-hero h1 {
+  font-size: clamp(2.1rem, 4.2vw, 3.25rem);
+  max-width: 860px;
+  margin: 0 auto 1rem;
+}
+
+.landing-subtitle {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  max-width: 680px;
+  margin: 0 auto 2.25rem;
+}
+
+.landing-cta-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  margin-bottom: 3.5rem;
+}
+
+.btn-hero-lg {
+  padding: 0.78rem 1.5rem;
+  font-size: 0.95rem;
+}
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  text-align: left;
+}
+
+.landing-feature-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.65rem;
+}
+
+.landing-feature-head h2 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.landing-feature-head i {
+  color: var(--aimser-blue-400);
+}
+
+.landing-footer {
+  text-align: center;
+  padding: 1.25rem;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}

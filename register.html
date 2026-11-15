@@ -10,54 +10,26 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/icon_aimser.png?v=18" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
   <link rel="stylesheet" href="css/style.css?v=18" />
-  <style>
-    .auth-shell {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      background: var(--bg-canvas);
-    }
-    .auth-card {
-      width: 100%;
-      max-width: 520px;
-      padding: 2rem;
-    }
-    .auth-brand-header {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      margin-bottom: 1.35rem;
-    }
-    .auth-brand-header img {
-      width: 46px;
-      height: 46px;
-      object-fit: contain;
-      margin-bottom: 0.6rem;
-    }
-  </style>
 </head>
 <body>
   <div class="auth-shell">
-    <div class="glass-panel auth-card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-        <a href="index.html" class="text-muted" style="font-size: 0.8rem; text-decoration: none;">
+    <div class="glass-panel auth-card auth-card-wide">
+      <div class="auth-topbar">
+        <a href="index.html" class="auth-back-link">
           <i class="fas fa-arrow-left"></i> Home
         </a>
-        <button type="button" id="theme-toggle-btn" class="btn-secondary" style="padding: 0.35rem 0.65rem; font-size: 0.78rem;" title="Toggle Theme">
+        <button type="button" id="theme-toggle-btn" class="btn-secondary btn-theme-sm" title="Toggle Theme">
           <i class="fas fa-sun"></i>
         </button>
       </div>
 
       <div class="auth-brand-header">
-        <img src="assets/aimser-logo.png" alt="AIMSER Logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
-        <h1 style="font-size: 1.45rem; margin: 0;">Create AIMSER Account</h1>
+        <img id="auth-brand-logo" src="assets/aimser-logo.png" alt="AIMSER Logo" />
+        <h1>Create AIMSER Account</h1>
       </div>
 
       <!-- Registration Policy Banner (Populated dynamically from system/config) -->
-      <div id="reg-policy-banner" style="display: none; padding: 0.75rem 1rem; border-radius: var(--radius-sm); background: rgba(245, 158, 11, 0.14); border: 1px solid var(--warning); color: var(--warning); font-size: 0.82rem; margin-bottom: 1rem;"></div>
+      <div id="reg-policy-banner" class="auth-policy-banner is-hidden"></div>
 
       <div id="register-status" class="status-msg" aria-live="polite"></div>
 
@@ -107,14 +79,14 @@
           </div>
         </div>
 
-        <button type="submit" id="btn-register-submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 0.5rem;">
+        <button type="submit" id="btn-register-submit" class="btn-primary auth-submit-btn">
           <i class="fas fa-user-plus"></i> Create Account
         </button>
       </form>
 
-      <div style="margin-top: 1.35rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle); text-align: center; font-size: 0.84rem; color: var(--text-secondary);">
+      <div class="auth-footer">
         Already registered?
-        <a href="login.html" style="color: var(--aimser-blue-400); font-weight: 600; text-decoration: none;">Sign In</a>
+        <a href="login.html" class="auth-link">Sign In</a>
       </div>
     </div>
   </div>
