@@ -32,7 +32,7 @@
   <meta name="twitter:description" content="Academic and enterprise Human Resource Management simulation platform for classrooms, workforce analytics, and case studies." />
   <meta name="twitter:image" content="https://aimser.vercel.app/assets/icon_aimser.png" />
 
-  <!-- Structured Data (Sets Site Name to "AIMSER" instead of "Vercel") -->
+  <!-- Structured Data (Sets Site Name to "AIMSER") -->
   <script type="application/ld+json">
   [
     {
@@ -69,10 +69,9 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1.15rem 2.25rem;
+      padding: 1rem 2.25rem;
       border-bottom: 1px solid var(--border-subtle);
       background: var(--bg-surface);
-      backdrop-filter: blur(12px);
     }
     .landing-brand {
       display: flex;
@@ -82,22 +81,27 @@
       color: var(--text-primary);
     }
     .landing-brand img {
-      width: 38px;
-      height: 38px;
+      width: 36px;
+      height: 36px;
       object-fit: contain;
     }
     .landing-hero {
-      max-width: 1120px;
+      max-width: 1200px;
       width: 100%;
       margin: 0 auto;
-      padding: 4rem 1.5rem 3rem;
+      padding: 3.5rem 1.5rem 3rem;
       text-align: center;
     }
     .landing-hero h1 {
-      font-size: clamp(2rem, 4vw, 3rem);
-      line-height: 1.18;
-      margin: 0.85rem auto 1.25rem;
-      max-width: 820px;
+      font-size: clamp(2.1rem, 4.2vw, 3.25rem);
+      max-width: 860px;
+      margin: 0 auto 1rem;
+    }
+    .landing-subtitle {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      max-width: 680px;
+      margin: 0 auto 2rem;
     }
     .landing-cta-row {
       display: flex;
@@ -105,12 +109,57 @@
       align-items: center;
       gap: 0.85rem;
       flex-wrap: wrap;
-      margin-bottom: 3.5rem;
+      margin-bottom: 3rem;
+    }
+    /* 6 & 7. Enlarge Main Feature & Show Actual Product Workspace Preview */
+    .product-showcase {
+      text-align: left;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 2.5rem;
+    }
+    .showcase-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding-bottom: 1rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .showcase-kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.85rem;
+      margin-bottom: 1rem;
+    }
+    .showcase-kpi-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.9rem 1rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .showcase-kpi-card span {
+      display: block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 0.25rem;
+    }
+    .showcase-kpi-card strong {
+      font-size: 1.35rem;
+      color: var(--text-primary);
     }
     .landing-features {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.25rem;
+      gap: 1.15rem;
       text-align: left;
     }
     .landing-footer {
@@ -129,68 +178,99 @@
       <a href="index.html" class="landing-brand">
         <img src="assets/aimser-logo.png" alt="AIMSER Logo" onerror="if(this.src.includes('assets/')){this.src='aimser-logo.png';}else{this.style.display='none';}" />
         <div>
-          <strong style="font-size: 1.1rem; letter-spacing: 0.04em; display: block;">AIMSER</strong>
-          <span style="font-size: 0.72rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em;">HR Simulator</span>
+          <strong style="font-size: 1.05rem; letter-spacing: 0.03em; display: block;">AIMSER</strong>
         </div>
       </a>
 
       <div style="display: flex; align-items: center; gap: 0.65rem;">
-        <button type="button" id="theme-toggle-btn" class="btn-secondary" style="padding: 0.45rem 0.75rem;" title="Toggle Theme">
+        <button type="button" id="theme-toggle-btn" class="btn-secondary" style="padding: 0.5rem 0.75rem;" title="Toggle Theme">
           <i class="fas fa-sun"></i>
         </button>
-        <a href="login.html" id="nav-signin-btn" class="btn-secondary" style="padding: 0.48rem 0.95rem; font-size: 0.84rem;">
+        <a href="login.html" id="nav-signin-btn" class="btn-secondary">
           Sign In
         </a>
-        <a href="register.html" id="nav-register-btn" class="btn-primary" style="padding: 0.48rem 1rem; font-size: 0.84rem;">
+        <a href="register.html" id="nav-register-btn" class="btn-primary">
           Create Account
         </a>
       </div>
     </header>
 
-    <!-- Main Hero & Module Overview -->
+    <!-- Main Hero (9. Specific Headline, 10. Emphasized CTA, 6 & 7. Enlarged Live Product Preview) -->
     <main class="landing-hero">
-      <span class="badge-pill">Academic &amp; Enterprise HR Simulation Platform</span>
-      <h1>Applied Human Resource Management &amp; Organizational Simulation</h1>
+      <h1>Run 100-Student HR Classrooms, Workforce Analytics &amp; Case Audits in One Workspace</h1>
+      <p class="landing-subtitle">
+        Assign rubric-graded labor law cases, simulate turnover and recruitment budgets, and coordinate 15-member onboarding teams in real time.
+      </p>
 
       <div class="landing-cta-row">
-        <a href="login.html" id="hero-primary-cta" class="btn-primary" style="padding: 0.72rem 1.45rem; font-size: 0.95rem;">
-          <i class="fas fa-sign-in-alt"></i> Launch Workspace
+        <a href="login.html" id="hero-primary-cta" class="btn-primary" style="padding: 0.78rem 1.6rem; font-size: 0.95rem;">
+          <i class="fas fa-sign-in-alt"></i> Launch HR Workspace
         </a>
-        <a href="register.html" id="hero-secondary-cta" class="btn-secondary" style="padding: 0.72rem 1.35rem; font-size: 0.95rem;">
-          <i class="fas fa-user-plus"></i> Register Account
+        <a href="register.html" id="hero-secondary-cta" class="btn-secondary" style="padding: 0.78rem 1.4rem; font-size: 0.95rem;">
+          <i class="fas fa-user-plus"></i> Register Cohort Account
         </a>
       </div>
 
-      <section class="landing-features" aria-label="Platform Modules">
-        <article class="glass-panel">
-          <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.75rem;">
-            <i class="fas fa-building" style="color: var(--aimser-blue-400); font-size: 1.15rem;"></i>
-            <h2 style="margin: 0; font-size: 1.05rem;">Office &amp; Workforce Analytics</h2>
+      <!-- Enlarged Interactive-Style Product Preview -->
+      <section class="product-showcase" aria-label="Workspace Preview">
+        <div class="showcase-topbar">
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <i class="fas fa-building" style="color: var(--aimser-blue-400);"></i>
+            <strong>HRM 301 — Labor Relations &amp; Workforce Telemetry</strong>
           </div>
-          <p class="text-muted" style="font-size: 0.85rem; line-height: 1.55; margin: 0;">
-            100-student classroom rooms, rubric-graded HR activities, workforce turnover and absenteeism simulators, and digital student portfolios.
-          </p>
-        </article>
+          <span class="badge-pill code-mono">AIM-36KW</span>
+        </div>
 
-        <article class="glass-panel">
-          <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.75rem;">
-            <i class="fas fa-columns" style="color: #38bdf8; font-size: 1.15rem;"></i>
-            <h2 style="margin: 0; font-size: 1.05rem;">Project Planner &amp; Onboarding</h2>
+        <div class="showcase-kpis">
+          <div class="showcase-kpi-card">
+            <span>Class Capacity</span>
+            <strong>84 / 100</strong>
           </div>
-          <p class="text-muted" style="font-size: 0.85rem; line-height: 1.55; margin: 0;">
-            15-member team rooms with 4-stage Kanban boards, organizational hierarchy tiers, position assignments, and onboarding checklists.
-          </p>
-        </article>
+          <div class="showcase-kpi-card">
+            <span>Turnover Rate</span>
+            <strong style="color: var(--aimser-blue-400);">7.50%</strong>
+          </div>
+          <div class="showcase-kpi-card">
+            <span>Cost per Hire</span>
+            <strong>₱7,500</strong>
+          </div>
+          <div class="showcase-kpi-card">
+            <span>Onboarding Progress</span>
+            <strong style="color: var(--success);">92%</strong>
+          </div>
+        </div>
 
-        <article class="glass-panel">
-          <div style="display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.75rem;">
-            <i class="fas fa-book-open" style="color: var(--success); font-size: 1.15rem;"></i>
-            <h2 style="margin: 0; font-size: 1.05rem;">HR Library &amp; Conflict Forum</h2>
-          </div>
-          <p class="text-muted" style="font-size: 0.85rem; line-height: 1.55; margin: 0;">
-            Company case repositories, interactive practice cases with verified answer keys, and a workplace conflict resolution feed with photo evidence.
-          </p>
-        </article>
+        <div class="landing-features">
+          <article class="glass-panel" style="background: var(--bg-surface-elevated);">
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
+              <i class="fas fa-tasks" style="color: var(--aimser-blue-400);"></i>
+              <h2 style="margin: 0; font-size: 1rem;">Office &amp; Workforce Analytics</h2>
+            </div>
+            <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
+              Grade student deliverables against weighted rubrics, compute absenteeism and training ROI, and track individual HR competency portfolios.
+            </p>
+          </article>
+
+          <article class="glass-panel" style="background: var(--bg-surface-elevated);">
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
+              <i class="fas fa-columns" style="color: var(--accent-highlight);"></i>
+              <h2 style="margin: 0; font-size: 1rem;">15-Member Project Planner</h2>
+            </div>
+            <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
+              Organize student teams across 4 hierarchy tiers, assign HR specialist roles, and track deliverables from To Do to Completed.
+            </p>
+          </article>
+
+          <article class="glass-panel" style="background: var(--bg-surface-elevated);">
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
+              <i class="fas fa-book-open" style="color: var(--success);"></i>
+              <h2 style="margin: 0; font-size: 1rem;">HR Case Library &amp; Conflict Feed</h2>
+            </div>
+            <p class="text-muted" style="font-size: 0.85rem; margin: 0;">
+              Publish company case studies with self-checking answer keys and moderate workplace conflict investigations with photo evidence.
+            </p>
+          </article>
+        </div>
       </section>
     </main>
 

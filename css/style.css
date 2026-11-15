@@ -1,59 +1,95 @@
-/* css/style.css - AIMSER Unified Design System, Theme Tokens & Core Components */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap');
+/* ==========================================================================
+   AIMSER Design System (v=18) — 20-Point UI Architecture
+   ========================================================================== */
 
-:root {
-  --aimser-blue-900: #0b1926;
-  --aimser-blue-800: #122c42;
-  --aimser-blue-700: #1b5375;
-  --aimser-blue-500: #2b7cb0;
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap");
+
+:root,
+html[data-theme="dark"],
+.dark-theme {
+  /* 5. Design System Surface Hierarchy & 13. Remove Embellishments */
+  --bg-canvas: #090e17;
+  --bg-surface: #111827;
+  --bg-surface-elevated: #1e293b;
+  --bg-input: #0d1422;
+
+  /* 15. Improved High-Contrast Text Hierarchy (WCAG AA/AAA) */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+
+  /* 11. Dedicated Brand & Accent Palette */
   --aimser-blue-400: #38bdf8;
-  --aimser-cream: #faf2dd;
+  --aimser-blue-500: #0ea5e9;
+  --aimser-blue-600: #0284c7;
+  --aimser-blue-700: #0369a1;
+  --accent-highlight: #f59e0b;
 
-  --font-display: 'Syne', sans-serif;
-  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-
-  --radius-xs: 6px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-
-  --ease-fast: 0.16s ease;
-  --ease-smooth: 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-
+  /* Semantic Feedback Colors */
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
-}
 
-/* Dark Theme (Default) */
-html[data-theme="dark"],
-html.dark-theme {
-  --bg-canvas: #09111a;
-  --bg-surface: #0f1c2b;
-  --bg-surface-elevated: #16283d;
-  --bg-glass: rgba(15, 28, 43, 0.85);
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-tertiary: #64748b;
+  /* Crisp Structural Borders */
   --border-subtle: rgba(148, 163, 184, 0.14);
-  --border-medium: rgba(148, 163, 184, 0.25);
-  --shadow-card: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --border-medium: rgba(148, 163, 184, 0.26);
+  --border-focus: #38bdf8;
+
+  /* 14. Mathematical Nested Radii (Inner = Outer - Padding) */
+  --card-padding: 1.25rem;
+  --radius-lg: 16px;
+  --radius-md: 10px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+
+  /* 8. Spatial Grouping Scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.35rem;
+  --space-6: 1.75rem;
+  --space-8: 2.5rem;
+
+  /* Typography */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Subtle Functional Elevation */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px -4px rgba(0, 0, 0, 0.45);
+  --shadow-cta: 0 4px 14px rgba(14, 165, 233, 0.32);
 }
 
-/* Light Theme */
-html[data-theme="light"] {
-  --bg-canvas: #f4f7fa;
+html[data-theme="light"],
+.light-theme {
+  --bg-canvas: #f1f5f9;
   --bg-surface: #ffffff;
-  --bg-surface-elevated: #eef3f8;
-  --bg-glass: rgba(255, 255, 255, 0.94);
+  --bg-surface-elevated: #f8fafc;
+  --bg-input: #ffffff;
+
   --text-primary: #0f172a;
-  --text-secondary: #475569;
+  --text-secondary: #334155;
   --text-tertiary: #64748b;
-  --border-subtle: rgba(15, 23, 42, 0.09);
-  --border-medium: rgba(15, 23, 42, 0.18);
-  --shadow-card: 0 8px 24px rgba(15, 23, 42, 0.06);
+
+  --aimser-blue-400: #0284c7;
+  --aimser-blue-500: #0369a1;
+  --aimser-blue-600: #075985;
+  --aimser-blue-700: #0c4a6e;
+  --accent-highlight: #d97706;
+
+  --border-subtle: #e2e8f0;
+  --border-medium: #cbd5e1;
+  --border-focus: #0284c7;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 25px -5px rgba(15, 23, 42, 0.08);
+  --shadow-cta: 0 4px 12px rgba(2, 132, 199, 0.24);
 }
+
+/* ==========================================================================
+   Base Reset & Typography Rules
+   ========================================================================== */
 
 *,
 *::before,
@@ -63,138 +99,258 @@ html[data-theme="light"] {
   padding: 0;
 }
 
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-canvas);
   color: var(--text-primary);
   line-height: 1.55;
   min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4 {
-  font-family: var(--font-display);
-  letter-spacing: -0.015em;
+/* 3. Unitalicize Random Words */
+em,
+i:not([class*="fa-"]) {
+  font-style: normal;
+}
+
+/* 16. Wrap Headlines & Copy Properly */
+h1,
+h2,
+h3,
+h4,
+.page-title,
+.modal-header h3 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.22;
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* 18. Tabular Numerals Across All Metrics, Tables, Badges & Inputs */
+.stat-card h3,
+table,
+td,
+th,
+input[type="number"],
+input[type="date"],
+input[type="datetime-local"],
+.badge-pill,
+#notif-badge,
+#stat-section-code,
+#team-invite-code {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 4. Mono Only Where Needed (Strict Room Codes & UIDs Only) */
+#stat-section-code,
+#team-invite-code,
+#join-class-code,
+#join-team-code,
+#inspector-uid-text,
+.code-mono {
+  font-family: var(--font-mono) !important;
+  letter-spacing: 0.03em;
+}
+
+/* Override unnecessary monospace on long audit log sentences */
+#admin-logs-container > div {
+  font-family: var(--font-sans) !important;
+}
+
+/* 12. Keep Icons Consistent & Optically Centered */
+i[class*="fa-"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   13. Clean Surfaces (No Decorative Blur Embellishments) & 14. Nested Radii
+   ========================================================================== */
+
+.glass-panel {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Nested cards inside a glass-panel automatically use inner radius = outer - padding */
+.glass-panel .glass-panel,
+.glass-panel article,
+.glass-panel .stat-card {
+  border-radius: var(--radius-md);
 }
 
 .text-muted {
-  color: var(--text-secondary);
+  color: var(--text-secondary) !important;
 }
 
-/* Glass Panels */
-.glass-panel {
-  background: var(--bg-glass);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 1.35rem;
-  box-shadow: var(--shadow-card);
-  backdrop-filter: blur(12px);
-}
+/* ==========================================================================
+   1. Delete Filler Badges (Keep Functional Status/Code Badges Only)
+   ========================================================================== */
 
-/* Badges & Pills */
 .badge-pill {
-  display: inline-block;
-  padding: 0.22rem 0.7rem;
-  border-radius: 9999px;
-  font-size: 0.74rem;
-  font-weight: 600;
-  background: rgba(27, 83, 117, 0.28);
-  color: var(--aimser-blue-400);
-  border: 1px solid rgba(56, 189, 248, 0.25);
-}
-
-html[data-theme="light"] .badge-pill {
-  background: rgba(27, 83, 117, 0.1);
-  color: var(--aimser-blue-700);
-  border-color: rgba(27, 83, 117, 0.2);
-}
-
-/* Buttons */
-.btn-primary,
-.btn-secondary {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1.15rem;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-sans);
-  font-size: 0.86rem;
+  gap: 0.35rem;
+  padding: 0.22rem 0.65rem;
+  font-size: 0.74rem;
   font-weight: 600;
+  line-height: 1.2;
+  border-radius: 9999px;
+  background-color: rgba(14, 165, 233, 0.14);
+  color: var(--aimser-blue-400);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  white-space: nowrap;
+}
+
+/* Hide decorative filler badges next to page titles */
+.workspace-header .header-left .badge-pill {
+  display: none !important;
+}
+
+/* ==========================================================================
+   10. Emphasize the CTA, 17. Optical Alignment & 20. Animated Feedback
+   ========================================================================== */
+
+.btn-primary,
+.btn-secondary,
+.btn-sidebar-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  /* 17. Optical padding: slightly more horizontal breathing room */
+  padding: 0.62rem 1.15rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
   cursor: pointer;
   text-decoration: none;
-  transition: all var(--ease-fast);
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease,
+    transform 0.12s ease,
+    box-shadow 0.16s ease;
+  user-select: none;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--aimser-blue-700), var(--aimser-blue-500));
+  background: linear-gradient(180deg, var(--aimser-blue-500) 0%, var(--aimser-blue-600) 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: var(--shadow-cta);
 }
 
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.1);
+  background: linear-gradient(180deg, var(--aimser-blue-400) 0%, var(--aimser-blue-500) 100%);
   transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.4);
+}
+
+.btn-primary:active:not(:disabled),
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .btn-secondary {
-  background: var(--bg-surface-elevated);
+  background-color: var(--bg-surface-elevated);
   color: var(--text-primary);
-  border: 1px solid var(--border-medium);
+  border-color: var(--border-medium);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--bg-surface);
-  border-color: var(--aimser-blue-500);
+  background-color: rgba(56, 189, 248, 0.1);
+  border-color: var(--aimser-blue-400);
+  color: var(--text-primary);
 }
 
+/* 19. Loading & Disabled States */
+button:disabled,
 .btn-primary:disabled,
 .btn-secondary:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+  opacity: 0.62;
+  cursor: wait;
+  box-shadow: none;
 }
 
-/* Forms */
-.form-group {
-  margin-bottom: 1rem;
-}
+/* ==========================================================================
+   Forms & Inputs (14. Inner Radius Alignment & 15. Contrast)
+   ========================================================================== */
 
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 1rem;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: var(--space-4);
+}
+
+.form-row .form-group {
+  margin-bottom: 0;
 }
 
 .form-label {
-  display: block;
-  font-size: 0.82rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-secondary);
-  margin-bottom: 0.4rem;
 }
 
 .form-control,
 .form-select {
   width: 100%;
-  padding: 0.62rem 0.85rem;
-  border-radius: var(--radius-sm);
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  border: 1px solid var(--border-medium);
   font-family: var(--font-sans);
   font-size: 0.875rem;
-  transition: border-color var(--ease-fast), box-shadow var(--ease-fast);
+  color: var(--text-primary);
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.85rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-control::placeholder {
+  color: var(--text-tertiary);
 }
 
 .form-control:focus,
 .form-select:focus {
   outline: none;
-  border-color: var(--aimser-blue-400);
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
 }
 
-.form-control:disabled {
+.form-control:disabled,
+.form-select:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+  background-color: var(--bg-surface-elevated);
 }
 
 .input-password-wrapper {
@@ -204,7 +360,7 @@ html[data-theme="light"] .badge-pill {
 }
 
 .input-password-wrapper .form-control {
-  padding-right: 2.5rem;
+  padding-right: 2.6rem;
 }
 
 .btn-toggle-pw {
@@ -215,250 +371,117 @@ html[data-theme="light"] .badge-pill {
   color: var(--text-tertiary);
   cursor: pointer;
   padding: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-toggle-pw:hover {
   color: var(--text-primary);
 }
 
-/* Status Banners */
+/* ==========================================================================
+   20. Animated Feedback Banners & Modals
+   ========================================================================== */
+
+@keyframes feedbackSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .status-msg {
   display: none;
   padding: 0.75rem 1rem;
   border-radius: var(--radius-sm);
   font-size: 0.84rem;
   font-weight: 500;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
+  animation: feedbackSlideIn 0.2s ease-out;
 }
 
 .status-msg.success {
-  background: rgba(16, 185, 129, 0.14);
-  border: 1px solid var(--success);
-  color: var(--success);
+  display: block;
+  background-color: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
 }
 
 .status-msg.error {
-  background: rgba(239, 68, 68, 0.14);
-  border: 1px solid var(--danger);
-  color: var(--danger);
+  display: block;
+  background-color: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
 }
 
-/* Brand Header */
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.brand-logo {
-  width: 38px;
-  height: 38px;
-  object-fit: contain;
-  border-radius: var(--radius-xs);
-}
-
-.brand-text h2 {
-  font-size: 1.15rem;
-  line-height: 1.1;
-  color: var(--text-primary);
-}
-
-.brand-text span {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--aimser-blue-400);
-}
-
-/* Modals */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(5, 10, 18, 0.75);
-  backdrop-filter: blur(6px);
+  background-color: rgba(9, 14, 23, 0.76);
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 1.25rem;
+  padding: var(--space-4);
   z-index: 1000;
 }
 
 .modal-backdrop.is-open {
   display: flex;
+  animation: feedbackSlideIn 0.16s ease-out;
+}
+
+.modal-backdrop:not(.is-open) {
+  display: none !important;
+  pointer-events: none !important;
 }
 
 .modal-card {
   width: 100%;
-  max-width: 560px;
+  max-width: 540px;
   max-height: 90vh;
   overflow-y: auto;
-  background: var(--bg-surface);
+  background-color: var(--bg-surface);
   border: 1px solid var(--border-medium);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  box-shadow: var(--shadow-md);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-3);
   margin-bottom: 1.25rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .btn-close-modal {
-  background: none;
+  background: transparent;
   border: none;
-  color: var(--text-secondary);
-  font-size: 1.5rem;
+  color: var(--text-tertiary);
+  font-size: 1.45rem;
   line-height: 1;
   cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-xs);
+}
+
+.btn-close-modal:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-elevated);
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 0.65rem;
-  margin-top: 1.25rem;
-}
-
-/* Landing Page Layout */
-.landing-nav {
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  position: sticky;
-  top: 0;
-  z-index: 50;
-}
-
-.landing-nav-inner {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 0.9rem 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.landing-nav-actions {
-  display: flex;
   align-items: center;
   gap: 0.65rem;
-}
-
-.landing-main {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 4rem 1.5rem;
-}
-
-.landing-hero {
-  text-align: center;
-  max-width: 780px;
-  margin: 0 auto 4rem;
-}
-
-.hero-title {
-  font-size: clamp(2rem, 4vw, 3.1rem);
-  line-height: 1.15;
-  margin-bottom: 1rem;
-}
-
-.hero-subtitle {
-  font-size: 1.05rem;
-  color: var(--text-secondary);
-  margin-bottom: 2rem;
-}
-
-.hero-cta-row {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.landing-features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-  gap: 1.5rem;
-}
-
-.feature-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-sm);
-  background: rgba(27, 83, 117, 0.25);
-  color: var(--aimser-blue-400);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
-}
-
-.feature-card h3 {
-  margin-bottom: 0.5rem;
-  font-size: 1.15rem;
-}
-
-.landing-footer {
-  text-align: center;
-  padding: 2rem 1.5rem;
-  border-top: 1px solid var(--border-subtle);
-  color: var(--text-tertiary);
-  font-size: 0.82rem;
-}
-
-/* Auth Layout (Login & Register) */
-.auth-body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-}
-
-.auth-container {
-  width: 100%;
-  max-width: 440px;
-}
-
-.auth-topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.auth-header {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.auth-header h1 {
-  font-size: 1.65rem;
-  margin-bottom: 0.35rem;
-}
-
-.auth-footer {
   margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-subtle);
-  text-align: center;
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.auth-footer a {
-  color: var(--aimser-blue-400);
-  font-weight: 600;
-  text-decoration: none;
-  margin-left: 0.3rem;
-}
-
-.auth-footer a:hover {
-  text-decoration: underline;
 }
