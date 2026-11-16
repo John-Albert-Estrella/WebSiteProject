@@ -879,4 +879,4 @@ function closeModal(id) {
     m.classList.remove("is-open");
     m.setAttribute("aria-hidden", "true");
   }
-}
+} 
