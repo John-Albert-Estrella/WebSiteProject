@@ -29,7 +29,7 @@
 }
 
 /* ==========================================================================
-   Global Text Ellipsis & Overflow Protection (Prevents Any Long Text Overflow)
+   Global Text Ellipsis, Overflow Protection & Internal Spacing
    ========================================================================== */
 
 .text-ellipsis {
@@ -60,6 +60,17 @@
 .glass-panel p {
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+/* Adds breathing room between stacked text rows inside cards */
+.glass-panel > div > h3,
+.glass-panel > div > p,
+.glass-panel > div > .text-muted {
+  margin-bottom: 0.35rem;
+}
+
+.glass-panel > div > *:last-child {
+  margin-bottom: 0;
 }
 
 /* ==========================================================================
@@ -271,7 +282,15 @@
   flex-shrink: 0;
 }
 
-/* Universal Minimal Grey Trash / Action Icon for Cards & Comments */
+.btn-admin-del-comment,
+.btn-del-onb {
+  width: 34px !important;
+  height: 34px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  flex-shrink: 0;
+}
+
 .btn-card-icon {
   width: 28px;
   height: 28px;
@@ -511,6 +530,14 @@
   color: var(--text-primary);
   margin: 0;
   font-variant-numeric: tabular-nums;
+}
+
+/* Sub-text inside KPI cards for Room Code inclusion */
+.stat-subtext {
+  font-size: 0.78rem;
+  color: var(--aimser-blue-400);
+  font-weight: 600;
+  margin-top: 0.25rem;
 }
 
 .office-subnav {
@@ -1463,7 +1490,7 @@
 .admin-comment-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
   flex-wrap: nowrap;
   padding: 0.65rem 0.85rem;
