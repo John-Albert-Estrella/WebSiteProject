@@ -1,8 +1,8 @@
-// js/auth-guard.js - Zero-Buffer Route Protection, Header Hydration & Sign-Out Handler
+// js/auth-guard.js - Zero-Buffer Route Protection, Header Hydration & Sign-Out Handler[cite: 1]
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { FastCache, sanitizeUrl, logAuditEvent } from "./security-utils.js?v=18";
+import { FastCache, sanitizeUrl, logAuditEvent } from "./security-utils.js";
 
 const rawPath = window.location.pathname.toLowerCase();
 const cleanPath = rawPath.replace(/\.html$/, "").replace(/\/$/, "") || "/";
@@ -41,7 +41,7 @@ function safeRedirect(targetUrl) {
     history.push(now);
     sessionStorage.setItem("aimser_nav_guard", JSON.stringify(history));
   } catch {
-    // Ignore storage restrictions
+    // Ignore storage restrictions[cite: 1]
   }
   window.location.replace(targetUrl);
 }
@@ -85,7 +85,7 @@ function bindGlobalLogoutButton() {
   });
 }
 
-// 1. Synchronous Fast-Path Role Partition Check & Instant Header Hydration
+// 1. Synchronous Fast-Path Role Partition Check & Instant Header Hydration[cite: 1]
 const cachedProfile = FastCache.get("user_profile");
 if (cachedProfile && cachedProfile.role) {
   const role = cachedProfile.role.toLowerCase();
@@ -112,7 +112,7 @@ window.addEventListener("aimser:profile-ready", (e) => {
   if (e.detail) hydrateWorkspaceHeader(e.detail);
 });
 
-// 2. Firebase Auth & Firestore Revalidation
+// 2. Firebase Auth & Firestore Revalidation[cite: 1]
 onAuthStateChanged(auth, async (user) => {
   bindGlobalLogoutButton();
 

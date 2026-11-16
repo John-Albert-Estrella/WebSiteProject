@@ -117,9 +117,12 @@
         <button type="button" id="btn-open-status-colors-modal" class="btn-secondary" title="Edit Status Colors">
           <i class="fas fa-palette"></i> Status Colors
         </button>
+        <button type="button" id="btn-toggle-archived-tasks" class="btn-secondary" title="Toggle Archived Tasks Space">
+          <i class="fas fa-archive"></i> <span id="archived-toggle-label">Archived (0)</span>
+        </button>
       </div>
 
-      <!-- Team Room Telemetry & Capacity Row -->
+      <!-- Team Room Telemetry & Capacity Row ("Onboarding Progress" -> "Action Items Progress") -->
       <section class="stats-row">
         <div class="glass-panel stat-card">
           <span class="stat-label">Team Room Code</span>
@@ -134,12 +137,12 @@
           <h3 id="team-task-count">0</h3>
         </div>
         <div class="glass-panel stat-card">
-          <span class="stat-label">Onboarding Progress</span>
+          <span class="stat-label">Action Items Progress</span>
           <h3 id="team-onboarding-pct">0%</h3>
         </div>
       </section>
 
-      <!-- Sub-Navigation Tabs -->
+      <!-- Sub-Navigation Tabs ("Onboarding Projects & Checklists" -> "Action Checklists") -->
       <nav class="office-subnav" aria-label="Project Planner Sub-Features">
         <button type="button" class="subnav-tab active" data-tab="panel-kanban">
           <i class="fas fa-columns"></i>
@@ -151,13 +154,14 @@
         </button>
         <button type="button" class="subnav-tab" data-tab="panel-onboarding">
           <i class="fas fa-clipboard-check"></i>
-          <span>Onboarding Projects &amp; Checklists</span>
+          <span>Action Checklists</span>
         </button>
       </nav>
 
-      <!-- PANEL 1: KANBAN PROGRESS COLUMNS & DEADLINES -->
+      <!-- PANEL 1: KANBAN PROGRESS COLUMNS & ARCHIVED SPACE -->
       <section id="panel-kanban" class="tab-panel active">
-        <div class="kanban-board-grid">
+        <!-- Active 4-Column Board -->
+        <div id="kanban-active-board" class="kanban-board-grid">
           <div class="glass-panel kanban-col-card" data-status-col="todo">
             <div class="panel-toolbar">
               <span class="status-chip status-chip-todo">
@@ -202,6 +206,20 @@
             <div id="col-done" class="kanban-col-stack"></div>
           </div>
         </div>
+
+        <!-- Archived Tasks Space (Shown when "Archived" button is toggled) -->
+        <div id="kanban-archived-space" class="glass-panel is-hidden">
+          <div class="panel-toolbar">
+            <div>
+              <h2><i class="fas fa-archive"></i> Archived Tasks Space</h2>
+              <p class="text-muted">Completed or stored tasks moved out of the main columns to save board space.</p>
+            </div>
+            <button type="button" id="btn-back-to-active-board" class="btn-secondary">
+              <i class="fas fa-columns"></i> Back to Active Columns
+            </button>
+          </div>
+          <div id="archived-tasks-grid" class="cards-grid"></div>
+        </div>
       </section>
 
       <!-- PANEL 2: POSITIONS & RESPONSIBILITIES -->
@@ -217,15 +235,15 @@
         </div>
       </section>
 
-      <!-- PANEL 3: ONBOARDING PROJECTS & CHECKLISTS -->
+      <!-- PANEL 3: ACTION CHECKLISTS -->
       <section id="panel-onboarding" class="tab-panel">
         <div class="glass-panel">
           <div class="panel-toolbar">
             <div>
-              <h2>Onboarding Projects &amp; Action Checklists</h2>
+              <h2>Action Checklists</h2>
             </div>
             <button type="button" id="btn-open-onboarding-modal" class="btn-primary">
-              <i class="fas fa-plus-circle"></i> Add Onboarding Step
+              <i class="fas fa-plus-circle"></i> Add Action Item
             </button>
           </div>
 
@@ -270,8 +288,8 @@
           <input type="text" id="new-team-name" class="form-control" placeholder="e.g., Apex HR Operations Team" required />
         </div>
         <div class="form-group">
-          <label for="new-team-project" class="form-label">Onboarding / Simulation Project Scope</label>
-          <input type="text" id="new-team-project" class="form-control" placeholder="e.g., Q4 Corporate Onboarding & Policy Rollout" required />
+          <label for="new-team-project" class="form-label">Simulation Project Scope</label>
+          <input type="text" id="new-team-project" class="form-control" placeholder="e.g., Q4 Corporate Policy Rollout" required />
         </div>
         <button type="submit" class="btn-primary w-full">
           <i class="fas fa-plus"></i> Create Team &amp; Generate Room Code
@@ -292,6 +310,7 @@
     </div>
   </div>
 
+  <!-- Modal: Assign Project Task -->
   <div class="modal-backdrop" id="modal-task" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -336,6 +355,7 @@
     </div>
   </div>
 
+  <!-- Modal: Edit Project Task -->
   <div class="modal-backdrop" id="modal-edit-task" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -373,7 +393,7 @@
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-edit-task">Cancel</button>
-          <button type="submit" class="btn-primary">
+          <button type="submit" id="btn-primary-edit-task" class="btn-primary">
             <i class="fas fa-save"></i> Save Changes
           </button>
         </div>
@@ -381,6 +401,81 @@
     </div>
   </div>
 
+  <!-- Modal: Trello-Style Expanded Task Inspector (Description, Attachments & Comments/Activity) -->
+  <div class="modal-backdrop" id="modal-task-detail" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-card modal-card-trello">
+      <div class="modal-header">
+        <div class="user-cell-flex">
+          <span id="trello-detail-status-chip" class="status-chip status-chip-todo">
+            <span class="status-dot"></span>
+            <span id="trello-detail-status-text">To Do</span>
+          </span>
+          <span id="trello-detail-priority" class="badge-pill">Normal</span>
+        </div>
+        <div class="user-cell-flex">
+          <button type="button" id="btn-trello-archive-toggle" class="btn-secondary">
+            <i class="fas fa-archive"></i> Archive
+          </button>
+          <button type="button" class="btn-close-modal" data-close-modal="modal-task-detail">&times;</button>
+        </div>
+      </div>
+
+      <input type="hidden" id="trello-detail-task-id" />
+
+      <div class="trello-modal-grid">
+        <!-- Left Column: Task Info, Description & Picture/Document Attachments -->
+        <div class="trello-main-col">
+          <h2 id="trello-detail-title" class="trello-task-heading">Task Title</h2>
+          <div class="user-cell-flex text-muted">
+            <span><i class="fas fa-user-tag"></i> <strong id="trello-detail-assignee">Unassigned</strong></span>
+            <span>•</span>
+            <span><i class="far fa-calendar-alt"></i> Due: <strong id="trello-detail-deadline">Flexible</strong></span>
+          </div>
+
+          <div class="trello-section-block">
+            <div class="trello-section-title">
+              <i class="fas fa-align-left"></i>
+              <span>Description &amp; Responsibilities</span>
+            </div>
+            <div id="trello-detail-desc" class="faculty-sub-notes">No description provided.</div>
+          </div>
+
+          <div class="trello-section-block">
+            <div class="panel-toolbar">
+              <div class="trello-section-title">
+                <i class="fas fa-paperclip"></i>
+                <span>Attachments &amp; Progress Photos</span>
+              </div>
+              <label for="task-attachment-input" class="btn-secondary">
+                <i class="fas fa-upload"></i> Add Attachment / Photo
+              </label>
+              <input type="file" id="task-attachment-input" class="is-hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,image/png,image/jpeg,image/webp" />
+            </div>
+            <div id="trello-attachments-list" class="trello-attachments-stack"></div>
+          </div>
+        </div>
+
+        <!-- Right Column: Comments and Activity Log -->
+        <div class="trello-side-col">
+          <div class="trello-section-title">
+            <i class="far fa-comments"></i>
+            <span>Comments and Activity</span>
+          </div>
+
+          <form id="form-task-comment" class="trello-comment-form">
+            <textarea id="task-comment-input" class="form-control" rows="2" placeholder="Write a comment or progress update..." required></textarea>
+            <button type="submit" id="btn-submit-task-comment" class="btn-primary">
+              <i class="fas fa-paper-plane"></i> Post Comment
+            </button>
+          </form>
+
+          <div id="trello-comments-list" class="trello-activity-scroll"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Customize Status Color Palette -->
   <div class="modal-backdrop" id="modal-status-colors" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card modal-card-sm">
       <div class="modal-header">
@@ -433,6 +528,7 @@
     </div>
   </div>
 
+  <!-- Modal: Assign Position -->
   <div class="modal-backdrop" id="modal-assign-position" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
@@ -465,15 +561,16 @@
     </div>
   </div>
 
+  <!-- Modal: Add Action Checklist Item -->
   <div class="modal-backdrop" id="modal-onboarding-item" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Add Onboarding Checklist Item</h3>
+        <h3>Add Action Checklist Item</h3>
         <button type="button" class="btn-close-modal" data-close-modal="modal-onboarding-item">&times;</button>
       </div>
       <form id="form-add-onboarding">
         <div class="form-group">
-          <label for="onb-step-title" class="form-label">Checklist Milestone / Onboarding Requirement</label>
+          <label for="onb-step-title" class="form-label">Action Item / Milestone</label>
           <input type="text" id="onb-step-title" class="form-control" placeholder="e.g., Day 1: Statutory Benefits & Payroll Enrollment" required />
         </div>
         <div class="form-row">
@@ -488,7 +585,7 @@
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-secondary" data-close-modal="modal-onboarding-item">Cancel</button>
-          <button type="submit" class="btn-primary">Add Checklist Step</button>
+          <button type="submit" class="btn-primary">Add Action Item</button>
         </div>
       </form>
     </div>

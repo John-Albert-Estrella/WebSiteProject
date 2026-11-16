@@ -66,7 +66,7 @@ export function escapeHtml(str) {
 }
 
 /**
- * Validates URLs to allow https://, blob:, and base64 data: documents while blocking javascript:/vbscript:/text/html
+ * Validates URLs to allow https://, blob:, aimser-chunked, and base64 data: documents while blocking XSS
  */
 export function sanitizeUrl(url, fallback = "") {
   if (!url) return fallback;
@@ -74,7 +74,6 @@ export function sanitizeUrl(url, fallback = "") {
   if (/^https?:\/\//i.test(trimmed) || /^blob:/i.test(trimmed)) {
     return trimmed;
   }
-  // Allow any non-HTML base64 data URI (PDF, DOCX, XLSX, PPTX, TXT, ZIP, PNG, JPG, or generic octet-stream)
   if (/^data:([a-z0-9.+-]+\/[a-z0-9.+-]+)?;base64,/i.test(trimmed) && !/^data:text\/html/i.test(trimmed)) {
     return trimmed;
   }

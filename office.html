@@ -152,10 +152,6 @@
           <i class="fas fa-tasks"></i>
           <span>Activity</span>
         </button>
-        <button type="button" class="subnav-tab" data-tab="panel-analytics">
-          <i class="fas fa-chart-bar"></i>
-          <span>Analytics</span>
-        </button>
         <button type="button" class="subnav-tab" data-tab="panel-portfolio">
           <i class="fas fa-briefcase"></i>
           <span>Portfolio</span>
@@ -184,72 +180,13 @@
         </div>
       </section>
 
-      <!-- PANEL 2: PERFORMANCE TELEMETRY & ANALYTICS -->
-      <section id="panel-analytics" class="tab-panel">
-        <div id="faculty-analytics-view" class="is-hidden">
-          <div class="stats-row">
-            <div class="glass-panel stat-card">
-              <span class="stat-label">Completion Rate</span>
-              <h3 id="fac-completion-rate">0%</h3>
-            </div>
-            <div class="glass-panel stat-card">
-              <span class="stat-label">Class Average</span>
-              <h3 id="fac-class-avg">—</h3>
-            </div>
-            <div class="glass-panel stat-card">
-              <span class="stat-label">Graded Outputs</span>
-              <h3 id="fac-graded-count">0</h3>
-            </div>
-          </div>
-
-          <div class="glass-panel">
-            <div class="panel-toolbar">
-              <div>
-                <h2>Student Performance Breakdown</h2>
-              </div>
-            </div>
-            <div class="table-scroll">
-              <table class="admin-table">
-                <thead>
-                  <tr>
-                    <th>Student</th>
-                    <th>Role</th>
-                    <th>Completed</th>
-                    <th>Completion %</th>
-                    <th>Average Score</th>
-                  </tr>
-                </thead>
-                <tbody id="faculty-analytics-tbody"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div id="student-analytics-view" class="stack-col">
-          <div class="stats-row">
-            <div class="glass-panel stat-card">
-              <span class="stat-label">Completion Rate</span>
-              <h3 id="stu-completion-rate">0%</h3>
-            </div>
-            <div class="glass-panel stat-card">
-              <span class="stat-label">Average Score</span>
-              <h3 id="stu-avg-score">—</h3>
-            </div>
-            <div class="glass-panel stat-card">
-              <span class="stat-label">Submitted Outputs</span>
-              <h3 id="stu-submitted-count">0 / 0</h3>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- PANEL 3: PORTFOLIO & OUTPUT TELEMETRY -->
+      <!-- PANEL 2: PORTFOLIO & STORED OUTPUTS -->
       <section id="panel-portfolio" class="tab-panel">
         <div id="faculty-portfolio-view" class="is-hidden">
           <div class="glass-panel">
             <div class="panel-toolbar">
               <div>
-                <h2>Student HR Portfolios</h2>
+                <h2>Student Portfolios</h2>
               </div>
             </div>
             <div id="class-portfolios-grid" class="cards-grid"></div>
@@ -288,56 +225,27 @@
             <div class="portfolio-toolbar">
               <div>
                 <h2>Submitted Outputs &amp; Graded Activities</h2>
-                <p class="text-muted">Click any activity output card to inspect graded feedback and rubric scores.</p>
               </div>
               <div class="workspace-action-bar">
                 <input type="text" id="portfolio-search-input" class="form-control input-search-sm" placeholder="Search outputs..." />
-                <select id="portfolio-sort-select" class="form-select select-sort-sm">
+                <select id="portfolio-sort-select" class="form-select select-sort-sm" aria-label="Sort Portfolio Outputs">
                   <option value="newest">Newest First</option>
                   <option value="oldest">Oldest First</option>
                   <option value="graded">Graded Only</option>
                   <option value="missing">Missing / Pending</option>
                 </select>
                 <button type="button" id="btn-add-portfolio-item" class="btn-secondary">
-                  <i class="fas fa-plus"></i> Add Output
+                  <i class="fas fa-plus"></i> Add Portfolio Output
                 </button>
               </div>
             </div>
 
             <div id="student-portfolio-items" class="cards-grid"></div>
           </div>
-
-          <div class="glass-panel">
-            <div class="panel-toolbar">
-              <div>
-                <h2>Personal Development Plan &amp; Goals</h2>
-              </div>
-            </div>
-
-            <form id="form-student-devplan">
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="port-goals" class="form-label">Career &amp; HR Competency Goals</label>
-                  <textarea id="port-goals" class="form-control" rows="2" placeholder="Define your target HR role and simulation goals..."></textarea>
-                </div>
-                <div class="form-group">
-                  <label for="port-devplan" class="form-label">Actionable Development Plan</label>
-                  <textarea id="port-devplan" class="form-control" rows="2" placeholder="Outline steps to build labor law, recruitment, and analytics skills..."></textarea>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="port-self-feedback" class="form-label">Self-Assessment &amp; Reflection</label>
-                <textarea id="port-self-feedback" class="form-control" rows="2" placeholder="Reflect on your strengths and areas for improvement..."></textarea>
-              </div>
-              <button type="submit" class="btn-primary">
-                <i class="fas fa-save"></i> Save Portfolio Plan
-              </button>
-            </form>
-          </div>
         </div>
       </section>
 
-      <!-- PANEL 4: CLASS ROSTER & JOIN REQUESTS -->
+      <!-- PANEL 3: CLASS ROSTER & JOIN REQUESTS -->
       <section id="panel-roster" class="tab-panel">
         <div id="join-requests-wrapper" class="glass-panel is-hidden">
           <div class="panel-toolbar">
@@ -418,6 +326,7 @@
     </div>
   </div>
 
+  <!-- Modal 2: Post Activity & Evaluation Rubric (With Clear X Icon on Chosen File) -->
   <div class="modal-backdrop" id="modal-activity" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card modal-card-lg">
       <div class="modal-header">
@@ -445,7 +354,12 @@
         </div>
         <div class="form-group">
           <label for="act-instructions-file" class="form-label">Upload Instructions</label>
-          <input type="file" id="act-instructions-file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,image/png,image/jpeg,image/webp" />
+          <div class="file-input-clear-wrap">
+            <input type="file" id="act-instructions-file" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,image/png,image/jpeg,image/webp" />
+            <button type="button" id="btn-clear-act-file" class="btn-clear-file-selection is-hidden" title="Remove Chosen File" aria-label="Remove Chosen File">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
           <textarea id="act-instructions" class="form-control" rows="3" placeholder="Optional written instructions or notes (or upload your instruction file above)..."></textarea>
         </div>
         <div class="modal-actions">
@@ -458,6 +372,7 @@
     </div>
   </div>
 
+  <!-- Modal 3: Activity Detail (With Clear X Icon on Student File Input) -->
   <div class="modal-backdrop" id="modal-activity-detail" role="dialog" aria-modal="true" aria-hidden="true">
     <div class="modal-card modal-card-lg">
       <div class="modal-header">
@@ -501,7 +416,12 @@
 
           <div class="form-group" id="deliverable-file-group">
             <label for="deliverable-file-input" class="form-label">Upload Document or File (PDF, DOC, DOCX, XLSX, PPTX, PNG, JPG)</label>
-            <input type="file" id="deliverable-file-input" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,image/png,image/jpeg,image/webp" />
+            <div class="file-input-clear-wrap">
+              <input type="file" id="deliverable-file-input" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,image/png,image/jpeg,image/webp" />
+              <button type="button" id="btn-clear-deliverable-file" class="btn-clear-file-selection is-hidden" title="Remove Chosen File" aria-label="Remove Chosen File">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
           </div>
 
           <div class="modal-actions">

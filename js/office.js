@@ -1,4 +1,4 @@
-// js/office.js - Office Workspace (Dashboard, Analytics, Portfolio 6-Metrics, Upload Instructions, Locked Submissions & Deadlines)
+// js/office.js - Office Workspace (Uniform Activity Cards, File Clear X Button, Portfolio 6-Metrics & Roster Alignment)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -15,7 +15,7 @@ import {
   arrayUnion,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { uploadToCloudinary } from "./cloudinary-config.js";
+import { uploadToCloudinary, resolveAndDownloadAttachment } from "./cloudinary-config.js";
 import { FastCache, escapeHtml, sanitizeUrl, checkRateLimit, logAuditEvent } from "./security-utils.js";
 
 const MAX_CLASS_STUDENTS = 100;
@@ -28,7 +28,7 @@ let currentActivities = [];
 let allSubmissionsMap = new Map();
 let notificationsQueue = [];
 let warningNotifications = [];
-let currentPortfolioData = { goals: "", devPlan: "", selfFeedback: "", artifacts: [] };
+let currentPortfolioData = { artifacts: [] };
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
@@ -66,10 +66,9 @@ onAuthStateChanged(auth, async (user) => {
 function renderRoleBadge(role) {
   const normalized = (role || "student").toLowerCase();
   const isFac = normalized === "faculty";
-  return `<span class="badge-pill ${isFac ? "role-pill-faculty" : "role-pill-student"}">${escapeHtml(normalized.toUpperCase())}</span>`;
+  return `<span class="badge-pill role-badge-fixed ${isFac ? "role-pill-faculty" : "role-pill-student"}">${escapeHtml(normalized.toUpperCase())}</span>`;
 }
 
-// Helper to ensure both Cloudinary https:// URLs and Base64 data: URLs open/download reliably
 function bindDocumentDownloadLinks(container) {
   if (!container) return;
   container.querySelectorAll(".btn-download-attachment").forEach((link) => {
@@ -78,21 +77,21 @@ function bindDocumentDownloadLinks(container) {
     link.addEventListener("click", async (e) => {
       const rawHref = link.getAttribute("href") || "";
       const fileName = link.getAttribute("data-filename") || "Submitted_Document";
-      if (rawHref.startsWith("data:")) {
+      if (
+        rawHref.startsWith("data:") ||
+        rawHref.startsWith("https://aimser-chunked.local/") ||
+        rawHref.endsWith(".bin") ||
+        rawHref.includes("/raw/upload/")
+      ) {
         e.preventDefault();
+        const originalHtml = link.innerHTML;
+        link.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Downloading...';
         try {
-          const res = await fetch(rawHref);
-          const blob = await res.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const tempAnchor = document.createElement("a");
-          tempAnchor.href = blobUrl;
-          tempAnchor.download = fileName;
-          document.body.appendChild(tempAnchor);
-          tempAnchor.click();
-          tempAnchor.remove();
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+          await resolveAndDownloadAttachment(rawHref, fileName);
         } catch (err) {
           alert("Unable to download attached file: " + err.message);
+        } finally {
+          link.innerHTML = originalHtml;
         }
       }
     });
@@ -118,13 +117,9 @@ function configureRoleViews() {
   if (exportBtn) exportBtn.classList.toggle("is-hidden", !isFaculty);
   if (fourthLabel) fourthLabel.textContent = isFaculty ? "Class Avg & Completion" : "Personal Avg Score";
 
-  const facAnalytics = document.getElementById("faculty-analytics-view");
-  const stuAnalytics = document.getElementById("student-analytics-view");
   const facPortfolio = document.getElementById("faculty-portfolio-view");
   const stuPortfolio = document.getElementById("student-portfolio-view");
 
-  if (facAnalytics) facAnalytics.classList.toggle("is-hidden", !isFaculty);
-  if (stuAnalytics) stuAnalytics.classList.toggle("is-hidden", isFaculty);
   if (facPortfolio) facPortfolio.classList.toggle("is-hidden", !isFaculty);
   if (stuPortfolio) stuPortfolio.classList.toggle("is-hidden", isFaculty);
 }
@@ -183,12 +178,8 @@ async function populateClassroomDropdown() {
     return;
   }
 
-  const isFaculty = userProfile.role === "faculty";
   select.innerHTML = classrooms
-    .map((c) => {
-      const codeSuffix = isFaculty ? ` (${escapeHtml(c.sectionCode || c.code || "AIM")})` : "";
-      return `<option value="${c.id}">${escapeHtml(c.name || "Classroom")}${codeSuffix}</option>`;
-    })
+    .map((c) => `<option value="${c.id}">${escapeHtml(c.name || "Classroom")}</option>`)
     .join("");
 
   const savedId = localStorage.getItem("aimser_active_classroom");
@@ -271,21 +262,52 @@ async function loadClassroomActivitiesAndSubmissions(classroomId, students) {
     document.getElementById("stat-activity-count").textContent = currentActivities.length;
 
     allSubmissionsMap.clear();
+
+    let rootSubmissions = [];
+    try {
+      const rSubSnap = await getDocs(query(collection(db, "submissions"), where("classroomId", "==", classroomId)));
+      rootSubmissions = rSubSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    } catch {
+      rootSubmissions = [];
+    }
+
     await Promise.all(
       currentActivities.map(async (act) => {
+        const combinedByStudent = new Map();
+
+        if (act.studentSubmissions && typeof act.studentSubmissions === "object") {
+          Object.entries(act.studentSubmissions).forEach(([uid, subObj]) => {
+            if (subObj && typeof subObj === "object") {
+              combinedByStudent.set(uid, { id: uid, studentUid: uid, ...subObj });
+            }
+          });
+        }
+
+        rootSubmissions
+          .filter((s) => s.activityId === act.id)
+          .forEach((s) => {
+            const key = s.studentUid || s.id;
+            combinedByStudent.set(key, s);
+          });
+
         try {
           const subSnap = await getDocs(collection(db, "classrooms", classroomId, "activities", act.id, "submissions"));
-          const subs = subSnap.docs.map((s) => ({ id: s.id, ...s.data() }));
-          allSubmissionsMap.set(act.id, subs);
+          subSnap.docs.forEach((s) => {
+            const data = s.data();
+            const key = data.studentUid || s.id;
+            combinedByStudent.set(key, { id: s.id, ...data });
+          });
         } catch {
-          allSubmissionsMap.set(act.id, []);
+          // Ignore
         }
+
+        allSubmissionsMap.set(act.id, Array.from(combinedByStudent.values()));
       })
     );
 
     checkDeadlinesAndBuildNotifications();
     renderActivitiesGrid();
-    computeAnalyticsView(students);
+    computeTopSummaryScore(students);
     if (userProfile.role !== "faculty") {
       updateStudentPortfolioMetricsAndView();
     }
@@ -357,6 +379,10 @@ function checkDeadlinesAndBuildNotifications() {
   }
 }
 
+// Uniform Activity Cards:
+// - Fixed top row where date/time and small delete icon never shift
+// - Single-line ellipsis (...) on instructions, attached files, and rubrics so all cards match height
+// - Full-width stretched action button at the bottom of the card
 function renderActivitiesGrid() {
   const container = document.getElementById("activities-container");
   if (!container) return;
@@ -389,7 +415,7 @@ function renderActivitiesGrid() {
       } else {
         const mySub = subs.find((s) => s.studentUid === currentUser.uid || s.id === currentUser.uid);
         if (mySub && mySub.score !== undefined && mySub.score !== null) {
-          statusHtml = `<span class="badge-pill status-pill-active"><i class="fas fa-check-circle"></i> Graded: ${mySub.score}/${maxPts}</span>`;
+          statusHtml = `<span class="text-muted">Completed</span>`;
           buttonLabel = "View Graded Output";
         } else if (mySub) {
           const isUnlocked = Boolean(mySub.allowEdit) && !pastDue;
@@ -399,7 +425,7 @@ function renderActivitiesGrid() {
           statusHtml = `<span class="badge-pill status-pill-danger"><i class="fas fa-ban"></i> Closed (Missing)</span>`;
           buttonLabel = "View Closed Activity";
         } else {
-          statusHtml = `<span class="badge-pill status-pill-archived">Pending Submission</span>`;
+          statusHtml = `<span class="badge-pill status-pill-archived">Pending</span>`;
           buttonLabel = "Submit";
         }
       }
@@ -410,36 +436,45 @@ function renderActivitiesGrid() {
           : "";
 
       const summaryText =
-        act.instructions ||
-        act.description ||
-        (act.instructionFileName ? `Attached Instructions: ${act.instructionFileName}` : "Open activity to view instructions.");
+        (act.instructions || act.description || "").trim() ||
+        (act.instructionFileName ? `Instruction File: ${act.instructionFileName}` : "Open activity to view instructions.");
 
       return `
         <article class="glass-panel portfolio-output-card" data-act-id="${act.id}">
           <div>
-            <div class="panel-toolbar">
+            <div class="activity-card-top">
               <span class="badge-pill">${maxPts} pts</span>
-              <div class="user-cell-flex">
-                <span class="text-muted"><i class="far fa-clock"></i> ${escapeHtml(dueDisplay)}</span>
+              <div class="activity-card-meta-right">
+                <span class="activity-due-label"><i class="far fa-clock"></i> ${escapeHtml(dueDisplay)}</span>
                 ${deleteBtnHtml}
               </div>
             </div>
-            <h3>${escapeHtml(act.title || "Untitled Activity")}</h3>
-            <p class="text-muted">
+
+            <h3 class="activity-card-title text-ellipsis" title="${escapeHtml(act.title || "Untitled Activity")}">
+              ${escapeHtml(act.title || "Untitled Activity")}
+            </h3>
+
+            <p class="activity-card-desc text-ellipsis" title="${escapeHtml(summaryText)}">
               ${escapeHtml(summaryText)}
             </p>
+
             ${
               act.instructionFileName
-                ? `<div class="text-muted"><i class="fas fa-paperclip"></i> Instruction File: <strong>${escapeHtml(act.instructionFileName)}</strong></div>`
+                ? `<div class="activity-card-submeta text-ellipsis" title="${escapeHtml(act.instructionFileName)}">
+                     <i class="fas fa-paperclip"></i> Instruction File: <strong>${escapeHtml(act.instructionFileName)}</strong>
+                   </div>`
                 : ""
             }
-            <div class="text-muted">
+
+            <div class="activity-card-submeta text-ellipsis" title="${escapeHtml(act.rubric || "Standard HR Evaluation")}">
               <i class="fas fa-list-check"></i> Rubric: ${escapeHtml(act.rubric || "Standard HR Evaluation")}
             </div>
           </div>
 
-          <div class="card-footer-bar">
-            ${statusHtml}
+          <div class="activity-footer-stack">
+            <div class="activity-footer-meta">
+              ${statusHtml}
+            </div>
             <button type="button" class="btn-secondary btn-open-act-detail" data-id="${act.id}">
               <i class="fas fa-folder-open"></i> ${buttonLabel}
             </button>
@@ -518,7 +553,7 @@ function openActivityDetailModal(act) {
       instFileBox.innerHTML = `
         <div class="attached-file-meta">
           <i class="fas fa-file-download"></i>
-          <span>Instruction File: ${escapeHtml(instName)}</span>
+          <span class="text-ellipsis" title="${escapeHtml(instName)}">Instruction File: ${escapeHtml(instName)}</span>
         </div>
         <a href="${safeInstUrl}" target="_blank" rel="noopener noreferrer" download="${escapeHtml(instName)}" data-filename="${escapeHtml(instName)}" class="btn-secondary btn-download-attachment">
           <i class="fas fa-download"></i> View / Download Instructions
@@ -546,6 +581,7 @@ function openActivityDetailModal(act) {
     const notesInput = document.getElementById("deliverable-notes");
     const fileGroup = document.getElementById("deliverable-file-group");
     const fileInput = document.getElementById("deliverable-file-input");
+    const clearDeliverableBtn = document.getElementById("btn-clear-deliverable-file");
     const fileInfo = document.getElementById("deliverable-attached-file-info");
     const saveBtn = document.getElementById("btn-save-deliverable");
     const gradeBox = document.getElementById("student-grade-feedback-box");
@@ -555,6 +591,7 @@ function openActivityDetailModal(act) {
 
     notesInput.value = mySub ? mySub.notes || "" : "";
     if (fileInput) fileInput.value = "";
+    clearDeliverableBtn?.classList.add("is-hidden");
 
     if (mySub && mySub.score !== undefined && mySub.score !== null) {
       gradeBox?.classList.remove("is-hidden");
@@ -580,7 +617,7 @@ function openActivityDetailModal(act) {
         fileInfo.innerHTML = `
           <div class="attached-file-meta">
             <i class="fas fa-file-alt"></i>
-            <span>${escapeHtml(docName)}</span>
+            <span class="text-ellipsis" title="${escapeHtml(docName)}">${escapeHtml(docName)}</span>
           </div>
           <div class="workspace-action-bar">
             <span class="attached-file-lock-tag">
@@ -668,7 +705,7 @@ function renderFacultySubmissionsList(act, subs) {
           ? `<div class="attached-file-card">
                <div class="attached-file-meta">
                  <i class="fas fa-paperclip"></i>
-                 <span>Submitted File: ${escapeHtml(docName)}</span>
+                 <span class="text-ellipsis" title="${escapeHtml(docName)}">Submitted File: ${escapeHtml(docName)}</span>
                </div>
                ${
                  safeFileUrl
@@ -683,8 +720,8 @@ function renderFacultySubmissionsList(act, subs) {
       return `
         <div class="faculty-sub-card">
           <div class="panel-toolbar">
-            <div class="user-cell-flex">
-              <strong>${escapeHtml(sub.studentName || sub.studentEmail)}</strong>
+            <div class="roster-name-row">
+              <strong class="text-ellipsis" title="${escapeHtml(sub.studentName || sub.studentEmail)}">${escapeHtml(sub.studentName || sub.studentEmail)}</strong>
               ${renderRoleBadge("student")}
               <span class="badge-pill">${allowEdit && !pastDue ? "Unlocked for Edit" : "Locked"}</span>
             </div>
@@ -715,11 +752,17 @@ function renderFacultySubmissionsList(act, subs) {
       const nextAllow = btn.dataset.allow !== "true";
       btn.disabled = true;
       try {
-        await updateDoc(doc(db, "classrooms", activeClassroom.id, "activities", actId, "submissions", subId), {
-          allowEdit: nextAllow,
-          unlockedBy: nextAllow ? currentUser.email : null,
-          updatedAt: serverTimestamp()
-        });
+        try {
+          await updateDoc(doc(db, "classrooms", activeClassroom.id, "activities", actId, "submissions", subId), {
+            allowEdit: nextAllow,
+            unlockedBy: nextAllow ? currentUser.email : null,
+            updatedAt: serverTimestamp()
+          });
+        } catch {
+          await updateDoc(doc(db, "classrooms", activeClassroom.id, "activities", actId), {
+            [`studentSubmissions.${subId}.allowEdit`]: nextAllow
+          });
+        }
         await logAuditEvent(
           `Faculty ${nextAllow ? "unlocked" : "locked"} submission for ${subId} on activity "${act.title}"`,
           "SUBMISSION_LOCK",
@@ -751,13 +794,21 @@ function renderFacultySubmissionsList(act, subs) {
 
       btn.disabled = true;
       try {
-        await updateDoc(doc(db, "classrooms", activeClassroom.id, "activities", actId, "submissions", subId), {
-          score: numericScore,
-          feedback: fbInput.value.trim(),
-          allowEdit: false,
-          gradedBy: currentUser.email,
-          gradedAt: serverTimestamp()
-        });
+        try {
+          await updateDoc(doc(db, "classrooms", activeClassroom.id, "activities", actId, "submissions", subId), {
+            score: numericScore,
+            feedback: fbInput.value.trim(),
+            allowEdit: false,
+            gradedBy: currentUser.email,
+            gradedAt: serverTimestamp()
+          });
+        } catch {
+          await updateDoc(doc(db, "classrooms", activeClassroom.id, "activities", actId), {
+            [`studentSubmissions.${subId}.score`]: numericScore,
+            [`studentSubmissions.${subId}.feedback`]: fbInput.value.trim(),
+            [`studentSubmissions.${subId}.allowEdit`]: false
+          });
+        }
         await logAuditEvent(`Faculty graded ${btn.dataset.student} (${numericScore}/${maxPts}) on "${act.title}"`, "GRADING", currentUser.email);
         btn.innerHTML = '<i class="fas fa-check-double"></i> Saved';
         await loadClassroomActivitiesAndSubmissions(activeClassroom.id, activeClassroom.students || []);
@@ -770,7 +821,7 @@ function renderFacultySubmissionsList(act, subs) {
   });
 }
 
-function computeAnalyticsView(students) {
+function computeTopSummaryScore(students) {
   const totalActs = currentActivities.length;
 
   if (userProfile.role === "faculty") {
@@ -779,85 +830,39 @@ function computeAnalyticsView(students) {
     let gradedCount = 0;
     let pctSum = 0;
 
-    const studentStats = students.map((st) => {
+    students.forEach((st) => {
       const uid = typeof st === "string" ? st : st.uid;
-      const name = typeof st === "string" ? st : st.fullName || st.email || uid;
-      const email = typeof st === "object" ? st.email || "" : "";
-
-      let completed = 0;
-      let studentScorePctSum = 0;
-      let studentGradedCount = 0;
-
       currentActivities.forEach((act) => {
         const subs = allSubmissionsMap.get(act.id) || [];
         const match = subs.find((s) => s.studentUid === uid || s.id === uid);
         if (match) {
-          completed++;
           totalSubmitted++;
           if (match.score !== undefined && match.score !== null) {
             const pct = (Number(match.score) / (act.maxScore || 100)) * 100;
-            studentScorePctSum += pct;
-            studentGradedCount++;
             pctSum += pct;
             gradedCount++;
           }
         }
       });
-
-      const compPct = totalActs > 0 ? Math.round((completed / totalActs) * 100) : 0;
-      const avgPct = studentGradedCount > 0 ? (studentScorePctSum / studentGradedCount).toFixed(1) + "%" : "—";
-      return { name, email, completed, compPct, avgPct };
     });
 
     const overallComp = totalPossible > 0 ? Math.round((totalSubmitted / totalPossible) * 100) : 0;
     const classAvg = gradedCount > 0 ? (pctSum / gradedCount).toFixed(1) + "%" : "—";
-
-    document.getElementById("fac-completion-rate").textContent = `${overallComp}%`;
-    document.getElementById("fac-class-avg").textContent = classAvg;
-    document.getElementById("fac-graded-count").textContent = gradedCount;
     document.getElementById("stat-avg-score").textContent = `${classAvg} (${overallComp}%)`;
-
-    const tbody = document.getElementById("faculty-analytics-tbody");
-    if (tbody) {
-      tbody.innerHTML =
-        studentStats.length === 0
-          ? `<tr><td colspan="5">No students enrolled yet.</td></tr>`
-          : studentStats
-              .map(
-                (row) => `
-              <tr>
-                <td><strong>${escapeHtml(row.name)}</strong><br><small class="text-muted">${escapeHtml(row.email)}</small></td>
-                <td>${renderRoleBadge("student")}</td>
-                <td>${row.completed} / ${totalActs}</td>
-                <td>${row.compPct}%</td>
-                <td><strong>${row.avgPct}</strong></td>
-              </tr>`
-              )
-              .join("");
-    }
   } else {
-    let mySubmitted = 0;
     let myPctSum = 0;
     let myGraded = 0;
 
     currentActivities.forEach((act) => {
       const subs = allSubmissionsMap.get(act.id) || [];
       const match = subs.find((s) => s.studentUid === currentUser.uid || s.id === currentUser.uid);
-      if (match) {
-        mySubmitted++;
-        if (match.score !== undefined && match.score !== null) {
-          myPctSum += (Number(match.score) / (act.maxScore || 100)) * 100;
-          myGraded++;
-        }
+      if (match && match.score !== undefined && match.score !== null) {
+        myPctSum += (Number(match.score) / (act.maxScore || 100)) * 100;
+        myGraded++;
       }
     });
 
-    const myComp = totalActs > 0 ? Math.round((mySubmitted / totalActs) * 100) : 0;
     const myAvg = myGraded > 0 ? (myPctSum / myGraded).toFixed(1) + "%" : "—";
-
-    document.getElementById("stu-completion-rate").textContent = `${myComp}%`;
-    document.getElementById("stu-avg-score").textContent = myAvg;
-    document.getElementById("stu-submitted-count").textContent = `${mySubmitted} / ${totalActs}`;
     document.getElementById("stat-avg-score").textContent = myAvg;
   }
 }
@@ -874,43 +879,51 @@ async function loadPortfolioData(classroomId, students) {
 
       students.forEach((st) => {
         const uid = typeof st === "string" ? st : st.uid;
+        const stName = typeof st === "object" ? st.fullName || st.email || uid : st;
+        const stEmail = typeof st === "object" ? st.email || "" : "";
+
         if (uid && !portfolioMap.has(uid)) {
           portfolioMap.set(uid, {
             uid,
-            studentName: typeof st === "object" ? st.fullName || st.email : st,
-            studentEmail: typeof st === "object" ? st.email || "" : "",
-            goals: "",
-            devPlan: "",
-            selfFeedback: "",
+            studentName: stName,
+            studentEmail: stEmail,
             artifacts: []
           });
+        } else if (uid && portfolioMap.has(uid)) {
+          const existing = portfolioMap.get(uid);
+          if (!existing.studentName && stName) existing.studentName = stName;
         }
       });
 
       const portfolios = Array.from(portfolioMap.values());
 
       if (portfolios.length === 0) {
-        grid.innerHTML = `<div class="empty-state"><i class="fas fa-briefcase"></i><h3>No Enrolled Students Yet</h3><p>Share your class room code so students can build their HR portfolios.</p></div>`;
+        grid.innerHTML = `<div class="empty-state"><i class="fas fa-briefcase"></i><h3>No Enrolled Students Yet</h3><p>Share your class room code so students can build their portfolios.</p></div>`;
         return;
       }
 
       grid.innerHTML = portfolios
         .map((p) => {
           const artifacts = p.artifacts || [];
+          const displayName = p.studentName || p.studentEmail || p.uid;
           return `
             <div class="glass-panel">
               <div>
-                <div class="panel-toolbar">
-                  <strong>${escapeHtml(p.studentName || p.studentEmail || p.uid)}</strong>
+                <div class="roster-name-row">
+                  <strong class="text-ellipsis" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</strong>
                   ${renderRoleBadge("student")}
                 </div>
-                <p class="text-muted"><strong>Career Goals:</strong> ${escapeHtml(p.goals || "Not yet submitted")}</p>
-                <p class="text-muted"><strong>Development Plan:</strong> ${escapeHtml(p.devPlan || "Not yet submitted")}</p>
-                <p class="text-muted"><strong>Self-Feedback:</strong> ${escapeHtml(p.selfFeedback || "—")}</p>
                 <div class="text-muted">
                   <strong>Portfolio Outputs (${artifacts.length}):</strong>
-                  <ul>
-                    ${artifacts.map((a) => `<li><strong>${escapeHtml(a.title)}:</strong> ${escapeHtml(a.link)}</li>`).join("") || "<li>None added</li>"}
+                  <ul class="portfolio-artifact-list">
+                    ${
+                      artifacts
+                        .map(
+                          (a) =>
+                            `<li class="text-ellipsis" title="${escapeHtml(a.title)}: ${escapeHtml(a.link)}"><strong>${escapeHtml(a.title)}:</strong> ${escapeHtml(a.link)}</li>`
+                        )
+                        .join("") || "<li>None added</li>"
+                    }
                   </ul>
                 </div>
               </div>
@@ -919,7 +932,7 @@ async function loadPortfolioData(classroomId, students) {
                 <div class="faculty-grade-controls w-full">
                   <input type="number" class="form-control input-score-sm port-grade-input" data-uid="${p.uid}" min="0" max="100" value="${p.facultyScore ?? ""}" placeholder="Score / 100" />
                   <input type="text" class="form-control input-feedback-flex port-fb-input" data-uid="${p.uid}" value="${escapeHtml(p.facultyFeedback || "")}" placeholder="Portfolio feedback..." />
-                  <button type="button" class="btn-primary btn-grade-portfolio" data-uid="${p.uid}" data-name="${escapeHtml(p.studentName || p.uid)}">
+                  <button type="button" class="btn-primary btn-grade-portfolio" data-uid="${p.uid}" data-name="${escapeHtml(displayName)}">
                     <i class="fas fa-award"></i> Save Grade
                   </button>
                 </div>
@@ -946,7 +959,7 @@ async function loadPortfolioData(classroomId, students) {
               { facultyScore: scoreVal, facultyFeedback: fbVal, gradedBy: currentUser.email, gradedAt: serverTimestamp() },
               { merge: true }
             );
-            await logAuditEvent(`Graded HR portfolio for ${btn.dataset.name} (${scoreVal}/100)`, "PORTFOLIO", currentUser.email);
+            await logAuditEvent(`Graded portfolio for ${btn.dataset.name} (${scoreVal}/100)`, "PORTFOLIO", currentUser.email);
             btn.innerHTML = '<i class="fas fa-check"></i> Saved';
           } catch (err) {
             alert(err.message);
@@ -963,15 +976,11 @@ async function loadPortfolioData(classroomId, students) {
       const snap = await getDoc(doc(db, "classrooms", classroomId, "portfolios", currentUser.uid));
       currentPortfolioData = snap.exists() ? snap.data() : { artifacts: [] };
 
-      document.getElementById("port-goals").value = currentPortfolioData.goals || "";
-      document.getElementById("port-devplan").value = currentPortfolioData.devPlan || "";
-      document.getElementById("port-self-feedback").value = currentPortfolioData.selfFeedback || "";
-
       if (currentPortfolioData.facultyScore !== undefined && currentPortfolioData.facultyScore !== null) {
         notificationsQueue.push({
           type: "PORTFOLIO",
           title: `Portfolio Evaluated: ${currentPortfolioData.facultyScore}/100`,
-          detail: currentPortfolioData.facultyFeedback || "Instructor reviewed your HR portfolio."
+          detail: currentPortfolioData.facultyFeedback || "Instructor reviewed your portfolio."
         });
       }
 
@@ -1026,7 +1035,7 @@ function updateStudentPortfolioMetricsAndView() {
         title: act.title || "Classroom Activity",
         category: "Activity",
         status: pastDue ? "missing" : "pending",
-        scoreText: pastDue ? "Closed (Missing)" : "Pending Submission",
+        scoreText: pastDue ? "Closed (Missing)" : "Pending",
         summary: act.instructions || (act.instructionFileName ? `Instruction File: ${act.instructionFileName}` : ""),
         feedback: "",
         fileName: "",
@@ -1099,8 +1108,8 @@ function renderStudentPortfolioItemsList(items) {
     container.innerHTML = `
       <div class="empty-state">
         <i class="fas fa-folder-open"></i>
-        <h3>No Matching Portfolio Outputs</h3>
-        <p>Submit classroom activities or click "Add Output" above to build your portfolio.</p>
+        <h3>No Portfolio Outputs Stored</h3>
+        <p>Click "Add Portfolio Output" to showcase your completed HR simulation deliverables.</p>
       </div>`;
     return;
   }
@@ -1116,18 +1125,18 @@ function renderStudentPortfolioItemsList(items) {
         return `
           <article class="glass-panel portfolio-output-card" data-port-act-id="${item.actId}">
             <div>
-              <div class="panel-toolbar">
+              <div class="activity-card-top">
                 <span class="badge-pill">${escapeHtml(item.category)}</span>
                 <span class="badge-pill ${pillClass}">${escapeHtml(item.scoreText)}</span>
               </div>
-              <h3>${escapeHtml(item.title)}</h3>
-              <p class="text-muted">
+              <h3 class="activity-card-title text-ellipsis" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+              <p class="activity-card-desc text-ellipsis" title="${escapeHtml(item.summary || "")}">
                 ${escapeHtml(item.summary || "Click to inspect activity and rubric details.")}
               </p>
-              ${item.feedback ? `<p class="text-muted"><strong>Feedback:</strong> ${escapeHtml(item.feedback)}</p>` : ""}
+              ${item.feedback ? `<p class="activity-card-submeta text-ellipsis" title="${escapeHtml(item.feedback)}"><strong>Feedback:</strong> ${escapeHtml(item.feedback)}</p>` : ""}
             </div>
             <div class="card-footer-bar">
-              <span class="text-muted">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Click to view graded details"}</span>
+              <span class="text-muted text-ellipsis">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Click to view graded details"}</span>
               <i class="fas fa-chevron-right"></i>
             </div>
           </article>`;
@@ -1136,12 +1145,12 @@ function renderStudentPortfolioItemsList(items) {
       return `
         <article class="glass-panel portfolio-output-card">
           <div>
-            <div class="panel-toolbar">
+            <div class="activity-card-top">
               <span class="badge-pill">Portfolio Output</span>
-              <span class="badge-pill"><i class="fas fa-lock"></i> Locked</span>
+              <span class="badge-pill"><i class="fas fa-lock"></i> Stored</span>
             </div>
-            <h3>${escapeHtml(item.title)}</h3>
-            <p class="text-muted">${escapeHtml(item.summary)}</p>
+            <h3 class="activity-card-title text-ellipsis" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+            <p class="activity-card-desc text-ellipsis" title="${escapeHtml(item.summary)}">${escapeHtml(item.summary)}</p>
           </div>
         </article>`;
     })
@@ -1161,15 +1170,18 @@ async function loadRosterAndRequests(classroomId, students) {
   const reqList = document.getElementById("join-requests-list");
 
   if (rosterEl) {
+    const instName = activeClassroom.instructorName || activeClassroom.instructorEmail || "Class Instructor";
+    const instEmail = activeClassroom.instructorEmail || "";
+
     const instructorCard = `
-      <div class="glass-panel user-cell-flex">
-        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(activeClassroom.instructorEmail || "Faculty")}&background=1b5375&color=faf2dd" alt="" class="avatar-sm" />
-        <div>
-          <div class="user-cell-flex">
-            <strong>${escapeHtml(activeClassroom.instructorName || activeClassroom.instructorEmail || "Class Instructor")}</strong>
+      <div class="glass-panel roster-member-card">
+        <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(instName)}&background=1b5375&color=faf2dd" alt="" class="avatar-sm" />
+        <div class="roster-member-info">
+          <div class="roster-name-row">
+            <strong class="text-ellipsis" title="${escapeHtml(instName)}">${escapeHtml(instName)}</strong>
             ${renderRoleBadge("faculty")}
           </div>
-          <div class="text-muted">${escapeHtml(activeClassroom.instructorEmail || "")}</div>
+          <div class="text-muted text-ellipsis" title="${escapeHtml(instEmail)}">${escapeHtml(instEmail)}</div>
         </div>
       </div>`;
 
@@ -1178,14 +1190,14 @@ async function loadRosterAndRequests(classroomId, students) {
         const label = typeof s === "string" ? s : s.fullName || s.email || s.uid;
         const email = typeof s === "object" ? s.email || "" : "";
         return `
-          <div class="glass-panel user-cell-flex">
+          <div class="glass-panel roster-member-card">
             <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(label)}&background=1b5375&color=faf2dd" alt="" class="avatar-sm" />
-            <div>
-              <div class="user-cell-flex">
-                <strong>${escapeHtml(label)}</strong>
+            <div class="roster-member-info">
+              <div class="roster-name-row">
+                <strong class="text-ellipsis" title="${escapeHtml(label)}">${escapeHtml(label)}</strong>
                 ${renderRoleBadge("student")}
               </div>
-              <div class="text-muted">${escapeHtml(email || "Enrolled Student")}</div>
+              <div class="text-muted text-ellipsis" title="${escapeHtml(email || "Enrolled Student")}">${escapeHtml(email || "Enrolled Student")}</div>
             </div>
           </div>`;
       })
@@ -1208,10 +1220,10 @@ async function loadRosterAndRequests(classroomId, students) {
           .map(
             (req) => `
             <div class="inspector-meta-item panel-toolbar">
-              <div class="user-cell-flex">
-                <strong>${escapeHtml(req.studentName || req.studentEmail)}</strong>
+              <div class="roster-name-row">
+                <strong class="text-ellipsis">${escapeHtml(req.studentName || req.studentEmail)}</strong>
                 ${renderRoleBadge("student")}
-                <span class="text-muted">(${escapeHtml(req.studentEmail)})</span>
+                <span class="text-muted text-ellipsis">(${escapeHtml(req.studentEmail)})</span>
               </div>
               <div class="workspace-action-bar">
                 <button type="button" class="btn-primary btn-approve-req" data-req-id="${req.id}" data-uid="${req.studentUid}" data-name="${escapeHtml(req.studentName || req.studentEmail)}" data-email="${escapeHtml(req.studentEmail)}">
@@ -1284,10 +1296,10 @@ function renderNotificationsBell() {
               return `
                 <div class="inspector-meta-item">
                   <div class="panel-toolbar">
-                    <strong>${escapeHtml(n.title)}</strong>
+                    <strong class="text-ellipsis">${escapeHtml(n.title)}</strong>
                     <span class="badge-pill ${isWarning ? "status-pill-danger" : ""}">${escapeHtml(n.type)}</span>
                   </div>
-                  <p class="text-muted">${escapeHtml(n.detail)}</p>
+                  <p class="text-muted text-clamp-2">${escapeHtml(n.detail)}</p>
                 </div>`;
             })
             .join("");
@@ -1308,6 +1320,42 @@ function renderEmptyWorkspace() {
     </div>`;
 }
 
+async function saveStudentSubmissionResilient(classroomId, actId, payload) {
+  try {
+    await setDoc(doc(db, "classrooms", classroomId, "activities", actId, "submissions", payload.studentUid), payload, {
+      merge: true
+    });
+    return;
+  } catch (err1) {
+    console.warn("[Submission Tier 1 notice]:", err1.message);
+  }
+
+  try {
+    await addDoc(collection(db, "classrooms", classroomId, "activities", actId, "submissions"), payload);
+    return;
+  } catch (err2) {
+    console.warn("[Submission Tier 2 notice]:", err2.message);
+  }
+
+  try {
+    await updateDoc(doc(db, "classrooms", classroomId, "activities", actId), {
+      [`studentSubmissions.${payload.studentUid}`]: {
+        ...payload,
+        submittedAt: new Date().toISOString()
+      }
+    });
+    return;
+  } catch (err3) {
+    console.warn("[Submission Tier 3 notice]:", err3.message);
+  }
+
+  await setDoc(doc(db, "submissions", `${actId}_${payload.studentUid}`), {
+    classroomId,
+    activityId: actId,
+    ...payload
+  });
+}
+
 function bindOfficeEvents() {
   document.getElementById("active-classroom-select")?.addEventListener("change", (e) => {
     if (e.target.value) selectClassroom(e.target.value);
@@ -1325,6 +1373,32 @@ function bindOfficeEvents() {
   document.getElementById("portfolio-sort-select")?.addEventListener("change", () => {
     updateStudentPortfolioMetricsAndView();
   });
+
+  // Clear (X) Button for Faculty Instruction File Input
+  const actFileInput = document.getElementById("act-instructions-file");
+  const clearActFileBtn = document.getElementById("btn-clear-act-file");
+  if (actFileInput && clearActFileBtn) {
+    actFileInput.addEventListener("change", () => {
+      clearActFileBtn.classList.toggle("is-hidden", !actFileInput.files || actFileInput.files.length === 0);
+    });
+    clearActFileBtn.addEventListener("click", () => {
+      actFileInput.value = "";
+      clearActFileBtn.classList.add("is-hidden");
+    });
+  }
+
+  // Clear (X) Button for Student Deliverable File Input
+  const delivFileInput = document.getElementById("deliverable-file-input");
+  const clearDelivFileBtn = document.getElementById("btn-clear-deliverable-file");
+  if (delivFileInput && clearDelivFileBtn) {
+    delivFileInput.addEventListener("change", () => {
+      clearDelivFileBtn.classList.toggle("is-hidden", !delivFileInput.files || delivFileInput.files.length === 0);
+    });
+    clearDelivFileBtn.addEventListener("click", () => {
+      delivFileInput.value = "";
+      clearDelivFileBtn.classList.add("is-hidden");
+    });
+  }
 
   document.getElementById("btn-open-classroom-action")?.addEventListener("click", () => {
     const isFaculty = userProfile.role === "faculty";
@@ -1428,6 +1502,7 @@ function bindOfficeEvents() {
       alert("Please create or select a class room first.");
       return;
     }
+    clearActFileBtn?.classList.add("is-hidden");
     openModal("modal-activity");
   });
 
@@ -1486,6 +1561,7 @@ function bindOfficeEvents() {
       await logAuditEvent(`Published activity "${title}" in ${activeClassroom.sectionCode}`, "ACTIVITY", currentUser.email);
       closeModal("modal-activity");
       e.target.reset();
+      clearActFileBtn?.classList.add("is-hidden");
       await loadClassroomActivitiesAndSubmissions(activeClassroom.id, activeClassroom.students || []);
     } catch (err) {
       alert(err.message);
@@ -1567,20 +1643,18 @@ function bindOfficeEvents() {
         fileName = selectedFile.name;
       }
 
-      await setDoc(
-        doc(db, "classrooms", activeClassroom.id, "activities", actId, "submissions", currentUser.uid),
-        {
-          studentUid: currentUser.uid,
-          studentName: userProfile.fullName,
-          studentEmail: currentUser.email,
-          notes,
-          fileUrl,
-          fileName,
-          allowEdit: false,
-          submittedAt: serverTimestamp()
-        },
-        { merge: true }
-      );
+      const submissionPayload = {
+        studentUid: currentUser.uid,
+        studentName: userProfile.fullName,
+        studentEmail: currentUser.email,
+        notes,
+        fileUrl,
+        fileName,
+        allowEdit: false,
+        submittedAt: serverTimestamp()
+      };
+
+      await saveStudentSubmissionResilient(activeClassroom.id, actId, submissionPayload);
 
       await logAuditEvent(
         `${currentUser.email} submitted locked output${fileName ? ` (${fileName})` : ""} for activity "${act?.title || actId}"`,
@@ -1601,33 +1675,6 @@ function bindOfficeEvents() {
       btn.disabled = false;
       btn.innerHTML = '<i class="fas fa-paper-plane"></i> Submit';
     }
-  });
-
-  document.getElementById("form-student-devplan")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!activeClassroom) {
-      alert("Join a classroom first to save your portfolio.");
-      return;
-    }
-
-    const goals = document.getElementById("port-goals").value.trim();
-    const devPlan = document.getElementById("port-devplan").value.trim();
-    const selfFeedback = document.getElementById("port-self-feedback").value.trim();
-
-    await setDoc(
-      doc(db, "classrooms", activeClassroom.id, "portfolios", currentUser.uid),
-      {
-        studentUid: currentUser.uid,
-        studentName: userProfile.fullName,
-        studentEmail: currentUser.email,
-        goals,
-        devPlan,
-        selfFeedback,
-        updatedAt: serverTimestamp()
-      },
-      { merge: true }
-    );
-    alert("Personal goals and development plan saved to your Portfolio!");
   });
 
   document.getElementById("btn-add-portfolio-item")?.addEventListener("click", () => {

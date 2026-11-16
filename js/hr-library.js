@@ -12,10 +12,9 @@ import {
   query,
   where,
   orderBy,
-  arrayUnion,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-import { uploadToCloudinary } from "./cloudinary-config.js";
+import { uploadToCloudinary, resolveAndDownloadAttachment } from "./cloudinary-config.js";
 import { FastCache, escapeHtml, sanitizeUrl, checkRateLimit, logAuditEvent } from "./security-utils.js";
 
 let currentUser = null;
@@ -25,22 +24,32 @@ let activeCaseItem = null;
 let allFeedPosts = [];
 let currentFeedView = "active";
 let unreadModerationWarnings = [];
+let eventsBound = false;
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) return;
   currentUser = user;
 
-  userProfile = FastCache.get("user_profile");
-  if (!userProfile) {
-    const snap = await getDoc(doc(db, "users", user.uid));
-    const data = snap.exists() ? snap.data() : {};
+  try {
+    userProfile = FastCache.get("user_profile");
+    if (!userProfile) {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      const data = snap.exists() ? snap.data() : {};
+      userProfile = {
+        uid: user.uid,
+        email: user.email,
+        fullName: data.fullName || user.displayName || user.email.split("@")[0],
+        role: (data.role || "student").toLowerCase()
+      };
+      FastCache.set("user_profile", userProfile);
+    }
+  } catch {
     userProfile = {
       uid: user.uid,
-      email: user.email,
-      fullName: data.fullName || user.displayName || user.email.split("@")[0],
-      role: (data.role || "student").toLowerCase()
+      email: user.email || "user@aimser.local",
+      fullName: user.displayName || (user.email ? user.email.split("@")[0] : "Member"),
+      role: "student"
     };
-    FastCache.set("user_profile", userProfile);
   }
 
   const role = (userProfile.role || "student").toLowerCase();
@@ -49,12 +58,14 @@ onAuthStateChanged(auth, async (user) => {
     if (uploadBtn) uploadBtn.classList.remove("is-hidden");
   }
 
-  bindLibraryAndFeedEvents();
+  if (!eventsBound) {
+    bindLibraryAndFeedEvents();
+    eventsBound = true;
+  }
 
   const cachedLib = FastCache.get("hr_library_items");
   if (Array.isArray(cachedLib)) {
-    allLibraryItems = cachedLib.filter((item) => !String(item.id || "").startsWith("builtin-"));
-    FastCache.set("hr_library_items", allLibraryItems);
+    allLibraryItems = cachedLib;
     renderFilteredLibrary();
   }
 
@@ -64,7 +75,12 @@ onAuthStateChanged(auth, async (user) => {
     renderFeedStream();
   }
 
-  await Promise.all([loadLibraryItems(), loadHrFeed(), loadUserModerationWarnings()]);
+  await Promise.allSettled([
+    loadLibraryItems(),
+    loadHrFeed(),
+    loadUserModerationWarnings()
+  ]);
+
   renderLibraryBellNotifications();
 });
 
@@ -177,10 +193,10 @@ function renderLibraryBellNotifications() {
       (item) => `
       <div class="inspector-meta-item">
         <div class="panel-toolbar">
-          <strong>${escapeHtml(item.title)}</strong>
+          <strong class="text-ellipsis">${escapeHtml(item.title)}</strong>
           <span class="badge-pill">${escapeHtml(item.type)}</span>
         </div>
-        <p class="text-muted">${escapeHtml(item.detail)}</p>
+        <p class="text-muted text-clamp-2">${escapeHtml(item.detail)}</p>
       </div>`
     )
     .join("");
@@ -214,17 +230,6 @@ function renderFilteredLibrary() {
   const searchTerm = (document.getElementById("library-search")?.value || "").toLowerCase().trim();
   const role = (userProfile?.role || "student").toLowerCase();
 
-  if (allLibraryItems.length === 0) {
-    const canUpload = role === "faculty" || role === "admin";
-    grid.innerHTML = `
-      <div class="empty-state">
-        <i class="fas fa-book-open"></i>
-        <h3>No Cases or E-Modules Published Yet</h3>
-        <p>${canUpload ? 'Click "Upload Case / E-Module" above to publish learning materials to the library.' : "Faculty and administrators have not published any cases or e-modules yet."}</p>
-      </div>`;
-    return;
-  }
-
   const filtered = allLibraryItems.filter((item) => {
     const matchesType = typeFilter === "all" || (item.type || "Company Case") === typeFilter;
     const matchesQuery =
@@ -235,7 +240,19 @@ function renderFilteredLibrary() {
   });
 
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="empty-state"><i class="fas fa-search"></i><h3>No Matching Materials</h3><p>Try adjusting your material type filter or search keywords.</p></div>`;
+    const isSearchEmpty = searchTerm.length > 0;
+    const canUpload = role === "faculty" || role === "admin";
+    
+    if (isSearchEmpty) {
+      grid.innerHTML = `<div class="empty-state"><i class="fas fa-search"></i><h3>No Matching Materials</h3><p>Try adjusting your material type filter or search keywords.</p></div>`;
+    } else {
+      grid.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-book-open"></i>
+          <h3>No Cases or E-Modules Published Yet</h3>
+          <p>${canUpload ? 'Click "Upload Case / E-Module" above to publish learning materials to the library.' : "Faculty and administrators have not published any cases or e-modules yet."}</p>
+        </div>`;
+    }
     return;
   }
 
@@ -255,18 +272,18 @@ function renderFilteredLibrary() {
                 ${canDelete ? `<button type="button" class="btn-close-modal btn-del-case" data-id="${item.id}" title="Remove Material"><i class="fas fa-trash-alt"></i></button>` : ""}
               </div>
             </div>
-            <h3>${escapeHtml(item.title)}</h3>
-            <div class="user-cell-flex text-muted">
-              <span>By ${escapeHtml(item.authorName || "Faculty")}</span>
+            <h3 class="text-ellipsis" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+            <div class="roster-name-row text-muted">
+              <span class="text-ellipsis">By ${escapeHtml(item.authorName || "Faculty")}</span>
               ${renderRoleBadge(item.authorRole || "faculty")}
             </div>
-            <p class="text-muted">
+            <p class="text-muted text-clamp-2">
               ${escapeHtml(item.body)}
             </p>
           </div>
 
           <div class="card-footer-bar">
-            <span class="text-muted">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Case Material"}</span>
+            <span class="text-muted text-ellipsis">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Case Material"}</span>
             <button type="button" class="btn-secondary btn-open-case-reader" data-id="${item.id}">
               <i class="fas fa-book-reader"></i> ${itemType === "Practice Case" ? "Solve & Check Key" : "Open Material"}
             </button>
@@ -298,6 +315,8 @@ function openCaseReaderModal(item) {
 
   document.getElementById("read-case-title").textContent = item.title || "Case Study";
   document.getElementById("read-case-type").textContent = itemType;
+  const catEl = document.getElementById("read-case-cat");
+  if (catEl) catEl.textContent = item.category || itemType;
   document.getElementById("read-case-author").innerHTML = `Uploaded by <strong>${escapeHtml(item.authorName || "Faculty")}</strong> ${renderRoleBadge(item.authorRole || "faculty")}`;
   document.getElementById("read-case-body").textContent = item.body || "";
 
@@ -306,9 +325,17 @@ function openCaseReaderModal(item) {
   if (dlBtn) {
     if (safeHref) {
       dlBtn.href = safeHref;
+      dlBtn.setAttribute("data-filename", item.fileName || "Case_Material");
       dlBtn.classList.remove("is-hidden");
+      dlBtn.onclick = async (e) => {
+        if (safeHref.startsWith("data:") || safeHref.startsWith("https://aimser-chunked.local/")) {
+          e.preventDefault();
+          await resolveAndDownloadAttachment(safeHref, item.fileName || "Case_Material");
+        }
+      };
     } else {
       dlBtn.classList.add("is-hidden");
+      dlBtn.onclick = null;
     }
   }
 
@@ -351,7 +378,8 @@ async function loadHrFeed() {
     renderFeedStream();
     renderLibraryBellNotifications();
   } catch (err) {
-    console.error("Failed loading HR Feed:", err);
+    console.warn("HR Feed load notice:", err.message);
+    renderFeedStream();
   }
 }
 
@@ -657,16 +685,21 @@ function renderFeedStream() {
           commentImageUrl = await uploadToCloudinary(imageFile, "aimser/hr-feed-comments");
         }
 
+        const commentEntry = {
+          authorUid: currentUser.uid,
+          authorName: userProfile.fullName,
+          authorEmail: currentUser.email,
+          authorRole: userProfile.role,
+          text,
+          createdAt: new Date().toISOString()
+        };
+        
+        if (commentImageUrl) {
+          commentEntry.imageUrl = commentImageUrl;
+        }
+
         await updateDoc(doc(db, "hr_feed", postId), {
-          comments: arrayUnion({
-            authorUid: currentUser.uid,
-            authorName: userProfile.fullName,
-            authorEmail: currentUser.email,
-            authorRole: userProfile.role,
-            text,
-            imageUrl: commentImageUrl,
-            createdAt: new Date().toISOString()
-          })
+          comments: arrayUnion(commentEntry)
         });
 
         input.value = "";
@@ -745,7 +778,7 @@ function bindLibraryAndFeedEvents() {
     const title = document.getElementById("case-title").value.trim();
     const fileInput = document.getElementById("case-file-input");
     const selectedFile = fileInput?.files?.[0] || null;
-    const typedUrl = sanitizeUrl(document.getElementById("case-download-url").value.trim(), "");
+    const typedUrl = sanitizeUrl(document.getElementById("case-download-url")?.value?.trim() || "", "");
     const body = document.getElementById("case-body").value.trim();
     const answerKey = document.getElementById("case-answer-key").value.trim();
 
@@ -799,7 +832,7 @@ function bindLibraryAndFeedEvents() {
 
     document.getElementById("answer-key-reveal-box")?.classList.remove("is-hidden");
 
-    if (activeCaseItem) {
+    if (activeCaseItem && !String(activeCaseItem.id || "").startsWith("builtin-")) {
       try {
         await addDoc(collection(db, "cases", activeCaseItem.id, "practice_attempts"), {
           studentUid: currentUser.uid,
@@ -879,4 +912,4 @@ function closeModal(id) {
     m.classList.remove("is-open");
     m.setAttribute("aria-hidden", "true");
   }
-} 
+}

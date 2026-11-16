@@ -2,14 +2,16 @@
    AIMSER Shared UI Bridge (v=18) — External Controller for Tabs, Modals & Notifs
    ========================================================================== */
 
-import { FastCache } from "./security-utils.js?v=18";
+import { FastCache } from "./security-utils.js";
 
 const SEEN_NOTIFS_STORAGE_KEY = "aimser_v2_seen_notifs_sig";
 
-document.addEventListener("DOMContentLoaded", () => {
+function initSharedUIBridge() {
   // 1. Sub-Navigation Tab Switching
   const subnavTabs = document.querySelectorAll(".subnav-tab[data-tab]");
   subnavTabs.forEach((tab) => {
+    if (tab.dataset.bridgeBound) return;
+    tab.dataset.bridgeBound = "true";
     tab.addEventListener("click", () => {
       const targetId = tab.getAttribute("data-tab");
       const targetPanel = document.getElementById(targetId);
@@ -25,6 +27,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 2. Modal Close Handlers ([data-close-modal] & Backdrop Click)
   document.querySelectorAll("[data-close-modal]").forEach((btn) => {
+    if (btn.dataset.bridgeBound) return;
+    btn.dataset.bridgeBound = "true";
     btn.addEventListener("click", () => {
       const modalId = btn.getAttribute("data-close-modal");
       document.getElementById(modalId)?.classList.remove("is-open");
@@ -32,6 +36,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   document.querySelectorAll(".modal-backdrop").forEach((backdrop) => {
+    if (backdrop.dataset.bridgeBound) return;
+    backdrop.dataset.bridgeBound = "true";
     backdrop.addEventListener("click", (e) => {
       if (e.target === backdrop) {
         backdrop.classList.remove("is-open");
@@ -69,14 +75,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const defaultTabPanel = document.querySelector(".tab-panel.active")?.id || "panel-activities";
   let previousActiveTabId = defaultTabPanel;
 
-  // Build a signature of the current notification list so we know if new alerts arrived
   const getCurrentFeedSignature = () => {
     if (!feedList) return "";
     if (feedList.querySelector(".empty-state")) return "";
     return (feedList.innerText || "").replace(/\s+/g, " ").trim();
   };
 
-  // Hide the red badge and record that the current notifications have been viewed
   const markNotificationsAsSeen = () => {
     if (notifBadge) {
       notifBadge.style.display = "none";
@@ -92,7 +96,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  // Sync badge visibility whenever a page script populates #notifications-feed-list
   const syncBadgeWithSeenState = () => {
     if (!notifBadge || !feedList) return;
     const sig = getCurrentFeedSignature();
@@ -110,7 +113,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  if (feedList) {
+  if (feedList && !feedList.dataset.observerBound) {
+    feedList.dataset.observerBound = "true";
     const observer = new MutationObserver(() => {
       syncBadgeWithSeenState();
     });
@@ -152,44 +156,60 @@ document.addEventListener("DOMContentLoaded", () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Capture phase listener toggles dropdown and immediately clears the red dot
-  bellBtn?.addEventListener(
-    "click",
-    (e) => {
-      e.stopPropagation();
-      const willOpen = !dropdownMenu?.classList.contains("is-open");
-      dropdownMenu?.classList.toggle("is-open", willOpen);
-      bellBtn.setAttribute("aria-expanded", String(willOpen));
-      markNotificationsAsSeen();
-    },
-    true
-  );
+  if (bellBtn && !bellBtn.dataset.bridgeBound) {
+    bellBtn.dataset.bridgeBound = "true";
+    bellBtn.addEventListener(
+      "click",
+      (e) => {
+        e.stopPropagation();
+        const willOpen = !dropdownMenu?.classList.contains("is-open");
+        dropdownMenu?.classList.toggle("is-open", willOpen);
+        bellBtn.setAttribute("aria-expanded", String(willOpen));
+        markNotificationsAsSeen();
+      },
+      true
+    );
+  }
 
-  feedList?.addEventListener("click", (e) => {
-    const clickedItem = e.target.closest("#notifications-feed-list > *");
-    if (!clickedItem || clickedItem.classList.contains("empty-state")) return;
-    openInPageNotificationDetail(clickedItem);
-  });
+  if (feedList && !feedList.dataset.clickBound) {
+    feedList.dataset.clickBound = "true";
+    feedList.addEventListener("click", (e) => {
+      const clickedItem = e.target.closest("#notifications-feed-list > *");
+      if (!clickedItem || clickedItem.classList.contains("empty-state")) return;
+      openInPageNotificationDetail(clickedItem);
+    });
+  }
 
-  fullPageList?.addEventListener("click", (e) => {
-    const clickedItem = e.target.closest("#notif-fullpage-all-list > *");
-    if (!clickedItem || clickedItem.classList.contains("empty-state")) return;
-    openInPageNotificationDetail(clickedItem);
-  });
+  if (fullPageList && !fullPageList.dataset.clickBound) {
+    fullPageList.dataset.clickBound = "true";
+    fullPageList.addEventListener("click", (e) => {
+      const clickedItem = e.target.closest("#notif-fullpage-all-list > *");
+      if (!clickedItem || clickedItem.classList.contains("empty-state")) return;
+      openInPageNotificationDetail(clickedItem);
+    });
+  }
 
-  document.getElementById("btn-view-all-notifs")?.addEventListener("click", () => {
-    const firstItem = feedList?.querySelector(":scope > *:not(.empty-state)");
-    openInPageNotificationDetail(firstItem);
-  });
+  const viewAllBtn = document.getElementById("btn-view-all-notifs");
+  if (viewAllBtn && !viewAllBtn.dataset.bridgeBound) {
+    viewAllBtn.dataset.bridgeBound = "true";
+    viewAllBtn.addEventListener("click", () => {
+      const firstItem = feedList?.querySelector(":scope > *:not(.empty-state)");
+      openInPageNotificationDetail(firstItem);
+    });
+  }
 
-  document.getElementById("btn-back-from-notif")?.addEventListener("click", () => {
-    notifViewPanel?.classList.remove("active", "is-active");
-    const targetPanel = document.getElementById(previousActiveTabId) || document.getElementById(defaultTabPanel);
-    targetPanel?.classList.add("active", "is-active");
-    if (targetPanel?.id) {
-      document.querySelector(`.subnav-tab[data-tab="${targetPanel.id}"]`)?.classList.add("active", "is-active");
-    }
-  });
+  const backBtn = document.getElementById("btn-back-from-notif");
+  if (backBtn && !backBtn.dataset.bridgeBound) {
+    backBtn.dataset.bridgeBound = "true";
+    backBtn.addEventListener("click", () => {
+      notifViewPanel?.classList.remove("active", "is-active");
+      const targetPanel = document.getElementById(previousActiveTabId) || document.getElementById(defaultTabPanel);
+      targetPanel?.classList.add("active", "is-active");
+      if (targetPanel?.id) {
+        document.querySelector(`.subnav-tab[data-tab="${targetPanel.id}"]`)?.classList.add("active", "is-active");
+      }
+    });
+  }
 
   document.addEventListener("click", (e) => {
     if (dropdownWrapper && !dropdownWrapper.contains(e.target)) {
@@ -197,4 +217,10 @@ document.addEventListener("DOMContentLoaded", () => {
       bellBtn?.setAttribute("aria-expanded", "false");
     }
   });
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initSharedUIBridge);
+} else {
+  initSharedUIBridge();
+}
