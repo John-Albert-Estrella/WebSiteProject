@@ -269,7 +269,7 @@ function renderFilteredLibrary() {
               <span class="badge-pill">${escapeHtml(itemType)}</span>
               <div class="user-cell-flex">
                 ${hasAnswerKey ? `<span class="badge-pill role-pill-student"><i class="fas fa-key"></i> Key to Correct</span>` : ""}
-                ${canDelete ? `<button type="button" class="btn-close-modal btn-del-case" data-id="${item.id}" title="Remove Material"><i class="fas fa-trash-alt"></i></button>` : ""}
+                ${canDelete ? `<button type="button" class="btn-card-icon btn-del-case" data-id="${item.id}" title="Remove Material"><i class="fas fa-trash-alt"></i></button>` : ""}
               </div>
             </div>
             <h3 class="text-ellipsis" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
@@ -387,7 +387,10 @@ function renderFeedStream() {
   const stream = document.getElementById("hr-feed-stream");
   if (!stream || !currentUser) return;
 
-  const isAdmin = (userProfile?.role || "").toLowerCase() === "admin";
+  const role = (userProfile?.role || "").toLowerCase();
+  const isFaculty = role === "faculty";
+  const isAdmin = role === "admin";
+  const canModerate = isFaculty || isAdmin;
   const searchQuery = (document.getElementById("feed-search-input")?.value || "").toLowerCase().trim();
 
   const visiblePosts = allFeedPosts.filter((post) => {
@@ -396,7 +399,7 @@ function renderFeedStream() {
 
     if (currentFeedView === "archived") {
       if (!isArchived) return false;
-      if (!isPoster && !isAdmin) return false;
+      if (!isPoster && !canModerate) return false;
     } else {
       if (isArchived) return false;
     }
@@ -437,7 +440,7 @@ function renderFeedStream() {
       const isPoster = post.authorUid === currentUser.uid;
       const isArchived = Boolean(post.archived);
       const safeImage = sanitizeUrl(post.imageUrl, "");
-      const canModeratePost = isPoster || isAdmin;
+      const canModeratePost = isPoster || canModerate;
 
       const moderationControlsHtml = canModeratePost
         ? `
@@ -445,8 +448,8 @@ function renderFeedStream() {
             <button type="button" class="btn-secondary btn-archive-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}">
               <i class="fas ${isArchived ? "fa-box-open" : "fa-archive"}"></i> ${isArchived ? "Unarchive" : "Archive"}
             </button>
-            <button type="button" class="btn-sidebar-action btn-logout btn-del-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}">
-              <i class="fas fa-trash-alt"></i> Delete
+            <button type="button" class="btn-card-icon btn-del-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}">
+              <i class="fas fa-trash-alt"></i>
             </button>
           </div>`
         : "";
@@ -499,10 +502,15 @@ function renderFeedStream() {
 
               <div class="admin-comments-stack">
                 ${comments
-                  .map((c) => {
+                  .map((c, idx) => {
                     const safeCommentImg = sanitizeUrl(c.imageUrl, "");
                     const commentImgHtml = safeCommentImg
                       ? `<img src="${safeCommentImg}" alt="Comment attachment" class="admin-comment-image btn-open-lightbox" data-src="${safeCommentImg}" data-title="Comment Photo by ${escapeHtml(c.authorName || "Member")}" />`
+                      : "";
+
+                    const canDeleteComment = c.authorUid === currentUser.uid || canModerate;
+                    const delCommentHtml = canDeleteComment 
+                      ? `<button type="button" class="btn-card-icon btn-del-feed-comment" data-post-id="${post.id}" data-idx="${idx}" title="Delete Comment"><i class="fas fa-trash"></i></button>` 
                       : "";
 
                     return `
@@ -515,6 +523,7 @@ function renderFeedStream() {
                           ${c.text ? `<p>${escapeHtml(c.text)}</p>` : ""}
                           ${commentImgHtml}
                         </div>
+                        ${delCommentHtml}
                       </div>`;
                   })
                   .join("")}
@@ -563,8 +572,11 @@ function renderFeedStream() {
       const targetPost = allFeedPosts.find((p) => p.id === postId);
 
       if (!targetPost) return;
-      if (targetPost.authorUid !== currentUser.uid && (userProfile?.role || "").toLowerCase() !== "admin") {
-        alert("Permission denied: Only the original poster or an Administrator can archive this post.");
+      
+      const isFaculty = (userProfile?.role || "").toLowerCase() === "faculty";
+      const isAdmin = (userProfile?.role || "").toLowerCase() === "admin";
+      if (targetPost.authorUid !== currentUser.uid && !isFaculty && !isAdmin) {
+        alert("Permission denied: Only the original poster, Faculty, or Admin can archive this post.");
         return;
       }
 
@@ -598,8 +610,11 @@ function renderFeedStream() {
       const targetPost = allFeedPosts.find((p) => p.id === postId);
 
       if (!targetPost) return;
-      if (targetPost.authorUid !== currentUser.uid && (userProfile?.role || "").toLowerCase() !== "admin") {
-        alert("Permission denied: Only the original poster or an Administrator can delete this post.");
+
+      const isFaculty = (userProfile?.role || "").toLowerCase() === "faculty";
+      const isAdmin = (userProfile?.role || "").toLowerCase() === "admin";
+      if (targetPost.authorUid !== currentUser.uid && !isFaculty && !isAdmin) {
+        alert("Permission denied: Only the original poster, Faculty, or Admin can delete this post.");
         return;
       }
 
@@ -616,6 +631,40 @@ function renderFeedStream() {
         await loadHrFeed();
       } catch (err) {
         alert("Unable to delete post: " + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  stream.querySelectorAll(".btn-del-feed-comment").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const postId = btn.dataset.postId;
+      const idx = Number(btn.dataset.idx);
+      const targetPost = allFeedPosts.find((p) => p.id === postId);
+      if (!targetPost) return;
+
+      const comment = targetPost.comments?.[idx];
+      if (!comment) return;
+
+      const isFaculty = (userProfile?.role || "").toLowerCase() === "faculty";
+      const isAdmin = (userProfile?.role || "").toLowerCase() === "admin";
+      if (comment.authorUid !== currentUser.uid && !isFaculty && !isAdmin) {
+        alert("Permission denied.");
+        return;
+      }
+
+      if (!confirm("Delete this comment?")) return;
+
+      btn.disabled = true;
+      try {
+        const updatedComments = (targetPost.comments || []).filter((_, i) => i !== idx);
+        await updateDoc(doc(db, "hr_feed", postId), {
+          comments: updatedComments
+        });
+        await loadHrFeed();
+      } catch (err) {
+        alert("Failed to delete comment: " + err.message);
       } finally {
         btn.disabled = false;
       }

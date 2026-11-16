@@ -635,7 +635,7 @@ function renderAdminFeedList(posts) {
                       ${c.text ? `<p>${escapeHtml(c.text)}</p>` : ""}
                       ${commentImgHtml}
                     </div>
-                    <button type="button" class="btn-sidebar-action btn-logout btn-admin-del-comment" data-post-id="${post.id}" data-idx="${idx}" title="Delete Comment">
+                    <button type="button" class="btn-card-icon btn-admin-del-comment" data-post-id="${post.id}" data-idx="${idx}" title="Delete Comment">
                       <i class="fas fa-trash"></i>
                     </button>
                   </div>`;

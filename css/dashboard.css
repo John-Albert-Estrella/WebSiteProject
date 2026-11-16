@@ -271,13 +271,28 @@
   flex-shrink: 0;
 }
 
-.btn-admin-del-comment,
-.btn-del-onb {
-  width: 34px !important;
-  height: 34px !important;
-  padding: 0 !important;
-  justify-content: center !important;
+/* Universal Minimal Grey Trash / Action Icon for Cards & Comments */
+.btn-card-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   flex-shrink: 0;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+
+.btn-card-icon:hover {
+  background-color: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
 }
 
 /* ==========================================================================
@@ -553,159 +568,6 @@
 }
 
 /* ==========================================================================
-   Uniform Card Grids, Activity Card Hierarchy & File Input Clear Button
-   ========================================================================== */
-
-.cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.15rem;
-  align-items: stretch;
-}
-
-/* Force all cards inside .cards-grid to stretch to equal height and pin footers to the bottom */
-.cards-grid > .glass-panel,
-.cards-grid > article {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 100%;
-  min-width: 0;
-}
-
-/* Exception for horizontal roster cards */
-.cards-grid > .roster-member-card {
-  flex-direction: row;
-  justify-content: flex-start;
-  align-items: center;
-  height: auto;
-}
-
-.card-footer-bar {
-  margin-top: auto;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--border-subtle);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-/* Activity Card Typography Hierarchy & Fixed Top Bar */
-.activity-card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: nowrap;
-  margin-bottom: 0.65rem;
-  min-height: 28px;
-}
-
-.activity-card-meta-right {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
-  margin-left: auto;
-}
-
-.activity-due-label {
-  font-size: 0.74rem;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-}
-
-.btn-del-activity {
-  width: 26px !important;
-  height: 26px !important;
-  padding: 0 !important;
-  font-size: 0.74rem !important;
-  border-radius: var(--radius-xs);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.activity-card-title {
-  font-size: 1.08rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 0.35rem;
-  line-height: 1.3;
-}
-
-.activity-card-desc {
-  font-size: 0.84rem;
-  color: var(--text-secondary);
-  margin: 0 0 0.45rem;
-}
-
-.activity-card-submeta {
-  font-size: 0.76rem;
-  color: var(--text-tertiary);
-  margin-top: 0.25rem;
-}
-
-.activity-footer-stack {
-  margin-top: auto;
-  padding-top: 0.85rem;
-  border-top: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.activity-footer-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.78rem;
-  min-height: 22px;
-}
-
-.btn-open-act-detail {
-  width: 100%;
-  justify-content: center;
-}
-
-/* File Input Wrapper with Clear (X) Button */
-.file-input-clear-wrap {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.5rem;
-}
-
-.file-input-clear-wrap .form-control {
-  flex: 1;
-  min-width: 0;
-}
-
-.btn-clear-file-selection {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  background-color: rgba(239, 68, 68, 0.12);
-  color: #f87171;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.btn-clear-file-selection:hover {
-  background-color: rgba(239, 68, 68, 0.24);
-  color: #fca5a5;
-}
-
-/* ==========================================================================
    Kanban Board, Compact Scrollable Columns, Fixed Corner Icons & Trello Modal
    ========================================================================== */
 
@@ -877,28 +739,6 @@
   margin-left: auto;
 }
 
-.btn-card-icon {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border-radius: var(--radius-xs);
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-tertiary);
-  font-size: 0.72rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.14s ease, color 0.14s ease;
-}
-
-.btn-card-icon:hover {
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
-  border-color: var(--border-subtle);
-}
-
 .kanban-task-title {
   font-size: 0.92rem;
   font-weight: 600;
@@ -1055,6 +895,7 @@
   flex: 1;
 }
 
+/* Status Color Picker Modal Rows */
 .status-color-picker-list {
   display: flex;
   flex-direction: column;
@@ -1088,7 +929,7 @@
 }
 
 /* ==========================================================================
-   Class Roster, Hierarchy & Portfolio Consistent Alignment
+   Class Roster & Portfolio Consistent Hierarchy
    ========================================================================== */
 
 .roster-member-card {
@@ -1114,20 +955,16 @@
   gap: 0.5rem;
   flex-wrap: nowrap;
   min-width: 0;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.25rem;
 }
 
-.roster-name-row > strong,
-.roster-name-row > .badge-pill:first-child {
+.roster-name-row > strong {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1;
 }
 
 .role-badge-fixed {
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 .portfolio-artifact-list {
@@ -1155,6 +992,12 @@
   margin: 0;
 }
 
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.15rem;
+}
+
 .portfolio-output-card,
 #student-portfolio-items > * {
   cursor: pointer;
@@ -1177,17 +1020,9 @@
   gap: 1.25rem;
 }
 
-/* Added breathing space below HR Feed post header & author metadata before content boxes */
 #hr-feed-stream article > h3,
-#admin-hr-feed-stream article > h3,
-#admin-feed-container .glass-panel h3 {
-  margin: 0.25rem 0 0.65rem;
-}
-
-#hr-feed-stream article > .panel-toolbar,
-#admin-hr-feed-stream article > .panel-toolbar,
-#admin-feed-container .glass-panel > .panel-toolbar {
-  margin-bottom: 1rem;
+#admin-hr-feed-stream article > h3 {
+  margin: 0.35rem 0 0.85rem;
 }
 
 .fb-composer-card {
@@ -1625,14 +1460,13 @@
   margin-bottom: 0.75rem;
 }
 
-/* Lowered Warn & Moderate / Delete buttons to the bottom of the comment row */
 .admin-comment-row {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 0.75rem;
-  flex-wrap: wrap;
-  padding: 0.75rem 0.9rem;
+  flex-wrap: nowrap;
+  padding: 0.65rem 0.85rem;
   border-radius: var(--radius-sm);
   background: var(--bg-canvas);
   border: 1px solid var(--border-subtle);
@@ -1641,20 +1475,14 @@
 
 .admin-comment-row > div:first-child {
   flex: 1;
-  min-width: 200px;
-}
-
-.admin-comment-row > .workspace-action-bar {
-  margin-top: 0.35rem;
-  margin-left: auto;
-  align-self: flex-end;
+  min-width: 0;
 }
 
 .admin-post-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.75rem;
-  margin-top: 0.85rem;
+  margin-top: 0.65rem;
   margin-bottom: 0.85rem;
 }
 
@@ -1728,6 +1556,17 @@
 
 .card-archived-border {
   border-color: rgba(245, 158, 11, 0.45);
+}
+
+.card-footer-bar {
+  margin-top: 1.15rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .reply-preview-strip {

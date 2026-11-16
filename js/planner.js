@@ -265,7 +265,6 @@ function renderKanbanTasks(tasks, teamId) {
     bindKanbanCardEvents(col, teamId);
   });
 
-  // Render Archived Tasks Grid
   const archivedGrid = document.getElementById("archived-tasks-grid");
   if (archivedGrid) {
     archivedGrid.innerHTML =
@@ -277,10 +276,6 @@ function renderKanbanTasks(tasks, teamId) {
   }
 }
 
-// Builds Compact Kanban Card:
-// - Edit/Archive/Delete icons pinned to upper-right corner (never shift with/without text)
-// - Long text truncated with ellipsis (...)
-// - Select options have bullet removed ("To Do (Not started)", "In Progress", "Under Review", "Completed (Done)")
 function buildKanbanCardHtml(task, status, isArchivedCard = false) {
   const isOverdue = task.deadline && status !== "done" && new Date(task.deadline).getTime() < Date.now();
   const statusLabel = STATUS_LABELS[status] || "To Do";
@@ -339,7 +334,6 @@ function buildKanbanCardHtml(task, status, isArchivedCard = false) {
 }
 
 function bindKanbanCardEvents(container, teamId) {
-  // Clicking the card body opens the Trello-style Task Inspector modal
   container.querySelectorAll(".kanban-task-card").forEach((card) => {
     card.addEventListener("click", (e) => {
       if (e.target.closest("button") || e.target.closest("select")) return;
@@ -407,7 +401,6 @@ function bindKanbanCardEvents(container, teamId) {
   });
 }
 
-// Trello-Style Task Detail Modal (Attachments, Pictures & Activity/Comment Stream)
 function openTrelloTaskModal(task) {
   activeTaskDetailId = task.id;
   populateTrelloTaskModal(task);
@@ -435,7 +428,6 @@ function populateTrelloTaskModal(task) {
     archiveBtn.innerHTML = `<i class="fas ${isArc ? "fa-box-open" : "fa-archive"}"></i> ${isArc ? "Restore to Board" : "Archive"}`;
   }
 
-  // Render Attachments & Pictures
   const attachList = document.getElementById("trello-attachments-list");
   const attachments = task.attachments || [];
   if (attachList) {
@@ -483,7 +475,6 @@ function populateTrelloTaskModal(task) {
     }
   }
 
-  // Render Comments & Activity Stream
   const commentsList = document.getElementById("trello-comments-list");
   const comments = [...(task.comments || [])].reverse();
   if (commentsList) {
@@ -575,7 +566,6 @@ function renderHierarchyAndPositions() {
   });
 }
 
-// Action Checklists: Checked items display in reduced contrast and automatically move to the bottom of the list
 async function loadOnboardingChecklist(teamId) {
   const container = document.getElementById("onboarding-checklist-container");
   const pctEl = document.getElementById("team-onboarding-pct");
@@ -585,29 +575,26 @@ async function loadOnboardingChecklist(teamId) {
     const snap = await getDocs(collection(db, "teams", teamId, "onboarding"));
     const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-    if (items.length === 0) {
-      const defaults = [
-        { title: "Pre-Boarding: Employment Contract & Statutory Requirements Audit", owner: "HR Recruitment Lead", dueDate: "Day 1", completed: false },
-        { title: "Orientation: Company Culture, Code of Conduct & Policy Briefing", owner: "HR Operations Specialist", dueDate: "Day 2", completed: false },
-        { title: "Role Integration: 30-60-90 Day Competency Alignment", owner: "Team Leader", dueDate: "Week 1", completed: false }
-      ];
-      for (const item of defaults) {
-        const ref = await addDoc(collection(db, "teams", teamId, "onboarding"), { ...item, createdAt: serverTimestamp() });
-        items.push({ id: ref.id, ...item });
-      }
-    }
-
     const doneCount = items.filter((i) => i.completed).length;
     const pct = items.length > 0 ? Math.round((doneCount / items.length) * 100) : 0;
     if (pctEl) pctEl.textContent = `${pct}%`;
 
-    // Automatically sort unchecked items first and checked items to the bottom
     const sortedItems = [...items].sort((a, b) => {
       if (Boolean(a.completed) !== Boolean(b.completed)) {
         return a.completed ? 1 : -1;
       }
       return 0;
     });
+
+    if (sortedItems.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <i class="fas fa-clipboard-check"></i>
+          <h3>No Action Items Created Yet</h3>
+          <p>Click "Add Action Item" above to start building your team checklist.</p>
+        </div>`;
+      return;
+    }
 
     container.innerHTML = sortedItems
       .map(
@@ -622,7 +609,7 @@ async function loadOnboardingChecklist(teamId) {
               </div>
             </div>
           </label>
-          <button type="button" class="btn-sidebar-action btn-logout btn-del-onb" data-id="${item.id}" title="Remove Action Item">
+          <button type="button" class="btn-card-icon btn-del-onb" data-id="${item.id}" title="Remove Action Item">
             <i class="fas fa-trash"></i>
           </button>
         </div>`
@@ -702,7 +689,6 @@ function bindPlannerEvents() {
     toggleArchivedBoardView(false);
   });
 
-  // Trello Modal Archive Button
   document.getElementById("btn-trello-archive-toggle")?.addEventListener("click", async () => {
     if (!activeTeam || !activeTaskDetailId) return;
     const task = currentTasks.find((t) => t.id === activeTaskDetailId);
@@ -715,7 +701,6 @@ function bindPlannerEvents() {
     await loadTasks(activeTeam.id);
   });
 
-  // Trello Modal Attachment / Photo Upload
   const taskAttachInput = document.getElementById("task-attachment-input");
   if (taskAttachInput) {
     taskAttachInput.addEventListener("change", async () => {
@@ -755,7 +740,6 @@ function bindPlannerEvents() {
     });
   }
 
-  // Trello Modal Comment Form
   document.getElementById("form-task-comment")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!activeTeam || !activeTaskDetailId) return;
@@ -802,7 +786,7 @@ function bindPlannerEvents() {
         await updateDoc(doc(db, "teams", activeTeam.id), { statusColors: DEFAULT_STATUS_COLORS });
         activeTeam.statusColors = { ...DEFAULT_STATUS_COLORS };
       } catch {
-        // Non-blocking
+        // Ignore
       }
     }
   });
@@ -824,7 +808,7 @@ function bindPlannerEvents() {
         await updateDoc(doc(db, "teams", activeTeam.id), { statusColors: updatedColors });
         activeTeam.statusColors = updatedColors;
       } catch {
-        // Non-blocking
+        // Ignore
       }
     }
 
@@ -1043,4 +1027,4 @@ function closeModal(id) {
     m.classList.remove("is-open");
     m.setAttribute("aria-hidden", "true");
   }
-}
+} 
