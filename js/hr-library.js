@@ -12,6 +12,7 @@ import {
   query,
   where,
   orderBy,
+  arrayUnion,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { uploadToCloudinary, resolveAndDownloadAttachment } from "./cloudinary-config.js";
