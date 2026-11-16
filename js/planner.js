@@ -435,9 +435,15 @@ function populateTrelloTaskModal(task) {
       attachList.innerHTML = `<div class="text-muted">No photos or files attached yet. Click "Add Attachment / Photo" above to upload progress files.</div>`;
     } else {
       attachList.innerHTML = attachments
-        .map((att) => {
+        .map((att, idx) => {
           const safeUrl = sanitizeUrl(att.url, "");
           const isImg = /\.(png|jpg|jpeg|webp|gif)$/i.test(att.name || "") || safeUrl.startsWith("data:image/");
+          const canDeleteAttachment = att.uploadedByUid === currentUser.uid || activeTeam.leaderUid === currentUser.uid;
+          
+          const deleteBtnHtml = canDeleteAttachment 
+            ? `<button type="button" class="btn-card-icon btn-trello-delete-attachment" data-idx="${idx}" title="Delete Attachment"><i class="fas fa-trash"></i></button>`
+            : "";
+
           return `
             <div class="attached-file-card">
               <div class="attached-file-meta">
@@ -451,13 +457,16 @@ function populateTrelloTaskModal(task) {
                   <small class="text-muted">Added by ${escapeHtml(att.uploadedBy || "Member")}</small>
                 </div>
               </div>
-              ${
-                safeUrl
-                  ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" download="${escapeHtml(att.name || "Attachment")}" data-filename="${escapeHtml(att.name || "Attachment")}" class="btn-secondary btn-trello-download">
-                       <i class="fas fa-download"></i> Open / Download
-                     </a>`
-                  : ""
-              }
+              <div class="workspace-action-bar">
+                ${
+                  safeUrl
+                    ? `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" download="${escapeHtml(att.name || "Attachment")}" data-filename="${escapeHtml(att.name || "Attachment")}" class="btn-secondary btn-trello-download">
+                         <i class="fas fa-download"></i> Open / Download
+                       </a>`
+                    : ""
+                }
+                ${deleteBtnHtml}
+              </div>
             </div>`;
         })
         .join("");
@@ -470,6 +479,29 @@ function populateTrelloTaskModal(task) {
             e.preventDefault();
             await resolveAndDownloadAttachment(href, fName);
           }
+        });
+      });
+
+      attachList.querySelectorAll(".btn-trello-delete-attachment").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+           if (!confirm("Are you sure you want to delete this attachment?")) return;
+           const idx = parseInt(btn.dataset.idx, 10);
+           const taskToUpdate = currentTasks.find((t) => t.id === task.id);
+           if (!taskToUpdate || !taskToUpdate.attachments) return;
+
+           const updatedAttachments = taskToUpdate.attachments.filter((_, i) => i !== idx);
+           
+           btn.disabled = true;
+           try {
+             await updateDoc(doc(db, "teams", activeTeam.id, "tasks", task.id), {
+               attachments: updatedAttachments,
+               updatedAt: serverTimestamp()
+             });
+             await loadTasks(activeTeam.id);
+           } catch (err) {
+             alert("Failed to delete attachment: " + err.message);
+             btn.disabled = false;
+           }
         });
       });
     }
@@ -716,6 +748,7 @@ function bindPlannerEvents() {
         const attachmentEntry = {
           name: file.name,
           url: uploadedUrl,
+          uploadedByUid: currentUser.uid,
           uploadedBy: userProfile.fullName,
           createdAt: new Date().toISOString()
         };
@@ -1027,4 +1060,4 @@ function closeModal(id) {
     m.classList.remove("is-open");
     m.setAttribute("aria-hidden", "true");
   }
-} 
+}

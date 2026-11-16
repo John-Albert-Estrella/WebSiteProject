@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AIMSER Workspace & Admin Layout (v=18) — Complete External Stylesheet
+   AIMSER Workspace & Admin Layout (v=20) — Complete External Stylesheet
    ========================================================================== */
 
 :root {
@@ -314,6 +314,19 @@
   border-color: var(--border-subtle);
 }
 
+/* File Input Clear Button Wrapper */
+.file-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.file-input-wrapper .form-control {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ==========================================================================
    Main Workspace, Symmetrical Header & Notification Dropdown
    ========================================================================== */
@@ -532,7 +545,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Sub-text inside KPI cards for Room Code inclusion */
 .stat-subtext {
   font-size: 0.78rem;
   color: var(--aimser-blue-400);

@@ -1,4 +1,4 @@
-// js/office.js - Office Workspace (Uniform Activity Cards, File Clear X Button, Portfolio 6-Metrics & Roster Alignment)
+// js/office.js - Office Workspace (Dashboard, Portfolio 6-Metrics, Upload Instructions, Locked Submissions, Ellipsis & Roster)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
@@ -101,12 +101,6 @@ function bindDocumentDownloadLinks(container) {
 function configureRoleViews() {
   const isFaculty = userProfile.role === "faculty";
 
-  const roomCodeCard = document.getElementById("card-room-code");
-  if (roomCodeCard) {
-    roomCodeCard.classList.toggle("is-hidden", !isFaculty);
-    roomCodeCard.style.display = isFaculty ? "" : "none";
-  }
-
   const actionLabel = document.getElementById("classroom-action-label");
   const newActBtn = document.getElementById("btn-open-new-activity");
   const exportBtn = document.getElementById("btn-export-report");
@@ -201,9 +195,8 @@ async function selectClassroom(classroomId) {
   const code = activeClassroom.sectionCode || activeClassroom.code || "N/A";
   const students = activeClassroom.students || activeClassroom.enrolled || [];
 
-  const codeEl = document.getElementById("stat-section-code");
-  if (codeEl) codeEl.textContent = code;
-  document.getElementById("stat-member-count").textContent = `${students.length} / ${MAX_CLASS_STUDENTS}`;
+  document.getElementById("stat-member-count").innerHTML = `${students.length} / ${MAX_CLASS_STUDENTS} <div class="stat-subtext">Code: ${escapeHtml(code)}</div>`;
+  
   document.getElementById("active-classroom-title").textContent = activeClassroom.name || "Classroom Activities";
 
   await Promise.all([
@@ -379,10 +372,6 @@ function checkDeadlinesAndBuildNotifications() {
   }
 }
 
-// Uniform Activity Cards:
-// - Fixed top row where date/time and small delete icon never shift
-// - Single-line ellipsis (...) on instructions, attached files, and rubrics so all cards match height
-// - Full-width stretched action button at the bottom of the card
 function renderActivitiesGrid() {
   const container = document.getElementById("activities-container");
   if (!container) return;
@@ -415,7 +404,7 @@ function renderActivitiesGrid() {
       } else {
         const mySub = subs.find((s) => s.studentUid === currentUser.uid || s.id === currentUser.uid);
         if (mySub && mySub.score !== undefined && mySub.score !== null) {
-          statusHtml = `<span class="text-muted">Completed</span>`;
+          statusHtml = `<span></span>`;
           buttonLabel = "View Graded Output";
         } else if (mySub) {
           const isUnlocked = Boolean(mySub.allowEdit) && !pastDue;
@@ -436,45 +425,36 @@ function renderActivitiesGrid() {
           : "";
 
       const summaryText =
-        (act.instructions || act.description || "").trim() ||
-        (act.instructionFileName ? `Instruction File: ${act.instructionFileName}` : "Open activity to view instructions.");
+        act.instructions ||
+        act.description ||
+        (act.instructionFileName ? `Attached Instructions: ${act.instructionFileName}` : "Open activity to view instructions.");
 
       return `
         <article class="glass-panel portfolio-output-card" data-act-id="${act.id}">
           <div>
-            <div class="activity-card-top">
+            <div class="panel-toolbar">
               <span class="badge-pill">${maxPts} pts</span>
-              <div class="activity-card-meta-right">
-                <span class="activity-due-label"><i class="far fa-clock"></i> ${escapeHtml(dueDisplay)}</span>
+              <div class="user-cell-flex">
+                <span class="text-muted"><i class="far fa-clock"></i> ${escapeHtml(dueDisplay)}</span>
                 ${deleteBtnHtml}
               </div>
             </div>
-
-            <h3 class="activity-card-title text-ellipsis" title="${escapeHtml(act.title || "Untitled Activity")}">
-              ${escapeHtml(act.title || "Untitled Activity")}
-            </h3>
-
-            <p class="activity-card-desc text-ellipsis" title="${escapeHtml(summaryText)}">
+            <h3 class="text-ellipsis" title="${escapeHtml(act.title || "Untitled Activity")}">${escapeHtml(act.title || "Untitled Activity")}</h3>
+            <p class="text-muted text-clamp-2">
               ${escapeHtml(summaryText)}
             </p>
-
             ${
               act.instructionFileName
-                ? `<div class="activity-card-submeta text-ellipsis" title="${escapeHtml(act.instructionFileName)}">
-                     <i class="fas fa-paperclip"></i> Instruction File: <strong>${escapeHtml(act.instructionFileName)}</strong>
-                   </div>`
+                ? `<div class="text-muted text-ellipsis" title="${escapeHtml(act.instructionFileName)}"><i class="fas fa-paperclip"></i> Instruction File: <strong>${escapeHtml(act.instructionFileName)}</strong></div>`
                 : ""
             }
-
-            <div class="activity-card-submeta text-ellipsis" title="${escapeHtml(act.rubric || "Standard HR Evaluation")}">
+            <div class="text-muted text-ellipsis" title="${escapeHtml(act.rubric || "Standard HR Evaluation")}">
               <i class="fas fa-list-check"></i> Rubric: ${escapeHtml(act.rubric || "Standard HR Evaluation")}
             </div>
           </div>
 
-          <div class="activity-footer-stack">
-            <div class="activity-footer-meta">
-              ${statusHtml}
-            </div>
+          <div class="card-footer-bar">
+            ${statusHtml}
             <button type="button" class="btn-secondary btn-open-act-detail" data-id="${act.id}">
               <i class="fas fa-folder-open"></i> ${buttonLabel}
             </button>
@@ -581,7 +561,7 @@ function openActivityDetailModal(act) {
     const notesInput = document.getElementById("deliverable-notes");
     const fileGroup = document.getElementById("deliverable-file-group");
     const fileInput = document.getElementById("deliverable-file-input");
-    const clearDeliverableBtn = document.getElementById("btn-clear-deliverable-file");
+    const fileClearBtn = document.getElementById("btn-clear-deliverable");
     const fileInfo = document.getElementById("deliverable-attached-file-info");
     const saveBtn = document.getElementById("btn-save-deliverable");
     const gradeBox = document.getElementById("student-grade-feedback-box");
@@ -591,7 +571,7 @@ function openActivityDetailModal(act) {
 
     notesInput.value = mySub ? mySub.notes || "" : "";
     if (fileInput) fileInput.value = "";
-    clearDeliverableBtn?.classList.add("is-hidden");
+    if (fileClearBtn) fileClearBtn.classList.add("is-hidden");
 
     if (mySub && mySub.score !== undefined && mySub.score !== null) {
       gradeBox?.classList.remove("is-hidden");
@@ -879,19 +859,13 @@ async function loadPortfolioData(classroomId, students) {
 
       students.forEach((st) => {
         const uid = typeof st === "string" ? st : st.uid;
-        const stName = typeof st === "object" ? st.fullName || st.email || uid : st;
-        const stEmail = typeof st === "object" ? st.email || "" : "";
-
         if (uid && !portfolioMap.has(uid)) {
           portfolioMap.set(uid, {
             uid,
-            studentName: stName,
-            studentEmail: stEmail,
+            studentName: typeof st === "object" ? st.fullName || st.email : st,
+            studentEmail: typeof st === "object" ? st.email || "" : "",
             artifacts: []
           });
-        } else if (uid && portfolioMap.has(uid)) {
-          const existing = portfolioMap.get(uid);
-          if (!existing.studentName && stName) existing.studentName = stName;
         }
       });
 
@@ -1125,15 +1099,15 @@ function renderStudentPortfolioItemsList(items) {
         return `
           <article class="glass-panel portfolio-output-card" data-port-act-id="${item.actId}">
             <div>
-              <div class="activity-card-top">
+              <div class="panel-toolbar">
                 <span class="badge-pill">${escapeHtml(item.category)}</span>
                 <span class="badge-pill ${pillClass}">${escapeHtml(item.scoreText)}</span>
               </div>
-              <h3 class="activity-card-title text-ellipsis" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
-              <p class="activity-card-desc text-ellipsis" title="${escapeHtml(item.summary || "")}">
+              <h3 class="text-ellipsis" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+              <p class="text-muted text-clamp-2" title="${escapeHtml(item.summary || "")}">
                 ${escapeHtml(item.summary || "Click to inspect activity and rubric details.")}
               </p>
-              ${item.feedback ? `<p class="activity-card-submeta text-ellipsis" title="${escapeHtml(item.feedback)}"><strong>Feedback:</strong> ${escapeHtml(item.feedback)}</p>` : ""}
+              ${item.feedback ? `<p class="text-muted text-clamp-2" title="${escapeHtml(item.feedback)}"><strong>Feedback:</strong> ${escapeHtml(item.feedback)}</p>` : ""}
             </div>
             <div class="card-footer-bar">
               <span class="text-muted text-ellipsis">${item.fileName ? `<i class="fas fa-paperclip"></i> ${escapeHtml(item.fileName)}` : "Click to view graded details"}</span>
@@ -1145,12 +1119,12 @@ function renderStudentPortfolioItemsList(items) {
       return `
         <article class="glass-panel portfolio-output-card">
           <div>
-            <div class="activity-card-top">
+            <div class="panel-toolbar">
               <span class="badge-pill">Portfolio Output</span>
               <span class="badge-pill"><i class="fas fa-lock"></i> Stored</span>
             </div>
-            <h3 class="activity-card-title text-ellipsis" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
-            <p class="activity-card-desc text-ellipsis" title="${escapeHtml(item.summary)}">${escapeHtml(item.summary)}</p>
+            <h3 class="text-ellipsis" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+            <p class="text-muted text-clamp-2" title="${escapeHtml(item.summary)}">${escapeHtml(item.summary)}</p>
           </div>
         </article>`;
     })
@@ -1374,32 +1348,6 @@ function bindOfficeEvents() {
     updateStudentPortfolioMetricsAndView();
   });
 
-  // Clear (X) Button for Faculty Instruction File Input
-  const actFileInput = document.getElementById("act-instructions-file");
-  const clearActFileBtn = document.getElementById("btn-clear-act-file");
-  if (actFileInput && clearActFileBtn) {
-    actFileInput.addEventListener("change", () => {
-      clearActFileBtn.classList.toggle("is-hidden", !actFileInput.files || actFileInput.files.length === 0);
-    });
-    clearActFileBtn.addEventListener("click", () => {
-      actFileInput.value = "";
-      clearActFileBtn.classList.add("is-hidden");
-    });
-  }
-
-  // Clear (X) Button for Student Deliverable File Input
-  const delivFileInput = document.getElementById("deliverable-file-input");
-  const clearDelivFileBtn = document.getElementById("btn-clear-deliverable-file");
-  if (delivFileInput && clearDelivFileBtn) {
-    delivFileInput.addEventListener("change", () => {
-      clearDelivFileBtn.classList.toggle("is-hidden", !delivFileInput.files || delivFileInput.files.length === 0);
-    });
-    clearDelivFileBtn.addEventListener("click", () => {
-      delivFileInput.value = "";
-      clearDelivFileBtn.classList.add("is-hidden");
-    });
-  }
-
   document.getElementById("btn-open-classroom-action")?.addEventListener("click", () => {
     const isFaculty = userProfile.role === "faculty";
     document.getElementById("modal-classroom-title").textContent = isFaculty
@@ -1502,9 +1450,32 @@ function bindOfficeEvents() {
       alert("Please create or select a class room first.");
       return;
     }
-    clearActFileBtn?.classList.add("is-hidden");
     openModal("modal-activity");
   });
+
+  const actInput = document.getElementById("act-instructions-file");
+  const actClearBtn = document.getElementById("btn-clear-act-file");
+  if (actInput && actClearBtn) {
+    actInput.addEventListener("change", () => {
+      actClearBtn.classList.toggle("is-hidden", !actInput.files.length);
+    });
+    actClearBtn.addEventListener("click", () => {
+      actInput.value = "";
+      actClearBtn.classList.add("is-hidden");
+    });
+  }
+
+  const delivInput = document.getElementById("deliverable-file-input");
+  const delivClearBtn = document.getElementById("btn-clear-deliverable");
+  if (delivInput && delivClearBtn) {
+    delivInput.addEventListener("change", () => {
+      delivClearBtn.classList.toggle("is-hidden", !delivInput.files.length);
+    });
+    delivClearBtn.addEventListener("click", () => {
+      delivInput.value = "";
+      delivClearBtn.classList.add("is-hidden");
+    });
+  }
 
   document.getElementById("form-create-activity")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1561,7 +1532,7 @@ function bindOfficeEvents() {
       await logAuditEvent(`Published activity "${title}" in ${activeClassroom.sectionCode}`, "ACTIVITY", currentUser.email);
       closeModal("modal-activity");
       e.target.reset();
-      clearActFileBtn?.classList.add("is-hidden");
+      if (actClearBtn) actClearBtn.classList.add("is-hidden");
       await loadClassroomActivitiesAndSubmissions(activeClassroom.id, activeClassroom.students || []);
     } catch (err) {
       alert(err.message);
