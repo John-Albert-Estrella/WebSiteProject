@@ -243,7 +243,7 @@ function renderFilteredLibrary() {
   if (filtered.length === 0) {
     const isSearchEmpty = searchTerm.length > 0;
     const canUpload = role === "faculty" || role === "admin";
-    
+
     if (isSearchEmpty) {
       grid.innerHTML = `<div class="empty-state"><i class="fas fa-search"></i><h3>No Matching Materials</h3><p>Try adjusting your material type filter or search keywords.</p></div>`;
     } else {
@@ -449,7 +449,7 @@ function renderFeedStream() {
             <button type="button" class="btn-secondary btn-archive-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" data-archived="${isArchived}">
               <i class="fas ${isArchived ? "fa-box-open" : "fa-archive"}"></i> ${isArchived ? "Unarchive" : "Archive"}
             </button>
-            <button type="button" class="btn-card-icon btn-del-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}">
+            <button type="button" class="btn-card-icon btn-del-feed-post" data-id="${post.id}" data-title="${escapeHtml(post.title || "")}" title="Delete Post">
               <i class="fas fa-trash-alt"></i>
             </button>
           </div>`
@@ -510,8 +510,8 @@ function renderFeedStream() {
                       : "";
 
                     const canDeleteComment = c.authorUid === currentUser.uid || canModerate;
-                    const delCommentHtml = canDeleteComment 
-                      ? `<button type="button" class="btn-card-icon btn-del-feed-comment" data-post-id="${post.id}" data-idx="${idx}" title="Delete Comment"><i class="fas fa-trash"></i></button>` 
+                    const delCommentHtml = canDeleteComment
+                      ? `<button type="button" class="btn-card-icon btn-del-feed-comment" data-post-id="${post.id}" data-idx="${idx}" title="Delete Comment"><i class="fas fa-trash"></i></button>`
                       : "";
 
                     return `
@@ -573,10 +573,10 @@ function renderFeedStream() {
       const targetPost = allFeedPosts.find((p) => p.id === postId);
 
       if (!targetPost) return;
-      
-      const isFaculty = (userProfile?.role || "").toLowerCase() === "faculty";
-      const isAdmin = (userProfile?.role || "").toLowerCase() === "admin";
-      if (targetPost.authorUid !== currentUser.uid && !isFaculty && !isAdmin) {
+
+      const isFac = (userProfile?.role || "").toLowerCase() === "faculty";
+      const isAdm = (userProfile?.role || "").toLowerCase() === "admin";
+      if (targetPost.authorUid !== currentUser.uid && !isFac && !isAdm) {
         alert("Permission denied: Only the original poster, Faculty, or Admin can archive this post.");
         return;
       }
@@ -612,9 +612,9 @@ function renderFeedStream() {
 
       if (!targetPost) return;
 
-      const isFaculty = (userProfile?.role || "").toLowerCase() === "faculty";
-      const isAdmin = (userProfile?.role || "").toLowerCase() === "admin";
-      if (targetPost.authorUid !== currentUser.uid && !isFaculty && !isAdmin) {
+      const isFac = (userProfile?.role || "").toLowerCase() === "faculty";
+      const isAdm = (userProfile?.role || "").toLowerCase() === "admin";
+      if (targetPost.authorUid !== currentUser.uid && !isFac && !isAdm) {
         alert("Permission denied: Only the original poster, Faculty, or Admin can delete this post.");
         return;
       }
@@ -648,9 +648,9 @@ function renderFeedStream() {
       const comment = targetPost.comments?.[idx];
       if (!comment) return;
 
-      const isFaculty = (userProfile?.role || "").toLowerCase() === "faculty";
-      const isAdmin = (userProfile?.role || "").toLowerCase() === "admin";
-      if (comment.authorUid !== currentUser.uid && !isFaculty && !isAdmin) {
+      const isFac = (userProfile?.role || "").toLowerCase() === "faculty";
+      const isAdm = (userProfile?.role || "").toLowerCase() === "admin";
+      if (comment.authorUid !== currentUser.uid && !isFac && !isAdm) {
         alert("Permission denied.");
         return;
       }
@@ -743,7 +743,7 @@ function renderFeedStream() {
           text,
           createdAt: new Date().toISOString()
         };
-        
+
         if (commentImageUrl) {
           commentEntry.imageUrl = commentImageUrl;
         }
@@ -785,6 +785,19 @@ function bindLibraryAndFeedEvents() {
   });
 
   document.getElementById("feed-search-input")?.addEventListener("input", renderFeedStream);
+
+  // Case Upload Modal File Clear Button
+  const caseFileInput = document.getElementById("case-file-input");
+  const caseClearBtn = document.getElementById("btn-clear-case-file");
+  if (caseFileInput && caseClearBtn) {
+    caseFileInput.addEventListener("change", () => {
+      caseClearBtn.classList.toggle("is-hidden", !caseFileInput.files.length);
+    });
+    caseClearBtn.addEventListener("click", () => {
+      caseFileInput.value = "";
+      caseClearBtn.classList.add("is-hidden");
+    });
+  }
 
   const feedImgInput = document.getElementById("feed-image-input");
   const clearImgBtn = document.getElementById("btn-clear-feed-image");
@@ -864,6 +877,7 @@ function bindLibraryAndFeedEvents() {
       await logAuditEvent(`Published ${type}: "${title}" to HR Library`, "HR_LIBRARY", currentUser.email);
       closeModal("modal-case");
       e.target.reset();
+      if (caseClearBtn) caseClearBtn.classList.add("is-hidden");
       await loadLibraryItems();
     } catch (err) {
       alert(err.message);

@@ -1,4 +1,4 @@
-// js/auth.js - Sign-In, Role-Based Routing, Password Reset, Landing CTA & Policy-Enforced Registration
+// js/auth.js - Sign-In, Role-Based Routing, Password Reset, Landing CTA & Verified Firestore Registration (v=18)
 import { auth, db } from "./firebase-init.js";
 import {
   signInWithEmailAndPassword,
@@ -9,6 +9,7 @@ import {
 import {
   doc,
   getDoc,
+  getDocFromServer,
   setDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
@@ -16,20 +17,28 @@ import { FastCache, checkRateLimit, logAuditEvent } from "./security-utils.js";
 
 let currentRegistrationMode = "open"; // "open" | "faculty-only" | "locked"
 
-document.addEventListener("DOMContentLoaded", async () => {
+function initAuthControllers() {
   setupLogoFallbacks();
   setupLandingPageSessionCheck();
   setupPasswordVisibilityToggles();
   setupLoginForm();
   setupForgotPasswordModal();
   if (document.getElementById("register-form")) {
-    await enforceRegistrationPolicy();
     setupRegisterForm();
+    enforceRegistrationPolicy();
   }
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initAuthControllers);
+} else {
+  initAuthControllers();
+}
 
 function setupLogoFallbacks() {
   document.querySelectorAll("#auth-brand-logo, #landing-brand-logo").forEach((img) => {
+    if (img.dataset.bound) return;
+    img.dataset.bound = "true";
     img.addEventListener("error", () => {
       if (img.src.includes("assets/")) {
         img.src = "aimser-logo.png";
@@ -90,7 +99,7 @@ function showAuthStatus(el, msg, type) {
   el.style.display = "block";
 }
 
-// 1. Sign-In Handler
+// 1. Sign-In Handler (Also Auto-Creates Missing Firestore User Record for Previously Registered Accounts)
 function setupLoginForm() {
   const form = document.getElementById("login-form");
   const statusEl = document.getElementById("login-status");
@@ -100,36 +109,79 @@ function setupLoginForm() {
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = document.getElementById("login-email").value.trim();
+    const email = document.getElementById("login-email").value.trim().toLowerCase();
     const password = document.getElementById("login-password").value;
 
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...';
     showAuthStatus(statusEl, "", "clear");
 
+    window.__AIMSER_REGISTERING__ = true;
+    try {
+      sessionStorage.setItem("aimser_registering_lock", "1");
+    } catch {}
+
     try {
       checkRateLimit("login_attempt", 8, 60000);
       const cred = await signInWithEmailAndPassword(auth, email, password);
       const user = cred.user;
 
-      const userSnap = await getDoc(doc(db, "users", user.uid));
-      const userData = userSnap.exists() ? userSnap.data() : {};
+      const userRef = doc(db, "users", user.uid);
+      let userSnap;
+      try {
+        userSnap = await getDocFromServer(userRef);
+      } catch {
+        userSnap = await getDoc(userRef);
+      }
+
+      let userData = {};
+      if (userSnap.exists()) {
+        userData = userSnap.data() || {};
+      } else {
+        // Backfill missing Firestore user document for accounts created earlier
+        const fallbackName = user.displayName || (user.email ? user.email.split("@")[0] : "Student");
+        userData = {
+          uid: user.uid,
+          fullName: fallbackName,
+          email: user.email || email,
+          role: "student",
+          department: "",
+          avatarUrl:
+            user.photoURL ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=1b5375&color=faf2dd`,
+          createdAt: serverTimestamp(),
+          registeredAt: new Date().toISOString(),
+          updatedAt: serverTimestamp()
+        };
+        await setDoc(userRef, userData, { merge: true });
+      }
+
       const role = (userData.role || "student").toLowerCase();
 
       const profileSnapshot = {
         uid: user.uid,
-        email: user.email,
-        fullName: userData.fullName || user.displayName || user.email.split("@")[0],
+        email: user.email || email,
+        fullName: userData.fullName || user.displayName || email.split("@")[0],
         role,
         department: userData.department || "",
         avatarUrl: userData.avatarUrl || user.photoURL || ""
       };
 
       FastCache.set("user_profile", profileSnapshot);
-      await logAuditEvent(`User signed in: ${user.email} [${role}]`, "AUTH", user.email);
+      await logAuditEvent(`User signed in: ${user.email || email} [${role}]`, "AUTH", user.email || email);
+
+      window.__AIMSER_REGISTERING__ = false;
+      try {
+        sessionStorage.removeItem("aimser_registering_lock");
+      } catch {}
 
       window.location.replace(role === "admin" ? "admin-dashboard.html" : "office.html");
     } catch (err) {
+      window.__AIMSER_REGISTERING__ = false;
+      try {
+        sessionStorage.removeItem("aimser_registering_lock");
+      } catch {}
+
       const friendlyMsg =
         err.code === "auth/invalid-credential" ||
         err.code === "auth/wrong-password" ||
@@ -237,7 +289,7 @@ async function enforceRegistrationPolicy() {
   }
 }
 
-// 4. Account Registration Handler
+// 4. Account Registration Handler (Verifies Server Write Before Redirecting)
 function setupRegisterForm() {
   const form = document.getElementById("register-form");
   const statusEl = document.getElementById("register-status");
@@ -254,7 +306,7 @@ function setupRegisterForm() {
     }
 
     const fullName = document.getElementById("reg-fullname").value.trim();
-    const email = document.getElementById("reg-email").value.trim();
+    const email = document.getElementById("reg-email").value.trim().toLowerCase();
     const selectedRole = (document.getElementById("reg-role").value || "student").toLowerCase();
     const department = document.getElementById("reg-department").value.trim();
     const password = document.getElementById("reg-password").value;
@@ -284,30 +336,54 @@ function setupRegisterForm() {
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Account...';
     showAuthStatus(statusEl, "", "clear");
 
+    window.__AIMSER_REGISTERING__ = true;
+    try {
+      sessionStorage.setItem("aimser_registering_lock", "1");
+      localStorage.setItem(
+        "aimser_pending_registration",
+        JSON.stringify({ fullName, email, role: selectedRole, department })
+      );
+    } catch {}
+
     try {
       checkRateLimit("register_account", 5, 60000);
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       const user = cred.user;
       const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=1b5375&color=faf2dd`;
 
-      await updateProfile(user, {
-        displayName: fullName,
-        photoURL: defaultAvatar
-      });
-
-      await setDoc(doc(db, "users", user.uid), {
+      const userDocRef = doc(db, "users", user.uid);
+      const userPayload = {
         uid: user.uid,
         fullName,
-        email: user.email,
+        email: user.email || email,
         role: selectedRole,
         department,
         avatarUrl: defaultAvatar,
-        createdAt: serverTimestamp()
-      });
+        createdAt: serverTimestamp(),
+        registeredAt: new Date().toISOString(),
+        updatedAt: serverTimestamp()
+      };
+
+      // Write profile to Firestore 'users' collection
+      await setDoc(userDocRef, userPayload, { merge: true });
+
+      // Confirm the document is committed on the Firestore server before redirecting
+      try {
+        await getDocFromServer(userDocRef);
+      } catch (verifyErr) {
+        console.warn("Server read verification notice:", verifyErr);
+      }
+
+      try {
+        await updateProfile(user, {
+          displayName: fullName,
+          photoURL: defaultAvatar
+        });
+      } catch {}
 
       const profileSnapshot = {
         uid: user.uid,
-        email: user.email,
+        email: user.email || email,
         fullName,
         role: selectedRole,
         department,
@@ -315,14 +391,28 @@ function setupRegisterForm() {
       };
 
       FastCache.set("user_profile", profileSnapshot);
-      await logAuditEvent(`New account registered: ${user.email} [${selectedRole}]`, "REGISTER", user.email);
+      await logAuditEvent(`New account registered: ${user.email || email} (${fullName}) [${selectedRole}]`, "REGISTER", user.email || email);
+
+      window.__AIMSER_REGISTERING__ = false;
+      try {
+        sessionStorage.removeItem("aimser_registering_lock");
+        localStorage.removeItem("aimser_pending_registration");
+      } catch {}
 
       window.location.replace("office.html");
     } catch (err) {
+      window.__AIMSER_REGISTERING__ = false;
+      try {
+        sessionStorage.removeItem("aimser_registering_lock");
+      } catch {}
+
+      console.error("Registration failed:", err);
       const friendlyMsg =
         err.code === "auth/email-already-in-use"
           ? "An account with this email already exists."
-          : err.message || "Failed to create account.";
+          : err.code === "permission-denied"
+            ? "Firestore Rules blocked creating your user profile. Please publish the updated firestore.rules in Firebase Console."
+            : err.message || "Failed to create account.";
       showAuthStatus(statusEl, friendlyMsg, "error");
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<i class="fas fa-user-plus"></i> Create Account';

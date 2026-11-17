@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HR Library &amp; Feed | AIMSER HR Simulator</title>
-  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon_aimser.png?v=19" />
-  <link rel="icon" type="image/png" sizes="48x48" href="/assets/icon_aimser.png?v=19" />
-  <link rel="shortcut icon" type="image/png" href="/assets/icon_aimser.png?v=19" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icon_aimser.png?v=19" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icon_aimser.png?v=18" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/assets/icon_aimser.png?v=18" />
+  <link rel="shortcut icon" type="image/png" href="/assets/icon_aimser.png?v=18" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icon_aimser.png?v=18" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-  <link rel="stylesheet" href="css/style.css?v=19" />
-  <link rel="stylesheet" href="css/dashboard.css?v=19" />
+  <link rel="stylesheet" href="css/style.css?v=18" />
+  <link rel="stylesheet" href="css/dashboard.css?v=18" />
 </head>
 <body>
   <div class="dashboard-layout">
@@ -253,7 +253,12 @@
 
         <div class="form-group">
           <label for="case-file-input" class="form-label">Upload Material File (PDF, DOC, DOCX, PPTX, PNG - Optional)</label>
-          <input type="file" id="case-file-input" class="form-control" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/png,image/jpeg,image/webp" />
+          <div class="file-input-wrapper">
+            <input type="file" id="case-file-input" class="form-control" accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,image/png,image/jpeg,image/webp" />
+            <button type="button" id="btn-clear-case-file" class="btn-card-icon is-hidden" title="Remove File">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
         </div>
 
         <div class="form-group">
@@ -332,9 +337,9 @@
     </div>
   </div>
 
-  <script type="module" src="js/theme.js?v=19"></script>
-  <script type="module" src="js/ui-bridge.js?v=19"></script>
-  <script type="module" src="js/auth-guard.js?v=19"></script>
-  <script type="module" src="js/hr-library.js?v=19"></script>
+  <script type="module" src="js/theme.js?v=18"></script>
+  <script type="module" src="js/ui-bridge.js?v=18"></script>
+  <script type="module" src="js/auth-guard.js?v=18"></script>
+  <script type="module" src="js/hr-library.js?v=18"></script>
 </body>
 </html>

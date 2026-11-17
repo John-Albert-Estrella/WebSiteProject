@@ -1,7 +1,7 @@
-// js/auth-guard.js - Zero-Buffer Route Protection, Header Hydration & Sign-Out Handler[cite: 1]
+// js/auth-guard.js - Zero-Buffer Route Protection, Registration Write Lock & Auto-Heal User Registry Sync (v=18)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { FastCache, sanitizeUrl, logAuditEvent } from "./security-utils.js";
 
 const rawPath = window.location.pathname.toLowerCase();
@@ -41,7 +41,7 @@ function safeRedirect(targetUrl) {
     history.push(now);
     sessionStorage.setItem("aimser_nav_guard", JSON.stringify(history));
   } catch {
-    // Ignore storage restrictions[cite: 1]
+    // Ignore storage restrictions
   }
   window.location.replace(targetUrl);
 }
@@ -85,7 +85,7 @@ function bindGlobalLogoutButton() {
   });
 }
 
-// 1. Synchronous Fast-Path Role Partition Check & Instant Header Hydration[cite: 1]
+// 1. Synchronous Fast-Path Role Partition Check & Instant Header Hydration
 const cachedProfile = FastCache.get("user_profile");
 if (cachedProfile && cachedProfile.role) {
   const role = cachedProfile.role.toLowerCase();
@@ -112,9 +112,17 @@ window.addEventListener("aimser:profile-ready", (e) => {
   if (e.detail) hydrateWorkspaceHeader(e.detail);
 });
 
-// 2. Firebase Auth & Firestore Revalidation[cite: 1]
+// 2. Firebase Auth & Firestore Revalidation + Auto-Heal Registry Sync
 onAuthStateChanged(auth, async (user) => {
   bindGlobalLogoutButton();
+
+  // Wait if auth.js is actively writing the new user to Firestore on register.html
+  if (
+    window.__AIMSER_REGISTERING__ ||
+    sessionStorage.getItem("aimser_registering_lock") === "1"
+  ) {
+    return;
+  }
 
   if (!user) {
     FastCache.clearAll();
@@ -125,14 +133,75 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   try {
-    const userSnap = await getDoc(doc(db, "users", user.uid));
-    const userData = userSnap.exists() ? userSnap.data() : { role: "student" };
+    const userRef = doc(db, "users", user.uid);
+    const userSnap = await getDoc(userRef);
+
+    let pendingReg = null;
+    try {
+      pendingReg = JSON.parse(localStorage.getItem("aimser_pending_registration") || "null");
+    } catch {}
+
+    let userData = {};
+    if (userSnap.exists()) {
+      userData = userSnap.data() || {};
+      const resolvedFullName =
+        userData.fullName ||
+        (userData.firstName ? `${userData.firstName} ${userData.lastName || ""}`.trim() : "") ||
+        pendingReg?.fullName ||
+        user.displayName ||
+        (user.email ? user.email.split("@")[0] : "Member");
+
+      if (!userData.fullName || !userData.email || !userData.uid) {
+        const healedFields = {
+          uid: user.uid,
+          email: userData.email || user.email || pendingReg?.email || "",
+          fullName: resolvedFullName,
+          role: (userData.role || pendingReg?.role || "student").toLowerCase(),
+          department: userData.department || pendingReg?.department || "",
+          updatedAt: serverTimestamp()
+        };
+        userData = { ...userData, ...healedFields };
+        try {
+          await setDoc(userRef, healedFields, { merge: true });
+        } catch {}
+      }
+    } else {
+      // Automatically create the missing Firestore users/{uid} document so it appears in the Admin User Registry
+      const fallbackName =
+        pendingReg?.fullName ||
+        cachedProfile?.fullName ||
+        user.displayName ||
+        (user.email ? user.email.split("@")[0] : "Student");
+      const fallbackRole = (pendingReg?.role || cachedProfile?.role || "student").toLowerCase();
+      const fallbackDept = pendingReg?.department || cachedProfile?.department || "";
+
+      userData = {
+        uid: user.uid,
+        email: user.email || pendingReg?.email || "",
+        fullName: fallbackName,
+        role: fallbackRole,
+        department: fallbackDept,
+        avatarUrl:
+          user.photoURL ||
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=1b5375&color=faf2dd`,
+        createdAt: serverTimestamp(),
+        registeredAt: new Date().toISOString(),
+        updatedAt: serverTimestamp()
+      };
+      try {
+        await setDoc(userRef, userData, { merge: true });
+        localStorage.removeItem("aimser_pending_registration");
+      } catch (writeErr) {
+        console.error("[Auth Guard] Failed to auto-heal user document in Firestore:", writeErr);
+      }
+    }
+
     const userRole = (userData.role || "student").toLowerCase();
 
     const profileSnapshot = {
       uid: user.uid,
-      email: user.email,
-      fullName: userData.fullName || user.displayName || user.email.split("@")[0],
+      email: user.email || userData.email || "",
+      fullName: userData.fullName || user.displayName || (user.email ? user.email.split("@")[0] : "Member"),
       role: userRole,
       department: userData.department || "",
       avatarUrl: userData.avatarUrl || user.photoURL || ""

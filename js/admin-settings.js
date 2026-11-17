@@ -23,6 +23,7 @@ import { uploadToCloudinary } from "./cloudinary-config.js";
 import { FastCache, escapeHtml, sanitizeUrl, logAuditEvent } from "./security-utils.js";
 
 let currentAdminUser = null;
+let savedAdminAvatarSrc = "";
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -71,6 +72,7 @@ function populateAdminUI(user, data) {
   const resolvedName = data.fullName || user.displayName || "Administrator";
   const defaultFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedName)}&background=1b5375&color=faf2dd`;
   const resolvedAvatar = sanitizeUrl(data.avatarUrl || user.photoURL, defaultFallback);
+  savedAdminAvatarSrc = resolvedAvatar;
 
   if (nameInput) nameInput.value = resolvedName;
   if (emailInput) emailInput.value = user.email || "";
@@ -141,6 +143,7 @@ async function loadAdminSettingsNotifications() {
 
 function setupAvatarPreview() {
   const fileInput = document.getElementById("admin-avatar-input");
+  const clearBtn = document.getElementById("btn-clear-admin-avatar");
   const previewImg = document.getElementById("admin-avatar-preview");
 
   if (!fileInput || !previewImg || fileInput.dataset.bound) return;
@@ -148,15 +151,28 @@ function setupAvatarPreview() {
 
   fileInput.addEventListener("change", () => {
     const file = fileInput.files[0];
-    if (file) {
-      if (!file.type.startsWith("image/")) {
-        alert("Please select a valid image file (PNG, JPG, or WebP).");
-        fileInput.value = "";
-        return;
-      }
-      previewImg.src = URL.createObjectURL(file);
+    if (!file) {
+      if (clearBtn) clearBtn.classList.add("is-hidden");
+      if (savedAdminAvatarSrc) previewImg.src = savedAdminAvatarSrc;
+      return;
     }
+    if (!file.type.startsWith("image/")) {
+      alert("Please select a valid image file (PNG, JPG, or WebP).");
+      fileInput.value = "";
+      if (clearBtn) clearBtn.classList.add("is-hidden");
+      return;
+    }
+    previewImg.src = URL.createObjectURL(file);
+    if (clearBtn) clearBtn.classList.remove("is-hidden");
   });
+
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => {
+      fileInput.value = "";
+      clearBtn.classList.add("is-hidden");
+      if (savedAdminAvatarSrc) previewImg.src = savedAdminAvatarSrc;
+    });
+  }
 }
 
 function setupAdminProfileSubmit() {
@@ -172,6 +188,7 @@ function setupAdminProfileSubmit() {
 
     const fullName = document.getElementById("admin-fullname").value.trim();
     const fileInput = document.getElementById("admin-avatar-input");
+    const clearBtn = document.getElementById("btn-clear-admin-avatar");
 
     if (!fullName) {
       showStatus(statusMsg, "Full name cannot be empty.", "error");
@@ -224,11 +241,13 @@ function setupAdminProfileSubmit() {
 
       if (headerName) headerName.textContent = fullName;
       if (finalAvatarUrl) {
+        savedAdminAvatarSrc = finalAvatarUrl;
         if (headerAvatar) headerAvatar.src = finalAvatarUrl;
         if (previewImg) previewImg.src = finalAvatarUrl;
       }
 
       if (fileInput) fileInput.value = "";
+      if (clearBtn) clearBtn.classList.add("is-hidden");
       await logAuditEvent(`Administrator updated profile identity (${fullName})`, "ADMIN_PROFILE", currentAdminUser.email);
       await loadAdminSettingsNotifications();
       showStatus(statusMsg, "Administrator profile updated successfully!", "success");

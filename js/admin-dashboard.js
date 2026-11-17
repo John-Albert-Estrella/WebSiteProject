@@ -1,4 +1,4 @@
-// js/admin-dashboard.js - Administrator Management, User Inspector, Case Library, HR Feed & Bell Notifications
+// js/admin-dashboard.js - Administrator Management, Uncached Live User Registry, Case Library, HR Feed & Bell Notifications (v=18)
 import { auth, db } from "./firebase-init.js";
 import {
   onAuthStateChanged,
@@ -10,63 +10,24 @@ import {
   doc,
   getDoc,
   getDocs,
+  getDocsFromServer,
   addDoc,
   updateDoc,
   deleteDoc,
   query,
   orderBy,
   limit,
+  onSnapshot,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import * as CloudCfg from "./cloudinary-config.js";
 import * as SecUtils from "./security-utils.js";
 
-const FastCache = SecUtils.FastCache || {
-  get: (k) => {
-    try {
-      return JSON.parse(sessionStorage.getItem("aimser_v2_" + k));
-    } catch {
-      return null;
-    }
-  },
-  set: (k, v) => {
-    try {
-      sessionStorage.setItem("aimser_v2_" + k, JSON.stringify(v));
-    } catch {}
-  },
-  clearAll: () => {
-    try {
-      sessionStorage.clear();
-    } catch {}
-  }
-};
-
-const escapeHtml =
-  SecUtils.escapeHtml ||
-  ((str) =>
-    String(str ?? "").replace(
-      /[&<>"']/g,
-      (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m])
-    ));
-
-const sanitizeUrl =
-  SecUtils.sanitizeUrl ||
-  ((url, fallback = "") => (/^https?:\/\//i.test(String(url || "").trim()) ? String(url).trim() : fallback));
-
+const FastCache = SecUtils.FastCache;
+const escapeHtml = SecUtils.escapeHtml;
+const sanitizeUrl = SecUtils.sanitizeUrl;
 const checkRateLimit = SecUtils.checkRateLimit || (() => true);
-
-const logAuditEvent =
-  SecUtils.logAuditEvent ||
-  (async (message, category = "EVENT", actor = "") => {
-    try {
-      await addDoc(collection(db, "audit_logs"), {
-        message,
-        category,
-        actor,
-        timestamp: serverTimestamp()
-      });
-    } catch {}
-  });
+const logAuditEvent = SecUtils.logAuditEvent;
 
 async function safeCloudinaryUpload(file, folder = "aimser/avatars") {
   const fn =
@@ -108,6 +69,23 @@ let cachedLogs = [];
 let selectedUserUid = null;
 let resetAvatarRequested = false;
 let initialHashApplied = false;
+let usersRegistryUnsubscribe = null;
+
+function getSafeTimestampMillis(val) {
+  if (!val) return 0;
+  if (typeof val.toMillis === "function") return val.toMillis();
+  if (typeof val.seconds === "number") return val.seconds * 1000;
+  const parsed = new Date(val).getTime();
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+function getDisplayUserName(u) {
+  if (u.fullName && String(u.fullName).trim()) return String(u.fullName).trim();
+  if (u.firstName || u.lastName) return `${u.firstName || ""} ${u.lastName || ""}`.trim();
+  if (u.name && String(u.name).trim()) return String(u.name).trim();
+  if (u.email && String(u.email).includes("@")) return String(u.email).split("@")[0];
+  return "Unnamed User";
+}
 
 function initAdminConsoleUI() {
   setupTabs();
@@ -136,6 +114,12 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   try {
+    // Purge any stale user registry cache from sessionStorage immediately
+    try {
+      sessionStorage.removeItem("aimser_v2_admin_users");
+      sessionStorage.removeItem("aimser_v2_admin_metrics");
+    } catch {}
+
     const cachedProfile = FastCache.get("user_profile");
     if (cachedProfile && (cachedProfile.role || "").toLowerCase() === "admin") {
       adminProfile = cachedProfile;
@@ -162,37 +146,9 @@ onAuthStateChanged(auth, async (user) => {
     };
     renderAdminIdentity(user, adminProfile);
 
-    const snapMetrics = FastCache.get("admin_metrics");
-    if (snapMetrics) applyMetricsToDOM(snapMetrics);
-
-    const snapUsers = FastCache.get("admin_users");
-    if (snapUsers) {
-      cachedUsers = snapUsers;
-      applyUserFilters();
-    }
-
-    const snapCases = FastCache.get("admin_cases");
-    if (snapCases) {
-      cachedCases = snapCases;
-      applyCaseFilters();
-    }
-
-    const snapFeed = FastCache.get("admin_feed_posts");
-    if (snapFeed) {
-      cachedFeedPosts = snapFeed;
-      applyFeedFilters();
-    }
-
-    const snapLogs = FastCache.get("admin_logs");
-    if (snapLogs) {
-      cachedLogs = snapLogs;
-      renderAuditLogsList(cachedLogs);
-      renderAdminNotificationsBell();
-    }
-
     await Promise.allSettled([
-      loadMetrics(),
       loadUsers(),
+      loadMetrics(),
       loadSections(),
       loadTeamsCache(),
       loadCasesAdmin(),
@@ -284,14 +240,19 @@ function setupLightboxModal() {
 async function loadMetrics() {
   const getSafeCount = async (collName) => {
     try {
-      const snap = await getDocs(collection(db, collName));
+      const snap = await getDocsFromServer(collection(db, collName));
       return snap.size;
     } catch {
-      return 0;
+      try {
+        const snap = await getDocs(collection(db, collName));
+        return snap.size;
+      } catch {
+        return 0;
+      }
     }
   };
 
-  const usersCount = await getSafeCount("users");
+  const usersCount = cachedUsers.length > 0 ? cachedUsers.length : await getSafeCount("users");
 
   let sectionsCount = await getSafeCount("classrooms");
   if (sectionsCount === 0) {
@@ -306,7 +267,6 @@ async function loadMetrics() {
   }
 
   const metrics = { usersCount, sectionsCount, teamsCount, logsCount };
-  FastCache.set("admin_metrics", metrics);
   applyMetricsToDOM(metrics);
 }
 
@@ -345,12 +305,10 @@ async function loadCasesAdmin() {
     cachedCases = snap.docs
       .map((d) => ({ id: d.id, ...d.data() }))
       .sort((a, b) => {
-        const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        const tA = getSafeTimestampMillis(a.createdAt);
+        const tB = getSafeTimestampMillis(b.createdAt);
         return tB - tA;
       });
-
-    FastCache.set("admin_cases", cachedCases);
 
     if (banner) {
       if (cachedCases.length > 0) {
@@ -541,16 +499,11 @@ async function loadHrFeedAdmin() {
     cachedFeedPosts = snap.docs
       .map((d) => {
         const data = d.data();
-        const tsMillis = data.createdAt?.toMillis
-          ? data.createdAt.toMillis()
-          : data.createdAt
-            ? new Date(data.createdAt).getTime()
-            : 0;
+        const tsMillis = getSafeTimestampMillis(data.createdAt);
         return { id: d.id, ...data, tsMillis };
       })
       .sort((a, b) => b.tsMillis - a.tsMillis);
 
-    FastCache.set("admin_feed_posts", cachedFeedPosts);
     applyFeedFilters();
   } catch (err) {
     console.error("Failed loading HR Feed for admin:", err);
@@ -813,10 +766,10 @@ async function loadAuditLogs() {
 
     try {
       const q = query(collection(db, "audit_logs"), orderBy("timestamp", "desc"), limit(100));
-      logsSnap = await getDocs(q);
+      logsSnap = await getDocsFromServer(q);
     } catch {
       try {
-        logsSnap = await getDocs(query(collection(db, "logs"), orderBy("timestamp", "desc"), limit(100)));
+        logsSnap = await getDocs(query(collection(db, "audit_logs"), orderBy("timestamp", "desc"), limit(100)));
       } catch {
         try {
           logsSnap = await getDocs(collection(db, "audit_logs"));
@@ -837,11 +790,7 @@ async function loadAuditLogs() {
     cachedLogs = logsSnap.docs
       .map((d) => {
         const data = d.data();
-        const tsMillis = data.timestamp?.toMillis
-          ? data.timestamp.toMillis()
-          : data.timestamp
-            ? new Date(data.timestamp).getTime()
-            : 0;
+        const tsMillis = getSafeTimestampMillis(data.timestamp);
         return {
           id: d.id,
           message: data.message || data.action || data.event || data.details || "System Event Recorded",
@@ -851,7 +800,6 @@ async function loadAuditLogs() {
       })
       .sort((a, b) => b.tsMillis - a.tsMillis);
 
-    FastCache.set("admin_logs", cachedLogs);
     if (elLogs) elLogs.textContent = cachedLogs.length.toLocaleString();
     renderAuditLogsList(cachedLogs);
     renderAdminNotificationsBell();
@@ -902,27 +850,62 @@ function renderAuditLogsList(logs) {
     .join("");
 }
 
+// Uncached Live Server-Backed User Registry Loader
 async function loadUsers() {
   const tbody = document.getElementById("admin-users-table-body");
   if (!tbody) return;
 
-  try {
-    let snap;
-    try {
-      const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
-      snap = await getDocs(q);
-    } catch {
-      snap = await getDocs(collection(db, "users"));
-    }
+  const syncUsersToTable = (docs) => {
+    console.log(`📊 [Admin Registry] Live Firestore users count: ${docs.length}`);
+    cachedUsers = docs
+      .map((d) => {
+        const data = d.data() || {};
+        const tsMillis =
+          getSafeTimestampMillis(data.createdAt) ||
+          getSafeTimestampMillis(data.registeredAt) ||
+          getSafeTimestampMillis(data.updatedAt) ||
+          0;
+        return {
+          uid: d.id,
+          ...data,
+          fullName: getDisplayUserName(data),
+          _sortTs: tsMillis
+        };
+      })
+      .sort((a, b) => b._sortTs - a._sortTs);
 
-    cachedUsers = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
-    FastCache.set("admin_users", cachedUsers);
+    const elUsers = document.getElementById("stat-total-users");
+    if (elUsers) elUsers.textContent = cachedUsers.length.toLocaleString();
+
     applyUserFilters();
 
     if (selectedUserUid) {
       const refreshedUser = cachedUsers.find((u) => u.uid === selectedUserUid);
       if (refreshedUser) openUserInspector(refreshedUser.uid);
     }
+  };
+
+  if (!usersRegistryUnsubscribe) {
+    usersRegistryUnsubscribe = onSnapshot(
+      collection(db, "users"),
+      { includeMetadataChanges: true },
+      (snap) => {
+        syncUsersToTable(snap.docs);
+      },
+      (err) => {
+        console.error("Real-time users listener error:", err);
+      }
+    );
+  }
+
+  try {
+    let snap;
+    try {
+      snap = await getDocsFromServer(collection(db, "users"));
+    } catch {
+      snap = await getDocs(collection(db, "users"));
+    }
+    syncUsersToTable(snap.docs);
   } catch (err) {
     console.error("Failed to load users:", err);
     tbody.innerHTML = `<tr><td colspan="5">Failed to load user directory: ${escapeHtml(err.message)}</td></tr>`;
@@ -941,7 +924,8 @@ function renderUsersTable(users) {
   tbody.innerHTML = users
     .map((u) => {
       const role = (u.role || "student").toLowerCase();
-      const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(u.fullName || "User")}&background=1b5375&color=faf2dd`;
+      const displayName = getDisplayUserName(u);
+      const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=1b5375&color=faf2dd`;
       const avatar = sanitizeUrl(u.avatarUrl, fallback);
       const isSelf = currentAdminUser && u.uid === currentAdminUser.uid;
       const isSelected = selectedUserUid === u.uid;
@@ -951,7 +935,7 @@ function renderUsersTable(users) {
           <td>
             <div class="user-cell-flex">
               <img src="${avatar}" alt="" class="avatar-sm" />
-              <strong>${escapeHtml(u.fullName || "Unnamed User")} ${isSelf ? "<small>(You)</small>" : ""}</strong>
+              <strong>${escapeHtml(displayName)} ${isSelf ? "<small>(You)</small>" : ""}</strong>
             </div>
           </td>
           <td class="text-muted">${escapeHtml(u.email || "N/A")}</td>
@@ -995,7 +979,7 @@ function openUserInspector(uid) {
     r.classList.toggle("is-selected", r.dataset.uid === uid);
   });
 
-  const fullName = userObj.fullName || "Unnamed User";
+  const fullName = getDisplayUserName(userObj);
   const email = userObj.email || "N/A";
   const role = (userObj.role || "student").toLowerCase();
   const department = userObj.department || "";
@@ -1010,15 +994,11 @@ function openUserInspector(uid) {
   document.getElementById("inspector-header-email").textContent = email;
   document.getElementById("inspector-uid-text").textContent = uid;
 
-  let createdStr = "Recorded";
-  if (userObj.createdAt?.toDate) {
-    createdStr = userObj.createdAt.toDate().toLocaleDateString();
-  } else if (userObj.createdAt) {
-    createdStr = new Date(userObj.createdAt).toLocaleDateString();
-  }
+  const tsMillis = getSafeTimestampMillis(userObj.createdAt) || getSafeTimestampMillis(userObj.registeredAt);
+  const createdStr = tsMillis ? new Date(tsMillis).toLocaleDateString() : "Recorded";
   document.getElementById("inspector-created-text").textContent = createdStr;
 
-  document.getElementById("inspector-fullname").value = userObj.fullName || "";
+  document.getElementById("inspector-fullname").value = fullName;
   document.getElementById("inspector-department").value = department;
 
   const roleSelect = document.getElementById("inspector-role-select");
@@ -1459,7 +1439,9 @@ function setupTabs() {
     }
   };
 
-  bindBtn("btn-refresh-users", loadUsers);
+  bindBtn("btn-refresh-users", async () => {
+    await Promise.all([loadUsers(), loadMetrics()]);
+  });
   bindBtn("btn-refresh-sections", loadSections);
   bindBtn("btn-refresh-cases", loadCasesAdmin);
   bindBtn("btn-refresh-feed", loadHrFeedAdmin);
@@ -1475,9 +1457,10 @@ function applyUserFilters() {
   const filtered = cachedUsers.filter((u) => {
     const uRole = (u.role || "student").toLowerCase();
     const matchesRole = roleFilter === "all" || uRole === roleFilter;
+    const displayName = getDisplayUserName(u).toLowerCase();
     const matchesTerm =
       !term ||
-      (u.fullName && u.fullName.toLowerCase().includes(term)) ||
+      displayName.includes(term) ||
       (u.email && u.email.toLowerCase().includes(term)) ||
       (u.department && u.department.toLowerCase().includes(term));
     return matchesRole && matchesTerm;

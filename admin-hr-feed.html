@@ -116,7 +116,7 @@
         </div>
       </header>
 
-      <!-- Main Feed Panel (Wrapped in .tab-panel.active for seamless In-Page Notification Switching) -->
+      <!-- Main Feed Panel -->
       <section id="panel-admin-feed-main" class="tab-panel active">
         <!-- Feed Telemetry KPIs -->
         <div class="stats-row">
@@ -164,7 +164,7 @@
             </div>
           </div>
 
-          <!-- Collapsible Admin Scenario Composer (Numbers 1-4 Removed, PNG Support Retained) -->
+          <!-- Collapsible Admin Scenario Composer -->
           <div id="admin-composer-wrapper" class="admin-composer-collapse is-hidden">
             <form id="form-admin-create-feed">
               <div class="fb-composer-top">
@@ -180,12 +180,19 @@
                 </div>
               </div>
 
+              <div id="admin-feed-image-preview-box" class="is-hidden">
+                <img id="admin-feed-image-preview" src="" alt="Attachment Preview" class="admin-post-image" />
+              </div>
+
               <div class="fb-composer-footer">
                 <div class="workspace-action-bar">
                   <label for="admin-feed-image-input" class="fb-photo-upload-btn">
                     <i class="fas fa-image"></i> Photo / PNG Diagram
                   </label>
                   <input type="file" id="admin-feed-image-input" class="is-hidden" accept="image/png,image/jpeg,image/webp" />
+                  <button type="button" id="btn-clear-admin-feed-image" class="btn-secondary is-hidden">
+                    <i class="fas fa-times"></i> Remove Photo
+                  </button>
                 </div>
 
                 <div class="workspace-action-bar">

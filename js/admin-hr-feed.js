@@ -264,7 +264,7 @@ function renderAdminFeedStream() {
 
           <h3>${escapeHtml(post.title || "Untitled Scenario")}</h3>
 
-          <!-- 3-Column Scenario Breakdown (Redundant Numbers 1-3 Removed) -->
+          <!-- 3-Column Scenario Breakdown -->
           <div class="admin-post-grid">
             <div class="inspector-meta-item">
               <span>Workplace Concerns</span>
@@ -282,7 +282,7 @@ function renderAdminFeedStream() {
 
           ${imageBlockHtml}
 
-          <!-- Comments Thread with Photo Display, Warn & Delete Moderation Controls -->
+          <!-- Comments Thread with Photo Display, Warn & Minimal Grey Trash Delete Icon -->
           <div class="card-footer-bar">
             <div class="w-full">
               <p class="text-muted">
@@ -312,8 +312,8 @@ function renderAdminFeedStream() {
                           <button type="button" class="btn-secondary btn-open-mod-comment" data-post-id="${post.id}" data-idx="${idx}" title="Moderate Comment & Send Warning">
                             <i class="fas fa-exclamation-triangle"></i> Warn &amp; Moderate
                           </button>
-                          <button type="button" class="btn-sidebar-action btn-logout btn-del-comment" data-post-id="${post.id}" data-idx="${idx}" title="Delete Comment">
-                            <i class="fas fa-trash"></i> Delete
+                          <button type="button" class="btn-card-icon btn-del-comment" data-post-id="${post.id}" data-idx="${idx}" title="Delete Comment">
+                            <i class="fas fa-trash"></i>
                           </button>
                         </div>
                       </div>`;
@@ -599,6 +599,41 @@ function bindAdminFeedEvents() {
     });
   }
 
+  const adminFeedImgInput = document.getElementById("admin-feed-image-input");
+  const clearAdminImgBtn = document.getElementById("btn-clear-admin-feed-image");
+  const adminPreviewBox = document.getElementById("admin-feed-image-preview-box");
+  const adminPreviewImg = document.getElementById("admin-feed-image-preview");
+
+  if (adminFeedImgInput && !adminFeedImgInput.dataset.bound) {
+    adminFeedImgInput.dataset.bound = "true";
+    adminFeedImgInput.addEventListener("change", () => {
+      const file = adminFeedImgInput.files[0];
+      if (!file) {
+        adminPreviewBox?.classList.add("is-hidden");
+        clearAdminImgBtn?.classList.add("is-hidden");
+        return;
+      }
+      if (!file.type.startsWith("image/")) {
+        alert("Please select a valid image file (PNG, JPG, or WebP).");
+        adminFeedImgInput.value = "";
+        return;
+      }
+      if (adminPreviewImg) adminPreviewImg.src = URL.createObjectURL(file);
+      adminPreviewBox?.classList.remove("is-hidden");
+      clearAdminImgBtn?.classList.remove("is-hidden");
+    });
+  }
+
+  if (clearAdminImgBtn && !clearAdminImgBtn.dataset.bound) {
+    clearAdminImgBtn.dataset.bound = "true";
+    clearAdminImgBtn.addEventListener("click", () => {
+      if (adminFeedImgInput) adminFeedImgInput.value = "";
+      if (adminPreviewImg) adminPreviewImg.src = "";
+      adminPreviewBox?.classList.add("is-hidden");
+      clearAdminImgBtn.classList.add("is-hidden");
+    });
+  }
+
   const presetReasonEl = document.getElementById("mod-preset-reason");
   if (presetReasonEl && !presetReasonEl.dataset.bound) {
     presetReasonEl.dataset.bound = "true";
@@ -725,6 +760,8 @@ function bindAdminFeedEvents() {
 
         await logAuditEvent(`Admin published HR Feed scenario "${title}"`, "HR_FEED", currentAdminUser.email);
         e.target.reset();
+        adminPreviewBox?.classList.add("is-hidden");
+        clearAdminImgBtn?.classList.add("is-hidden");
         composerWrapper?.classList.add("is-hidden");
         sessionStorage.removeItem("aimser_v2_hr_feed_posts");
         await loadFeedFromFirestore();

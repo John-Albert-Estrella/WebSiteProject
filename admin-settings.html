@@ -116,7 +116,7 @@
         </div>
       </header>
 
-      <!-- Main Admin Settings Grid (Wrapped in .tab-panel.active for In-Page Notification View) -->
+      <!-- Main Admin Settings Grid -->
       <section id="panel-admin-settings-main" class="tab-panel active">
         <div class="settings-grid">
           <!-- Administrator Profile Card -->
@@ -135,7 +135,12 @@
                 <img id="admin-avatar-preview" src="https://ui-avatars.com/api/?name=Admin&background=1b5375&color=faf2dd" alt="Admin Preview" class="avatar-preview" />
                 <div>
                   <label for="admin-avatar-input" class="form-label">Admin Profile Picture (PNG, JPG, WebP)</label>
-                  <input type="file" id="admin-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" />
+                  <div class="file-input-wrapper">
+                    <input type="file" id="admin-avatar-input" class="form-control" accept="image/png,image/jpeg,image/webp" />
+                    <button type="button" id="btn-clear-admin-avatar" class="btn-card-icon is-hidden" title="Remove Selected Photo">
+                      <i class="fas fa-times"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
 
