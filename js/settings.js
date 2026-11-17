@@ -1,4 +1,4 @@
-// js/admin-settings.js - System Administration, Global Config, Bell Notifications & Avatar Upload Engine
+// js/settings.js - Participant (Student & Faculty) Profile, Cloudinary Avatar Upload, Password Rotation & Bell Notifications (v=18)
 import { auth, db } from "./firebase-init.js";
 import {
   onAuthStateChanged,
@@ -12,18 +12,16 @@ import {
   doc,
   getDoc,
   getDocs,
-  setDoc,
   updateDoc,
   query,
-  orderBy,
-  limit,
+  where,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { uploadToCloudinary } from "./cloudinary-config.js";
 import { FastCache, escapeHtml, sanitizeUrl, logAuditEvent } from "./security-utils.js";
 
-let currentAdminUser = null;
-let savedAdminAvatarSrc = "";
+let currentUser = null;
+let currentProfile = null;
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
@@ -31,108 +29,99 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
+  currentUser = user;
+
+  const cached = FastCache.get("user_profile");
+  if (cached) {
+    currentProfile = cached;
+    populateSettingsUI(user, cached);
+  }
+
   try {
-    const cachedProfile = FastCache.get("user_profile");
-    if (cachedProfile && cachedProfile.role === "admin") {
-      populateAdminUI(user, cachedProfile);
-    }
+    const snap = await getDoc(doc(db, "users", user.uid));
+    const data = snap.exists() ? snap.data() : {};
+    const role = (data.role || cached?.role || "student").toLowerCase();
 
-    const userDocRef = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userDocRef);
-    const userData = userSnap.exists() ? userSnap.data() : {};
-
-    if ((userData.role || "").toLowerCase() !== "admin") {
-      alert("Unauthorized Access: Administrator clearance required.");
-      window.location.replace("office.html");
+    // If an admin accidentally opens participant settings.html, route them to admin-settings.html
+    if (role === "admin") {
+      window.location.replace("admin-settings.html");
       return;
     }
 
-    currentAdminUser = user;
-
-    populateAdminUI(user, userData);
-    await Promise.all([loadSystemConfig(), loadAdminSettingsNotifications()]);
-    setupAvatarPreview();
-    setupAdminProfileSubmit();
-    setupSystemConfigSubmit();
-    setupAdminPasswordSubmit();
-    setupPasswordVisibilityToggles();
+    currentProfile = {
+      uid: user.uid,
+      email: user.email,
+      fullName: data.fullName || user.displayName || user.email.split("@")[0],
+      role,
+      department: data.department || "",
+      avatarUrl: data.avatarUrl || user.photoURL || ""
+    };
+    FastCache.set("user_profile", currentProfile);
+    populateSettingsUI(user, currentProfile);
   } catch (err) {
-    console.error("Admin settings bootstrap error:", err);
+    console.error("Settings load error:", err);
   }
+
+  setupAvatarPreview();
+  setupProfileSubmit();
+  setupPasswordSubmit();
+  setupPasswordVisibilityToggles();
+  await loadSettingsNotificationsBell();
 });
 
-function populateAdminUI(user, data) {
-  const nameInput = document.getElementById("admin-fullname");
-  const emailInput = document.getElementById("admin-email");
-  const avatarPreview = document.getElementById("admin-avatar-preview");
-  const headerName = document.getElementById("header-user-name");
-  const headerRole = document.getElementById("header-user-role");
-  const headerAvatar = document.getElementById("header-user-avatar");
+function populateSettingsUI(user, data) {
+  const nameInput = document.getElementById("settings-fullname");
+  const emailInput = document.getElementById("settings-email");
+  const deptInput = document.getElementById("settings-department");
+  const roleBadge = document.getElementById("settings-role-badge");
+  const avatarPreview = document.getElementById("settings-avatar-preview");
 
-  const resolvedName = data.fullName || user.displayName || "Administrator";
-  const defaultFallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedName)}&background=1b5375&color=faf2dd`;
-  const resolvedAvatar = sanitizeUrl(data.avatarUrl || user.photoURL, defaultFallback);
-  savedAdminAvatarSrc = resolvedAvatar;
+  const resolvedName = data.fullName || user.displayName || "Member";
+  const fallback = `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedName)}&background=1b5375&color=faf2dd`;
+  const resolvedAvatar = sanitizeUrl(data.avatarUrl || user.photoURL, fallback);
 
   if (nameInput) nameInput.value = resolvedName;
   if (emailInput) emailInput.value = user.email || "";
+  if (deptInput) deptInput.value = data.department || "";
+  if (roleBadge) roleBadge.value = (data.role || "student").toUpperCase();
   if (avatarPreview) avatarPreview.src = resolvedAvatar;
-
-  if (headerName) headerName.textContent = resolvedName;
-  if (headerRole) headerRole.textContent = "SYSTEM ADMIN";
-  if (headerAvatar) headerAvatar.src = resolvedAvatar;
 }
 
-async function loadSystemConfig() {
-  try {
-    const configSnap = await getDoc(doc(db, "system", "config"));
-    if (configSnap.exists()) {
-      const config = configSnap.data();
-      const teamSizeInput = document.getElementById("config-max-teamsize");
-      const termInput = document.getElementById("config-academic-term");
-      const modeSelect = document.getElementById("config-registration-mode");
-
-      if (teamSizeInput && config.maxTeamSize) teamSizeInput.value = config.maxTeamSize;
-      if (termInput && config.academicTerm) termInput.value = config.academicTerm;
-      if (modeSelect && config.registrationMode) modeSelect.value = config.registrationMode;
-    }
-  } catch (err) {
-    console.warn("Global system policies not yet initialized; using defaults:", err);
-  }
-}
-
-async function loadAdminSettingsNotifications() {
+async function loadSettingsNotificationsBell() {
   const badge = document.getElementById("notif-badge");
   const list = document.getElementById("notifications-feed-list");
-  if (!list) return;
+  if (!list || !currentUser) return;
 
   try {
-    const snap = await getDocs(query(collection(db, "audit_logs"), orderBy("timestamp", "desc"), limit(5)));
-    const logs = snap.docs.map((d) => d.data());
+    const q = query(collection(db, "notifications"), where("recipientUid", "==", currentUser.uid));
+    const snap = await getDocs(q);
+    const alerts = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((n) => !n.read);
 
     if (badge) {
-      if (logs.length > 0) {
+      if (alerts.length > 0) {
         badge.style.display = "inline-block";
-        badge.textContent = logs.length;
+        badge.textContent = alerts.length;
       } else {
         badge.style.display = "none";
       }
     }
 
-    if (logs.length === 0) {
-      list.innerHTML = `<div class="empty-state"><i class="fas fa-bell-slash"></i><h3>No System Alerts</h3><p>Recent security and policy logs will appear here.</p></div>`;
+    if (alerts.length === 0) {
+      list.innerHTML = `<div class="empty-state"><i class="fas fa-bell-slash"></i><h3>All Caught Up</h3><p>No pending account or moderation alerts.</p></div>`;
       return;
     }
 
-    list.innerHTML = logs
+    list.innerHTML = alerts
       .map(
-        (l) => `
+        (n) => `
         <div class="inspector-meta-item">
           <div class="panel-toolbar">
-            <strong>${escapeHtml(l.category || "SYSTEM")}</strong>
-            <span class="badge-pill">Audit</span>
+            <strong>${escapeHtml(n.title || "Account Alert")}</strong>
+            <span class="badge-pill">${escapeHtml(n.type || "ALERT")}</span>
           </div>
-          <p class="text-muted">${escapeHtml(l.message || "System policy event recorded.")}</p>
+          <p class="text-muted">${escapeHtml(n.reason || n.detail || "Notification received.")}</p>
         </div>`
       )
       .join("");
@@ -142,222 +131,139 @@ async function loadAdminSettingsNotifications() {
 }
 
 function setupAvatarPreview() {
-  const fileInput = document.getElementById("admin-avatar-input");
-  const clearBtn = document.getElementById("btn-clear-admin-avatar");
-  const previewImg = document.getElementById("admin-avatar-preview");
-
+  const fileInput = document.getElementById("settings-avatar-input");
+  const previewImg = document.getElementById("settings-avatar-preview");
   if (!fileInput || !previewImg || fileInput.dataset.bound) return;
   fileInput.dataset.bound = "true";
 
   fileInput.addEventListener("change", () => {
     const file = fileInput.files[0];
-    if (!file) {
-      if (clearBtn) clearBtn.classList.add("is-hidden");
-      if (savedAdminAvatarSrc) previewImg.src = savedAdminAvatarSrc;
-      return;
-    }
+    if (!file) return;
     if (!file.type.startsWith("image/")) {
       alert("Please select a valid image file (PNG, JPG, or WebP).");
       fileInput.value = "";
-      if (clearBtn) clearBtn.classList.add("is-hidden");
       return;
     }
     previewImg.src = URL.createObjectURL(file);
-    if (clearBtn) clearBtn.classList.remove("is-hidden");
   });
-
-  if (clearBtn) {
-    clearBtn.addEventListener("click", () => {
-      fileInput.value = "";
-      clearBtn.classList.add("is-hidden");
-      if (savedAdminAvatarSrc) previewImg.src = savedAdminAvatarSrc;
-    });
-  }
 }
 
-function setupAdminProfileSubmit() {
-  const form = document.getElementById("admin-profile-form");
-  const submitBtn = document.getElementById("btn-save-admin-profile");
-  const statusMsg = document.getElementById("admin-profile-status");
-
+function setupProfileSubmit() {
+  const form = document.getElementById("settings-profile-form");
+  const submitBtn = document.getElementById("btn-save-settings-profile");
+  const statusEl = document.getElementById("settings-profile-status");
   if (!form || form.dataset.bound) return;
   form.dataset.bound = "true";
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-
-    const fullName = document.getElementById("admin-fullname").value.trim();
-    const fileInput = document.getElementById("admin-avatar-input");
-    const clearBtn = document.getElementById("btn-clear-admin-avatar");
+    const fullName = document.getElementById("settings-fullname").value.trim();
+    const department = document.getElementById("settings-department").value.trim();
+    const fileInput = document.getElementById("settings-avatar-input");
 
     if (!fullName) {
-      showStatus(statusMsg, "Full name cannot be empty.", "error");
+      showStatus(statusEl, "Full name cannot be empty.", "error");
       return;
     }
 
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-    showStatus(statusMsg, "", "clear");
+    showStatus(statusEl, "", "clear");
 
     try {
       let finalAvatarUrl = null;
-
       if (fileInput && fileInput.files.length > 0) {
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading to Cloudinary...';
-        const file = fileInput.files[0];
-        const uploadedUrl = await uploadToCloudinary(file, "aimser/avatars");
-        finalAvatarUrl = `${uploadedUrl}?t=${Date.now()}`;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Photo...';
+        const uploaded = await uploadToCloudinary(fileInput.files[0], "aimser/avatars");
+        finalAvatarUrl = `${uploaded}?t=${Date.now()}`;
       }
 
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating System Records...';
-
-      const firestorePayload = {
+      const payload = {
         fullName,
+        department,
         updatedAt: serverTimestamp()
       };
-
-      if (finalAvatarUrl) {
-        firestorePayload.avatarUrl = finalAvatarUrl;
-      }
+      if (finalAvatarUrl) payload.avatarUrl = finalAvatarUrl;
 
       await Promise.all([
-        updateDoc(doc(db, "users", currentAdminUser.uid), firestorePayload),
-        updateProfile(currentAdminUser, {
+        updateDoc(doc(db, "users", currentUser.uid), payload),
+        updateProfile(currentUser, {
           displayName: fullName,
           ...(finalAvatarUrl ? { photoURL: finalAvatarUrl } : {})
         })
       ]);
 
-      const cached = FastCache.get("user_profile") || {};
-      FastCache.set("user_profile", {
-        ...cached,
+      const updatedProfile = {
+        ...(currentProfile || {}),
+        uid: currentUser.uid,
+        email: currentUser.email,
         fullName,
+        department,
         ...(finalAvatarUrl ? { avatarUrl: finalAvatarUrl } : {})
-      });
+      };
+      currentProfile = updatedProfile;
+      FastCache.set("user_profile", updatedProfile);
+      window.dispatchEvent(new CustomEvent("aimser:profile-ready", { detail: updatedProfile }));
 
-      const headerName = document.getElementById("header-user-name");
-      const headerAvatar = document.getElementById("header-user-avatar");
-      const previewImg = document.getElementById("admin-avatar-preview");
-
-      if (headerName) headerName.textContent = fullName;
       if (finalAvatarUrl) {
-        savedAdminAvatarSrc = finalAvatarUrl;
-        if (headerAvatar) headerAvatar.src = finalAvatarUrl;
-        if (previewImg) previewImg.src = finalAvatarUrl;
+        document.getElementById("settings-avatar-preview").src = finalAvatarUrl;
       }
-
       if (fileInput) fileInput.value = "";
-      if (clearBtn) clearBtn.classList.add("is-hidden");
-      await logAuditEvent(`Administrator updated profile identity (${fullName})`, "ADMIN_PROFILE", currentAdminUser.email);
-      await loadAdminSettingsNotifications();
-      showStatus(statusMsg, "Administrator profile updated successfully!", "success");
+
+      await logAuditEvent(`User updated profile identity (${fullName})`, "PROFILE", currentUser.email);
+      showStatus(statusEl, "Profile changes saved successfully!", "success");
     } catch (err) {
-      console.error("Admin profile error:", err);
-      showStatus(statusMsg, err.message || "Failed to update admin profile.", "error");
+      showStatus(statusEl, err.message || "Failed to save profile.", "error");
     } finally {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Admin Profile';
+      submitBtn.innerHTML = '<i class="fas fa-save"></i> Save Profile Changes';
     }
   });
 }
 
-function setupSystemConfigSubmit() {
-  const form = document.getElementById("system-config-form");
-  const submitBtn = document.getElementById("btn-save-system-config");
-  const statusMsg = document.getElementById("system-config-status");
-
+function setupPasswordSubmit() {
+  const form = document.getElementById("settings-password-form");
+  const submitBtn = document.getElementById("btn-save-settings-pw");
+  const statusEl = document.getElementById("settings-password-status");
   if (!form || form.dataset.bound) return;
   form.dataset.bound = "true";
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-
-    const maxTeamSize = Math.min(15, Math.max(2, parseInt(document.getElementById("config-max-teamsize").value, 10) || 15));
-    const academicTerm = document.getElementById("config-academic-term").value.trim();
-    const registrationMode = document.getElementById("config-registration-mode").value;
-
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Policies...';
-    showStatus(statusMsg, "", "clear");
-
-    try {
-      await setDoc(
-        doc(db, "system", "config"),
-        {
-          maxTeamSize,
-          academicTerm: academicTerm || "Active Term",
-          registrationMode: registrationMode || "open",
-          updatedAt: serverTimestamp(),
-          updatedBy: currentAdminUser.email
-        },
-        { merge: true }
-      );
-
-      await logAuditEvent(
-        `Admin updated global policy: mode=[${registrationMode}], maxTeamSize=[${maxTeamSize}]`,
-        "SYSTEM_CONFIG",
-        currentAdminUser.email
-      );
-      await loadAdminSettingsNotifications();
-      showStatus(statusMsg, "Global policies saved and enforced across simulator instances!", "success");
-    } catch (err) {
-      console.error("Config save error:", err);
-      showStatus(statusMsg, err.message || "Failed to save global configurations.", "error");
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="fas fa-sliders-h"></i> Update Global Policies';
-    }
-  });
-}
-
-function setupAdminPasswordSubmit() {
-  const form = document.getElementById("admin-password-form");
-  const submitBtn = document.getElementById("btn-save-admin-pw");
-  const statusMsg = document.getElementById("admin-password-status");
-
-  if (!form || form.dataset.bound) return;
-  form.dataset.bound = "true";
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const currentPw = document.getElementById("admin-current-pw").value;
-    const newPw = document.getElementById("admin-new-pw").value;
-    const confirmPw = document.getElementById("admin-confirm-pw").value;
+    const currentPw = document.getElementById("settings-current-pw").value;
+    const newPw = document.getElementById("settings-new-pw").value;
+    const confirmPw = document.getElementById("settings-confirm-pw").value;
 
     if (newPw !== confirmPw) {
-      showStatus(statusMsg, "New passwords do not match.", "error");
+      showStatus(statusEl, "New passwords do not match.", "error");
       return;
     }
 
     if (newPw.length < 6) {
-      showStatus(statusMsg, "Password must be at least 6 characters.", "error");
+      showStatus(statusEl, "Password must be at least 6 characters.", "error");
       return;
     }
 
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Verifying...';
-    showStatus(statusMsg, "", "clear");
+    showStatus(statusEl, "", "clear");
 
     try {
-      const credential = EmailAuthProvider.credential(currentAdminUser.email, currentPw);
-      await reauthenticateWithCredential(currentAdminUser, credential);
-      await updatePassword(currentAdminUser, newPw);
-
-      await logAuditEvent("Administrator rotated master login password", "SECURITY", currentAdminUser.email);
-      await loadAdminSettingsNotifications();
-      showStatus(statusMsg, "Master administrator password changed successfully!", "success");
+      const cred = EmailAuthProvider.credential(currentUser.email, currentPw);
+      await reauthenticateWithCredential(currentUser, cred);
+      await updatePassword(currentUser, newPw);
+      await logAuditEvent("User rotated account password", "SECURITY", currentUser.email);
+      showStatus(statusEl, "Password updated successfully!", "success");
       form.reset();
     } catch (err) {
-      console.error("Admin password error:", err);
-      const friendly =
+      const msg =
         err.code === "auth/wrong-password" || err.code === "auth/invalid-credential"
-          ? "Current administrator password is incorrect."
+          ? "Current password is incorrect."
           : err.message || "Failed to update password.";
-      showStatus(statusMsg, friendly, "error");
+      showStatus(statusEl, msg, "error");
     } finally {
       submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i class="fas fa-lock"></i> Update Master Password';
+      submitBtn.innerHTML = '<i class="fas fa-lock"></i> Update Password';
     }
   });
 }
@@ -379,15 +285,15 @@ function setupPasswordVisibilityToggles() {
   });
 }
 
-function showStatus(container, message, type) {
-  if (!container) return;
-  if (type === "clear" || !message) {
-    container.style.display = "none";
-    container.textContent = "";
-    container.className = "status-msg";
+function showStatus(el, msg, type) {
+  if (!el) return;
+  if (type === "clear" || !msg) {
+    el.style.display = "none";
+    el.textContent = "";
+    el.className = "status-msg";
     return;
   }
-  container.textContent = message;
-  container.className = `status-msg ${type}`;
-  container.style.display = "block";
+  el.textContent = msg;
+  el.className = `status-msg ${type}`;
+  el.style.display = "block";
 }
