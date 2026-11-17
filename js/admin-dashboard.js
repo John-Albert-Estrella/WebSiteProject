@@ -1,4 +1,4 @@
-// js/admin-dashboard.js - Administrator Management, Uncached Live User Registry, Case Library, HR Feed & Bell Notifications (v=18)
+// js/admin-dashboard.js - Administrator Management, Permanent Account Removal Tombstone, Live User Registry & Bell Notifications (v=18)
 import { auth, db } from "./firebase-init.js";
 import {
   onAuthStateChanged,
@@ -12,6 +12,7 @@ import {
   getDocs,
   getDocsFromServer,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   query,
@@ -114,7 +115,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   try {
-    // Purge any stale user registry cache from sessionStorage immediately
     try {
       sessionStorage.removeItem("aimser_v2_admin_users");
       sessionStorage.removeItem("aimser_v2_admin_metrics");
@@ -241,10 +241,22 @@ async function loadMetrics() {
   const getSafeCount = async (collName) => {
     try {
       const snap = await getDocsFromServer(collection(db, collName));
+      if (collName === "users") {
+        return snap.docs.filter((d) => {
+          const data = d.data() || {};
+          return !data.deleted && data.status !== "removed" && data.role !== "removed";
+        }).length;
+      }
       return snap.size;
     } catch {
       try {
         const snap = await getDocs(collection(db, collName));
+        if (collName === "users") {
+          return snap.docs.filter((d) => {
+            const data = d.data() || {};
+            return !data.deleted && data.status !== "removed" && data.role !== "removed";
+          }).length;
+        }
         return snap.size;
       } catch {
         return 0;
@@ -850,13 +862,12 @@ function renderAuditLogsList(logs) {
     .join("");
 }
 
-// Uncached Live Server-Backed User Registry Loader
+// Uncached Live Server-Backed User Registry Loader (Filters out removed tombstone accounts)
 async function loadUsers() {
   const tbody = document.getElementById("admin-users-table-body");
   if (!tbody) return;
 
   const syncUsersToTable = (docs) => {
-    console.log(`📊 [Admin Registry] Live Firestore users count: ${docs.length}`);
     cachedUsers = docs
       .map((d) => {
         const data = d.data() || {};
@@ -872,6 +883,7 @@ async function loadUsers() {
           _sortTs: tsMillis
         };
       })
+      .filter((u) => !u.deleted && u.status !== "removed" && u.role !== "removed")
       .sort((a, b) => b._sortTs - a._sortTs);
 
     const elUsers = document.getElementById("stat-total-users");
@@ -881,7 +893,11 @@ async function loadUsers() {
 
     if (selectedUserUid) {
       const refreshedUser = cachedUsers.find((u) => u.uid === selectedUserUid);
-      if (refreshedUser) openUserInspector(refreshedUser.uid);
+      if (refreshedUser) {
+        openUserInspector(refreshedUser.uid);
+      } else {
+        closeUserInspector();
+      }
     }
   };
 
@@ -1010,7 +1026,7 @@ function openUserInspector(uid) {
   if (selfNote) selfNote.classList.toggle("is-hidden", !isSelf);
   if (deleteUserBtn) {
     deleteUserBtn.disabled = Boolean(isSelf);
-    deleteUserBtn.title = isSelf ? "Root administrator account cannot be deleted" : "Remove user profile record";
+    deleteUserBtn.title = isSelf ? "Root administrator account cannot be deleted" : "Permanently revoke & remove user account";
   }
 
   const fileInput = document.getElementById("inspector-avatar-input");
@@ -1125,6 +1141,7 @@ function setupUserInspectorPanel() {
     });
   }
 
+  // Permanent Account Removal (Writes Tombstone so Auth-Guard & Login Block Access Forever)
   if (deleteUserBtn && !deleteUserBtn.dataset.bound) {
     deleteUserBtn.dataset.bound = "true";
     deleteUserBtn.addEventListener("click", async () => {
@@ -1138,22 +1155,74 @@ function setupUserInspectorPanel() {
       }
 
       const label = targetUser.email || targetUser.fullName || uid;
-      if (!confirm(`Permanently remove user directory record for "${label}"?`)) return;
+      if (!confirm(`Permanently remove account "${label}"? This user will be blocked from signing in and removed from all classrooms and teams.`)) return;
 
       deleteUserBtn.disabled = true;
       deleteUserBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing...';
 
       try {
-        await deleteDoc(doc(db, "users", uid));
+        // 1. Write Tombstone Record so login.html and auth-guard.js permanently block this UID from signing back in
+        await setDoc(doc(db, "users", uid), {
+          uid,
+          email: targetUser.email || "",
+          deleted: true,
+          status: "removed",
+          role: "removed",
+          removedAt: serverTimestamp(),
+          removedBy: currentAdminUser.email
+        });
+
+        // 2. Also scrub user from any enrolled classrooms and planner teams
+        const targetEmail = (targetUser.email || "").toLowerCase();
+        const cleanupPromises = [];
+
+        cachedSections.forEach((sec) => {
+          const students = sec.students || [];
+          const enrolled = sec.enrolled || [];
+          const hasStudent =
+            students.some((s) => (typeof s === "string" ? s === uid || s.toLowerCase() === targetEmail : s.uid === uid)) ||
+            enrolled.some((s) => (typeof s === "string" ? s === uid || s.toLowerCase() === targetEmail : s.uid === uid));
+
+          if (hasStudent) {
+            const nextStudents = students.filter((s) =>
+              typeof s === "string" ? s !== uid && s.toLowerCase() !== targetEmail : s.uid !== uid
+            );
+            const nextEnrolled = enrolled.filter((s) =>
+              typeof s === "string" ? s !== uid && s.toLowerCase() !== targetEmail : s.uid !== uid
+            );
+            cleanupPromises.push(
+              updateDoc(doc(db, "classrooms", sec.id), {
+                students: nextStudents,
+                enrolled: nextEnrolled
+              }).catch(() => {})
+            );
+          }
+        });
+
+        cachedTeams.forEach((team) => {
+          if ((team.members || []).includes(uid)) {
+            const nextMembers = (team.members || []).filter((m) => m !== uid);
+            cleanupPromises.push(
+              updateDoc(doc(db, "teams", team.id), {
+                members: nextMembers
+              }).catch(() => {})
+            );
+          }
+        });
+
+        await Promise.allSettled(cleanupPromises);
+
         await logAuditEvent(
-          `Admin removed user directory record for ${label}`,
+          `Admin permanently removed account and revoked sign-in access for ${label}`,
           "USER_DELETE",
           currentAdminUser.email
         );
+
         closeUserInspector();
-        await Promise.all([loadUsers(), loadMetrics(), loadAuditLogs()]);
+        await Promise.all([loadUsers(), loadMetrics(), loadSections(), loadTeamsCache(), loadAuditLogs()]);
       } catch (err) {
         showInspectorStatus(statusMsg, err.message || "Failed to remove user record.", "error");
+      } finally {
         deleteUserBtn.disabled = false;
         deleteUserBtn.innerHTML = '<i class="fas fa-user-times"></i> Remove Account';
       }

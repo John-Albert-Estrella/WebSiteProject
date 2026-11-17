@@ -1,7 +1,7 @@
-// js/auth-guard.js - Zero-Buffer Route Protection, Registration Write Lock & Auto-Heal User Registry Sync (v=18)
+// js/auth-guard.js - Zero-Buffer Route Protection, Removed Account Enforcement & Auto-Heal User Registry Sync (v=18)
 import { auth, db } from "./firebase-init.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { doc, getDoc, getDocFromServer, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { FastCache, sanitizeUrl, logAuditEvent } from "./security-utils.js";
 
 const rawPath = window.location.pathname.toLowerCase();
@@ -112,11 +112,11 @@ window.addEventListener("aimser:profile-ready", (e) => {
   if (e.detail) hydrateWorkspaceHeader(e.detail);
 });
 
-// 2. Firebase Auth & Firestore Revalidation + Auto-Heal Registry Sync
+// 2. Firebase Auth & Firestore Revalidation + Removed Account Enforcement
 onAuthStateChanged(auth, async (user) => {
   bindGlobalLogoutButton();
 
-  // Wait if auth.js is actively writing the new user to Firestore on register.html
+  // Wait if auth.js is actively writing a new registration or checking sign-in
   if (
     window.__AIMSER_REGISTERING__ ||
     sessionStorage.getItem("aimser_registering_lock") === "1"
@@ -134,7 +134,12 @@ onAuthStateChanged(auth, async (user) => {
 
   try {
     const userRef = doc(db, "users", user.uid);
-    const userSnap = await getDoc(userRef);
+    let userSnap;
+    try {
+      userSnap = await getDocFromServer(userRef);
+    } catch {
+      userSnap = await getDoc(userRef);
+    }
 
     let pendingReg = null;
     try {
@@ -144,6 +149,21 @@ onAuthStateChanged(auth, async (user) => {
     let userData = {};
     if (userSnap.exists()) {
       userData = userSnap.data() || {};
+
+      // Immediately sign out and block access if the account was removed by an Administrator
+      if (userData.deleted === true || userData.status === "removed" || userData.role === "removed") {
+        FastCache.clearAll();
+        try {
+          sessionStorage.setItem(
+            "aimser_removed_notice",
+            "This account has been removed by the system administrator and can no longer access the workspace."
+          );
+        } catch {}
+        await signOut(auth);
+        safeRedirect("login.html");
+        return;
+      }
+
       const resolvedFullName =
         userData.fullName ||
         (userData.firstName ? `${userData.firstName} ${userData.lastName || ""}`.trim() : "") ||
@@ -166,7 +186,7 @@ onAuthStateChanged(auth, async (user) => {
         } catch {}
       }
     } else {
-      // Automatically create the missing Firestore users/{uid} document so it appears in the Admin User Registry
+      // Auto-heal only if the user document never existed at all
       const fallbackName =
         pendingReg?.fullName ||
         cachedProfile?.fullName ||

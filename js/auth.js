@@ -1,10 +1,11 @@
-// js/auth.js - Sign-In, Role-Based Routing, Password Reset, Landing CTA & Verified Firestore Registration (v=18)
+// js/auth.js - Sign-In (Blocks Removed Accounts), Role-Based Routing, Password Reset & Verified Firestore Registration (v=18)
 import { auth, db } from "./firebase-init.js";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import {
   doc,
@@ -99,13 +100,22 @@ function showAuthStatus(el, msg, type) {
   el.style.display = "block";
 }
 
-// 1. Sign-In Handler (Also Auto-Creates Missing Firestore User Record for Previously Registered Accounts)
+// 1. Sign-In Handler (Rejects Removed Accounts & Auto-Heals Legitimate Missing Profiles)
 function setupLoginForm() {
   const form = document.getElementById("login-form");
   const statusEl = document.getElementById("login-status");
   const submitBtn = document.getElementById("btn-login-submit");
   if (!form || form.dataset.bound) return;
   form.dataset.bound = "true";
+
+  // Show message if redirected after account removal
+  try {
+    const kickedMsg = sessionStorage.getItem("aimser_removed_notice");
+    if (kickedMsg && statusEl) {
+      sessionStorage.removeItem("aimser_removed_notice");
+      showAuthStatus(statusEl, kickedMsg, "error");
+    }
+  } catch {}
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -137,6 +147,24 @@ function setupLoginForm() {
       let userData = {};
       if (userSnap.exists()) {
         userData = userSnap.data() || {};
+
+        // Block sign-in if the account was removed by an Administrator
+        if (userData.deleted === true || userData.status === "removed" || userData.role === "removed") {
+          FastCache.clearAll();
+          await signOut(auth);
+          window.__AIMSER_REGISTERING__ = false;
+          try {
+            sessionStorage.removeItem("aimser_registering_lock");
+          } catch {}
+          showAuthStatus(
+            statusEl,
+            "This account has been removed by the system administrator and can no longer access the workspace.",
+            "error"
+          );
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+          return;
+        }
       } else {
         // Backfill missing Firestore user document for accounts created earlier
         const fallbackName = user.displayName || (user.email ? user.email.split("@")[0] : "Student");
@@ -289,7 +317,7 @@ async function enforceRegistrationPolicy() {
   }
 }
 
-// 4. Account Registration Handler (Verifies Server Write Before Redirecting)
+// 4. Account Registration Handler (Verifies Server Write & Can Reactivate Previously Removed Accounts)
 function setupRegisterForm() {
   const form = document.getElementById("register-form");
   const statusEl = document.getElementById("register-status");
@@ -345,11 +373,35 @@ function setupRegisterForm() {
       );
     } catch {}
 
+    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=1b5375&color=faf2dd`;
+
     try {
       checkRateLimit("register_account", 5, 60000);
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const user = cred.user;
-      const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=1b5375&color=faf2dd`;
+      let user = null;
+
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        user = cred.user;
+      } catch (createErr) {
+        // If this email was previously removed by an Admin (still in Firebase Auth), allow re-registration if they know their password
+        if (createErr.code === "auth/email-already-in-use") {
+          try {
+            const existingCred = await signInWithEmailAndPassword(auth, email, password);
+            const existingSnap = await getDocFromServer(doc(db, "users", existingCred.user.uid));
+            const existingData = existingSnap.exists() ? existingSnap.data() : {};
+            if (!existingSnap.exists() || existingData.deleted === true || existingData.status === "removed") {
+              user = existingCred.user;
+            } else {
+              await signOut(auth);
+              throw createErr;
+            }
+          } catch {
+            throw createErr;
+          }
+        } else {
+          throw createErr;
+        }
+      }
 
       const userDocRef = doc(db, "users", user.uid);
       const userPayload = {
@@ -359,20 +411,19 @@ function setupRegisterForm() {
         role: selectedRole,
         department,
         avatarUrl: defaultAvatar,
+        deleted: false,
+        status: "active",
         createdAt: serverTimestamp(),
         registeredAt: new Date().toISOString(),
         updatedAt: serverTimestamp()
       };
 
       // Write profile to Firestore 'users' collection
-      await setDoc(userDocRef, userPayload, { merge: true });
+      await setDoc(userDocRef, userPayload);
 
-      // Confirm the document is committed on the Firestore server before redirecting
       try {
         await getDocFromServer(userDocRef);
-      } catch (verifyErr) {
-        console.warn("Server read verification notice:", verifyErr);
-      }
+      } catch {}
 
       try {
         await updateProfile(user, {
